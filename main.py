@@ -1,5 +1,6 @@
 import os
 import logging
+import psycopg2
 from datetime import datetime
 from dotenv import load_dotenv
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
@@ -12,20 +13,128 @@ logger = logging.getLogger(__name__)
 
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+DATABASE_URL = os.getenv("DATABASE_URL")
+
 client = OpenAI(api_key=OPENAI_API_KEY)
 
-# Ma'lumotlar saqlash
-user_data = {}
+# === DATABASE ===
 
-def get_user_data(user_id):
-    if user_id not in user_data:
-        user_data[user_id] = {
-            "conversations": [],
-            "moods": [],
-            "journals": [],
-            "language": "uz"
-        }
-    return user_data[user_id]
+def get_db():
+    return psycopg2.connect(DATABASE_URL)
+
+def init_db():
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute('''
+        CREATE TABLE IF NOT EXISTS users (
+            user_id BIGINT PRIMARY KEY,
+            username TEXT,
+            language TEXT DEFAULT 'uz',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    cur.execute('''
+        CREATE TABLE IF NOT EXISTS moods (
+            id SERIAL PRIMARY KEY,
+            user_id BIGINT,
+            score INTEGER,
+            note TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    cur.execute('''
+        CREATE TABLE IF NOT EXISTS journals (
+            id SERIAL PRIMARY KEY,
+            user_id BIGINT,
+            text TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    cur.execute('''
+        CREATE TABLE IF NOT EXISTS conversations (
+            id SERIAL PRIMARY KEY,
+            user_id BIGINT,
+            role TEXT,
+            content TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    conn.commit()
+    cur.close()
+    conn.close()
+    logger.info("✅ Database initialized")
+
+def save_user(user_id, username):
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute('''
+        INSERT INTO users (user_id, username) VALUES (%s, %s)
+        ON CONFLICT (user_id) DO UPDATE SET username = %s
+    ''', (user_id, username, username))
+    conn.commit()
+    cur.close()
+    conn.close()
+
+def save_mood(user_id, score, note=None):
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute('INSERT INTO moods (user_id, score, note) VALUES (%s, %s, %s)', (user_id, score, note))
+    conn.commit()
+    cur.close()
+    conn.close()
+
+def save_journal(user_id, text):
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute('INSERT INTO journals (user_id, text) VALUES (%s, %s)', (user_id, text))
+    conn.commit()
+    cur.close()
+    conn.close()
+
+def get_user_stats(user_id):
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute('SELECT COUNT(*), AVG(score) FROM moods WHERE user_id = %s', (user_id,))
+    mood_count, avg_mood = cur.fetchone()
+    cur.execute('SELECT COUNT(*) FROM journals WHERE user_id = %s', (user_id,))
+    journal_count = cur.fetchone()[0]
+    cur.close()
+    conn.close()
+    return {
+        "mood_count": mood_count or 0,
+        "avg_mood": float(avg_mood) if avg_mood else 0,
+        "journal_count": journal_count or 0
+    }
+
+def save_conversation(user_id, role, content):
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute('INSERT INTO conversations (user_id, role, content) VALUES (%s, %s, %s)', (user_id, role, content))
+    conn.commit()
+    cur.close()
+    conn.close()
+
+def get_conversations(user_id, limit=20):
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute('''
+        SELECT role, content FROM conversations 
+        WHERE user_id = %s ORDER BY created_at DESC LIMIT %s
+    ''', (user_id, limit))
+    rows = cur.fetchall()
+    cur.close()
+    conn.close()
+    return [{"role": r[0], "content": r[1]} for r in reversed(rows)]
+
+def clear_conversations(user_id):
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute('DELETE FROM conversations WHERE user_id = %s', (user_id,))
+    conn.commit()
+    cur.close()
+    conn.close()
+
+# === AI ===
 
 SYSTEM_PROMPT = """Sen MindMate - mehribon va tushunuvchi AI psixolog va hayot yordamchisisan.
 
@@ -44,25 +153,24 @@ Qoidalar:
 """
 
 async def get_ai_response(user_id: int, message: str) -> str:
-    data = get_user_data(user_id)
+    conversations = get_conversations(user_id)
     
-    if len(data["conversations"]) == 0:
-        data["conversations"].append({"role": "system", "content": SYSTEM_PROMPT})
-    
-    data["conversations"].append({"role": "user", "content": message})
-    
-    if len(data["conversations"]) > 21:
-        data["conversations"] = [data["conversations"][0]] + data["conversations"][-20:]
+    messages = [{"role": "system", "content": SYSTEM_PROMPT}]
+    messages.extend(conversations)
+    messages.append({"role": "user", "content": message})
     
     try:
         response = client.chat.completions.create(
             model="gpt-3.5-turbo",
-            messages=data["conversations"],
+            messages=messages,
             max_tokens=500,
             temperature=0.7
         )
         ai_message = response.choices[0].message.content
-        data["conversations"].append({"role": "assistant", "content": ai_message})
+        
+        save_conversation(user_id, "user", message)
+        save_conversation(user_id, "assistant", ai_message)
+        
         return ai_message
     except Exception as e:
         logger.error(f"OpenAI xatosi: {e}")
@@ -71,6 +179,9 @@ async def get_ai_response(user_id: int, message: str) -> str:
 # === BUYRUQLAR ===
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
+    save_user(user.id, user.username)
+    
     keyboard = [
         [InlineKeyboardButton("😊 Kayfiyat", callback_data="mood"),
          InlineKeyboardButton("📝 Kundalik", callback_data="journal")],
@@ -139,24 +250,19 @@ async def meditate_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
-    data = get_user_data(user_id)
+    stats = get_user_stats(user_id)
     
-    mood_count = len(data["moods"])
-    journal_count = len(data["journals"])
-    
-    if mood_count > 0:
-        avg_mood = sum(m["score"] for m in data["moods"]) / mood_count
-        mood_emoji = ["😢", "😔", "😐", "🙂", "😄"][min(4, int(avg_mood) - 1)]
+    if stats["mood_count"] > 0:
+        mood_emoji = ["😢", "😔", "😐", "🙂", "😄"][min(4, int(stats["avg_mood"]) - 1)]
     else:
-        avg_mood = 0
         mood_emoji = "❓"
     
     stats_text = f"""
 📊 **Sizning statistikangiz**
 
-😊 Kayfiyat yozuvlari: {mood_count}
-📝 Kundalik yozuvlari: {journal_count}
-{f"📈 O'rtacha kayfiyat: {mood_emoji} ({avg_mood:.1f}/5)" if mood_count > 0 else ""}
+😊 Kayfiyat yozuvlari: {stats["mood_count"]}
+📝 Kundalik yozuvlari: {stats["journal_count"]}
+{f"📈 O'rtacha kayfiyat: {mood_emoji} ({stats['avg_mood']:.1f}/5)" if stats["mood_count"] > 0 else ""}
 
 💡 Har kuni kayfiyatingizni belgilang va kundalik yozing!
     """
@@ -164,8 +270,7 @@ async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def reset_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
-    if user_id in user_data:
-        user_data[user_id]["conversations"] = []
+    clear_conversations(user_id)
     await update.message.reply_text("🔄 Suhbat yangilandi!")
 
 # === CALLBACK HANDLER ===
@@ -174,11 +279,10 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
     user_id = query.from_user.id
-    data = get_user_data(user_id)
     
     if query.data.startswith("mood_"):
         score = int(query.data.split("_")[1])
-        data["moods"].append({"score": score, "date": datetime.now().isoformat()})
+        save_mood(user_id, score)
         emojis = {1: "😢", 2: "😔", 3: "😐", 4: "🙂", 5: "😄"}
         
         responses = {
@@ -261,21 +365,18 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text(text, parse_mode="Markdown")
     
     elif query.data == "stats":
-        mood_count = len(data["moods"])
-        journal_count = len(data["journals"])
-        if mood_count > 0:
-            avg_mood = sum(m["score"] for m in data["moods"]) / mood_count
-            mood_emoji = ["😢", "😔", "😐", "🙂", "😄"][min(4, int(avg_mood) - 1)]
+        stats = get_user_stats(user_id)
+        if stats["mood_count"] > 0:
+            mood_emoji = ["😢", "😔", "😐", "🙂", "😄"][min(4, int(stats["avg_mood"]) - 1)]
         else:
-            avg_mood = 0
             mood_emoji = "❓"
         
         stats_text = f"""
 📊 **Sizning statistikangiz**
 
-😊 Kayfiyat yozuvlari: {mood_count}
-📝 Kundalik yozuvlari: {journal_count}
-{f"📈 O'rtacha kayfiyat: {mood_emoji} ({avg_mood:.1f}/5)" if mood_count > 0 else ""}
+😊 Kayfiyat yozuvlari: {stats["mood_count"]}
+📝 Kundalik yozuvlari: {stats["journal_count"]}
+{f"📈 O'rtacha kayfiyat: {mood_emoji} ({stats['avg_mood']:.1f}/5)" if stats["mood_count"] > 0 else ""}
         """
         await query.edit_message_text(stats_text, parse_mode="Markdown")
     
@@ -301,17 +402,12 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     user_message = update.message.text
-    data = get_user_data(user_id)
     
-    # Kundalik kutayotgan bo'lsa
     if context.user_data.get("waiting_for") == "journal":
-        data["journals"].append({
-            "text": user_message,
-            "date": datetime.now().isoformat()
-        })
+        save_journal(user_id, user_message)
         context.user_data["waiting_for"] = None
         await update.message.reply_text(
-            "✅ Kundalik saqlandi!\n\n💬 Fikrlaringiz haqida gaplashmqchimisiz?"
+            "✅ Kundalik saqlandi!\n\n💬 Fikrlaringiz haqida gaplashmoqchimisiz?"
         )
         return
     
@@ -328,6 +424,10 @@ def main():
     if not OPENAI_API_KEY:
         logger.error("OPENAI_API_KEY topilmadi!")
         return
+    
+    # Database ni ishga tushirish
+    if DATABASE_URL:
+        init_db()
     
     app = Application.builder().token(TELEGRAM_TOKEN).build()
     
