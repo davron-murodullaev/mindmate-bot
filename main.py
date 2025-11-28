@@ -195,14 +195,14 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     lang = get_user_lang(user.id)
     
     keyboard = [
-    [InlineKeyboardButton(get_text(lang, "btn_mood"), callback_data="mood"),
-     InlineKeyboardButton(get_text(lang, "btn_journal"), callback_data="journal")],
-    [InlineKeyboardButton(get_text(lang, "btn_meditate"), callback_data="meditate"),
-     InlineKeyboardButton(get_text(lang, "btn_stats"), callback_data="stats")],
-    [InlineKeyboardButton(get_text(lang, "btn_chat"), callback_data="chat"),
-     InlineKeyboardButton(get_text(lang, "btn_help"), callback_data="help")],
-    [InlineKeyboardButton("🌍 Language", callback_data="lang")]
-]
+        [InlineKeyboardButton(get_text(lang, "btn_mood"), callback_data="mood"),
+         InlineKeyboardButton(get_text(lang, "btn_journal"), callback_data="journal")],
+        [InlineKeyboardButton(get_text(lang, "btn_meditate"), callback_data="meditate"),
+         InlineKeyboardButton(get_text(lang, "btn_stats"), callback_data="stats")],
+        [InlineKeyboardButton(get_text(lang, "btn_chat"), callback_data="chat"),
+         InlineKeyboardButton(get_text(lang, "btn_help"), callback_data="help")],
+        [InlineKeyboardButton("🌍 Language", callback_data="lang")]
+    ]
     reply_markup = InlineKeyboardMarkup(keyboard)
     
     await update.message.reply_text(get_text(lang, "welcome"), reply_markup=reply_markup, parse_mode="Markdown")
