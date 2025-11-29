@@ -403,10 +403,15 @@ async def safe_edit(query, text, reply_markup=None, parse_mode=None):
     try:
         await query.edit_message_text(text, reply_markup=reply_markup, parse_mode=parse_mode)
     except Exception as e:
+        logger.error(f"Edit xato: {e}")
         try:
-            await query.message.reply_text(text, reply_markup=reply_markup, parse_mode=parse_mode)
+            # Markdown xato bo'lsa, parse_mode siz yuborish
+            await query.edit_message_text(text, reply_markup=reply_markup, parse_mode=None)
         except:
-            pass
+            try:
+                await query.message.reply_text(text, reply_markup=reply_markup, parse_mode=None)
+            except:
+                pass
 
 # === AI BRAIN (JARVIS) ===
 
