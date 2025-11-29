@@ -123,7 +123,6 @@ def get_workout_text(lang, workout_type):
     workout = w.get(workout_type, w["morning"])
     text = f"**{workout['name']}**\n\n"
     text += "\n".join(workout["exercises"])
-    text += "\n\n✅ Bajarib bo'lgach, «Tayyor» tugmasini bosing!"
     return text
 
 def get_workout_buttons(lang):
