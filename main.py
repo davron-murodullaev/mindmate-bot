@@ -11,6 +11,7 @@ from languages import get_text, get_mood_response, TRANSLATIONS
 from fitness import get_workout_text, get_workout_buttons, get_workout_done, get_workout_stats_label
 from healer import get_healer_prompt, get_healer_buttons
 from ai_brain import get_master_prompt
+from motivation import get_daily_quote, get_mood_encouragement, get_time_greeting, get_activity_suggestion
 
 load_dotenv()
 logging.basicConfig(level=logging.INFO)
@@ -565,14 +566,16 @@ Har bir javobda:
 def get_main_menu_keyboard(lang):
     """Bosh menyu tugmalarini yaratish"""
     keyboard = [
-        [InlineKeyboardButton("💬 Suhbat", callback_data="chat"),
+        [InlineKeyboardButton("✨ Kunlik ilhom", callback_data="daily_quote")],
+        [InlineKeyboardButton("💬 AI Suhbat", callback_data="chat"),
          InlineKeyboardButton("🌿 Shifokor", callback_data="healer")],
-        [InlineKeyboardButton(get_text(lang, "btn_mood"), callback_data="mood"),
-         InlineKeyboardButton(get_text(lang, "btn_journal"), callback_data="journal")],
-        [InlineKeyboardButton(get_text(lang, "btn_meditate"), callback_data="meditate"),
+        [InlineKeyboardButton("😊 Kayfiyat", callback_data="mood"),
+         InlineKeyboardButton("📝 Kundalik", callback_data="journal")],
+        [InlineKeyboardButton("🧘 Meditatsiya", callback_data="meditate"),
          InlineKeyboardButton("💪 Fitness", callback_data="fitness")],
-        [InlineKeyboardButton(get_text(lang, "btn_stats"), callback_data="stats"),
-         InlineKeyboardButton("🌍 Til", callback_data="lang")]
+        [InlineKeyboardButton("📊 Statistika", callback_data="stats"),
+         InlineKeyboardButton("🔍 Qidiruv", callback_data="search")],
+        [InlineKeyboardButton("⚙️ Sozlamalar", callback_data="settings")]
     ]
     return InlineKeyboardMarkup(keyboard)
 
@@ -595,7 +598,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     save_user(user.id, user.username, full_name)
     lang = get_user_lang(user.id)
     context.user_data["mode"] = "normal"
-    
+
     # Qaytib kelgan foydalanuvchini tanish
     memories = get_user_memories(user.id)
     name = None
@@ -603,11 +606,14 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if m["key"] == "name":
             name = m["value"]
             break
-    
+
+    # Vaqtga mos salom
+    time_greeting = get_time_greeting(lang)
+
     if name:
-        welcome = f"🌟 Xush kelibsiz, **{name}**! Sizni yana ko'rganimdan xursandman! Bugun qanday yordam bera olaman?"
+        welcome = f"{time_greeting}\n\n🌟 **{name}**, sizni yana ko'rganimdan xursandman!\n\n💝 Bugun sizga qanday yordam bera olaman?"
     else:
-        welcome = get_text(lang, "welcome")
+        welcome = f"{time_greeting}\n\n{get_text(lang, 'welcome')}\n\n💡 **Maslahat:** Ismingizni aytib, men sizni yaxshiroq tanishim mumkin!"
 
     reply_markup = get_main_menu_keyboard(lang)
     await update.message.reply_text(welcome, reply_markup=reply_markup, parse_mode="Markdown")
@@ -788,12 +794,51 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await safe_edit(query, welcome, reply_markup=get_main_menu_keyboard(lang), parse_mode="Markdown")
         return
 
+    # Kunlik ilhom
+    if query.data == "daily_quote":
+        quote = get_daily_quote(lang)
+        text = f"✨ **Bugungi ilhom**\n\n{quote}\n\n💪 Sizga ishonaman! Bugun ajoyib kun bo'ladi!"
+        await safe_edit(query, text, reply_markup=get_back_and_menu_buttons(lang), parse_mode="Markdown")
+        return
+
+    # Qidiruv / Tezkor harakatlar
+    if query.data == "search":
+        keyboard = [
+            [InlineKeyboardButton("😊 Kayfiyatni belgilash", callback_data="mood")],
+            [InlineKeyboardButton("🧘 Tinchlanish mashqi", callback_data="meditate_breathing")],
+            [InlineKeyboardButton("💪 Ertalabki mashq", callback_data="workout_morning")],
+            [InlineKeyboardButton("🌿 Shifokor bilan suhbat", callback_data="healer")],
+            [InlineKeyboardButton("📊 Statistikani ko'rish", callback_data="stats")],
+            [InlineKeyboardButton("⬅️ Orqaga", callback_data="back")]
+        ]
+        text = "🔍 **Tezkor harakatlar**\n\nNima qilmoqchisiz?"
+        await safe_edit(query, text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
+        return
+
+    # Sozlamalar
+    if query.data == "settings":
+        keyboard = [
+            [InlineKeyboardButton("🌍 Til o'zgartirish", callback_data="lang")],
+            [InlineKeyboardButton("🔔 Eslatmalar (tez orada)", callback_data="coming_soon")],
+            [InlineKeyboardButton("🎨 Tema (tez orada)", callback_data="coming_soon")],
+            [InlineKeyboardButton("⬅️ Orqaga", callback_data="back")]
+        ]
+        text = "⚙️ **Sozlamalar**\n\nNimani sozlamoqchisiz?"
+        await safe_edit(query, text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
+        return
+
+    # Tez orada
+    if query.data == "coming_soon":
+        text = "🚀 **Tez orada!**\n\nBu funksiya ustida ishlamoqdamiz. Tez orada qo'shiladi! 🎉"
+        await safe_edit(query, text, reply_markup=get_back_button(lang))
+        return
+
     # Til
     if query.data.startswith("lang_"):
         new_lang = query.data.split("_")[1]
         set_user_lang(user_id, new_lang)
         save_memory(user_id, "preferences", "language", new_lang, importance=2)
-        await safe_edit(query, get_text(new_lang, "lang_changed"))
+        await safe_edit(query, get_text(new_lang, "lang_changed"), reply_markup=get_back_and_menu_buttons(new_lang))
         return
 
     # Chat mode
@@ -852,17 +897,26 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         score = int(query.data.split("_")[1])
         save_mood(user_id, score)
         emojis = {1: "😢", 2: "😔", 3: "😐", 4: "🙂", 5: "😄"}
-        
-        # Kayfiyatga mos javob
-        if score <= 2:
-            follow_up = "\n\n💬 Nima bo'ldi? Gaplashmoqchimisiz? Men sizni tinglayman..."
-        elif score == 3:
-            follow_up = "\n\n🤔 Normal kun. Biror narsa yaxshilash mumkinmi?"
-        else:
-            follow_up = "\n\n🌟 Ajoyib! Bugungi yaxshi kayfiyatingiz davom etsin!"
 
-        response = f"{emojis[score]} Kayfiyatingiz saqlandi: {score}/5{follow_up}"
-        await safe_edit(query, response, reply_markup=get_back_and_menu_buttons(lang))
+        # Motivatsion xabar
+        encouragement = get_mood_encouragement(lang, score)
+
+        # Faoliyat takliflari
+        if score <= 2:
+            mood_type = "sad"
+            activities = get_activity_suggestion(lang, mood_type)
+            activity_text = "\n\n🌟 **Sizga yordam berishi mumkin:**\n" + "\n".join([f"• {a}" for a in activities]) if activities else ""
+        elif score <= 3:
+            mood_type = "stressed"
+            activities = get_activity_suggestion(lang, mood_type)
+            activity_text = "\n\n💡 **Bugun sinab ko'ring:**\n" + "\n".join([f"• {a}" for a in activities]) if activities else ""
+        else:
+            mood_type = "happy"
+            activities = get_activity_suggestion(lang, mood_type)
+            activity_text = "\n\n✨ **Yaxshi kayfiyatingizni saqlang:**\n" + "\n".join([f"• {a}" for a in activities]) if activities else ""
+
+        response = f"{emojis[score]} **Kayfiyatingiz saqlandi: {score}/5**\n\n{encouragement}{activity_text}"
+        await safe_edit(query, response, reply_markup=get_back_and_menu_buttons(lang), parse_mode="Markdown")
         return
 
     # Journal
