@@ -20,7 +20,10 @@ TELEGRAM_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 DATABASE_URL = os.getenv("DATABASE_URL")
 
-client = OpenAI(api_key=OPENAI_API_KEY)
+# OpenAI client - faqat API key mavjud bo'lsa yaratish
+client = None
+if OPENAI_API_KEY:
+    client = OpenAI(api_key=OPENAI_API_KEY)
 
 # === DATABASE ===
 
@@ -117,7 +120,8 @@ def init_db():
             memory_value TEXT,
             importance INTEGER DEFAULT 1,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(user_id, memory_key)
         )
     ''')
     
@@ -204,13 +208,13 @@ def save_memory(user_id, memory_type, key, value, importance=1):
         return
     cur = conn.cursor()
     cur.execute('''
-        INSERT INTO user_memories (user_id, memory_type, memory_key, memory_value, importance)
-        VALUES (%s, %s, %s, %s, %s)
-        ON CONFLICT ON CONSTRAINT unique_user_memory DO UPDATE SET
-            memory_value = %s,
-            importance = %s,
+        INSERT INTO user_memories (user_id, memory_type, memory_key, memory_value, importance, updated_at)
+        VALUES (%s, %s, %s, %s, %s, NOW())
+        ON CONFLICT (user_id, memory_key) DO UPDATE SET
+            memory_value = EXCLUDED.memory_value,
+            importance = EXCLUDED.importance,
             updated_at = NOW()
-    ''', (user_id, memory_type, key, value, importance, value, importance))
+    ''', (user_id, memory_type, key, value, importance))
     conn.commit()
     cur.close()
     conn.close()
@@ -469,8 +473,11 @@ Agar ma'lumot bo'lmasa, null yoz. Faqat JSON, boshqa hech narsa!"""
         logger.error(f"Memory extraction error: {e}")
 
 async def get_ai_response(user_id: int, message: str, mode: str = "normal") -> str:
+    if not client:
+        return "⚠️ AI xizmati hozirda mavjud emas. Iltimos .env faylni sozlang va OPENAI_API_KEY ni qo'shing."
+
     lang = get_user_lang(user_id)
-    
+
     # Foydalanuvchi haqida ma'lumotlar
     profile = get_user_profile(user_id)
     memories = get_user_memories(user_id)
@@ -932,15 +939,19 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 def main():
     if not TELEGRAM_TOKEN:
-        logger.error("TELEGRAM_BOT_TOKEN topilmadi!")
+        logger.error("❌ TELEGRAM_BOT_TOKEN topilmadi!")
+        logger.error("📝 .env faylni yarating va TELEGRAM_BOT_TOKEN qo'shing")
+        logger.error("💡 .env.example faylini ko'rib chiqing")
         return
     if not OPENAI_API_KEY:
-        logger.error("OPENAI_API_KEY topilmadi!")
-        return
-    
+        logger.warning("⚠️ OPENAI_API_KEY topilmadi! AI funksiyalar ishlamaydi.")
+        logger.warning("📝 .env fayliga OPENAI_API_KEY qo'shishni unutmang")
+
     if DATABASE_URL:
         init_db()
-    
+    else:
+        logger.warning("⚠️ DATABASE_URL topilmadi! Ma'lumotlar saqlanmaydi.")
+
     app = Application.builder().token(TELEGRAM_TOKEN).build()
     
     app.add_handler(CommandHandler("start", start))

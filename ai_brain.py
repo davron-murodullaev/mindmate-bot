@@ -125,8 +125,11 @@ Oldingi ma'lumotlardan foydalanib, shaxsiylashtirilgan javob ber.""",
 }
 
 def get_master_prompt(lang, user_profile="", conversation_history=""):
-    prompt = MASTER_PROMPT.get(lang, MASTER_PROMPT["en"])
-    return prompt.format(
-        user_profile=user_profile or "Hali ma'lumot yo'q",
-        conversation_history=conversation_history or "Yangi foydalanuvchi"
-    )
+    prompt = MASTER_PROMPT.get(lang, MASTER_PROMPT["uz"])
+    # Format only if placeholders exist
+    if "{user_profile}" in prompt and "{conversation_history}" in prompt:
+        return prompt.format(
+            user_profile=user_profile or "Hali ma'lumot yo'q",
+            conversation_history=conversation_history or "Yangi foydalanuvchi"
+        )
+    return prompt
