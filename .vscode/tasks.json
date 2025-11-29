@@ -1,0 +1,99 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "🚀 Run Bot",
+            "type": "shell",
+            "command": "${workspaceFolder}/venv/Scripts/python.exe",
+            "args": [
+                "main.py"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "📦 Install Dependencies",
+            "type": "shell",
+            "command": "${workspaceFolder}/venv/Scripts/pip.exe",
+            "args": [
+                "install",
+                "-r",
+                "requirements.txt"
+            ],
+            "presentation": {
+                "reveal": "always"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "🔄 Update Dependencies",
+            "type": "shell",
+            "command": "${workspaceFolder}/venv/Scripts/pip.exe",
+            "args": [
+                "install",
+                "--upgrade",
+                "-r",
+                "requirements.txt"
+            ],
+            "presentation": {
+                "reveal": "always"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "📝 Git: Add All Changes",
+            "type": "shell",
+            "command": "git",
+            "args": [
+                "add",
+                "-A"
+            ],
+            "problemMatcher": []
+        },
+        {
+            "label": "🚢 Git: Push to GitHub",
+            "type": "shell",
+            "command": "git",
+            "args": [
+                "push",
+                "origin",
+                "keen-germain"
+            ],
+            "presentation": {
+                "reveal": "always"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "🔍 Check Code Style (pylint)",
+            "type": "shell",
+            "command": "${workspaceFolder}/venv/Scripts/pylint.exe",
+            "args": [
+                "main.py"
+            ],
+            "presentation": {
+                "reveal": "always"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "🧹 Format Code (autopep8)",
+            "type": "shell",
+            "command": "${workspaceFolder}/venv/Scripts/autopep8.exe",
+            "args": [
+                "--in-place",
+                "--aggressive",
+                "--aggressive",
+                "${file}"
+            ],
+            "problemMatcher": []
+        }
+    ]
+}
