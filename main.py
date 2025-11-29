@@ -236,13 +236,115 @@ async def safe_edit(query, text, reply_markup=None, parse_mode=None):
         except Exception as e2:
             logger.error(f"fallback reply xato: {e2}")
 
+# === UI HELPERS (PREMIUM STYLE) ===
+
+def get_home_text(lang: str) -> str:
+    texts = {
+        "uz": (
+            "🌟 *MindMate – sizning shaxsiy AI hamrohingiz*\n\n"
+            "Men sizga quyidagilarda yordam bera olaman:\n"
+            "• 🙂 Kayfiyatni kuzatish va tahlil qilish\n"
+            "• 📝 Kundalik orqali o'zingizni yozib borish\n"
+            "• 🧘 Meditatsiya va tinchlanish mashqlari\n"
+            "• 💪 Eng oddiy uy sharoitidagi mashqlar\n"
+            "• 💬 Iliq suhbat va ruhiy ko‘mak\n\n"
+            "Quyidagi menyudan tanlang yoki shunchaki yozishni boshlang."
+        ),
+        "ru": (
+            "🌟 *MindMate – твой личный AI-помощник*\n\n"
+            "Я могу помочь тебе с:\n"
+            "• 🙂 Отслеживанием настроения\n"
+            "• 📝 Ведением личного дневника\n"
+            "• 🧘 Медитациями и расслаблением\n"
+            "• 💪 Лёгкими домашними тренировками\n"
+            "• 💬 Тёплой поддерживающей беседой\n\n"
+            "Выбери пункт в меню или просто напиши сообщение."
+        ),
+        "en": (
+            "🌟 *MindMate – your personal AI companion*\n\n"
+            "I can help you with:\n"
+            "• 🙂 Tracking and reflecting on your mood\n"
+            "• 📝 Writing a gentle daily journal\n"
+            "• 🧘 Short calming meditations\n"
+            "• 💪 Simple at-home workouts\n"
+            "• 💬 Supportive, human-like conversations\n\n"
+            "Pick an option from the menu or just start typing."
+        )
+    }
+    return texts.get(lang, texts["en"])
+
+def get_main_menu_keyboard(lang: str) -> InlineKeyboardMarkup:
+    # callback_data lar eski logika bilan bir xil
+    keyboard = [
+        [
+            InlineKeyboardButton("🙂 Kayfiyat", callback_data="mood"),
+            InlineKeyboardButton("📝 Kundalik", callback_data="journal"),
+        ],
+        [
+            InlineKeyboardButton("🧘 Meditatsiya", callback_data="meditate"),
+            InlineKeyboardButton("💪 Fitness", callback_data="fitness"),
+        ],
+        [
+            InlineKeyboardButton("📊 Statistika", callback_data="stats"),
+            InlineKeyboardButton("💬 AI bilan suhbat", callback_data="chat"),
+        ],
+        [
+            InlineKeyboardButton("🌍 Language", callback_data="lang"),
+            InlineKeyboardButton("❓ Yordam", callback_data="help"),
+        ],
+    ]
+    return InlineKeyboardMarkup(keyboard)
+
+def get_mood_keyboard() -> InlineKeyboardMarkup:
+    keyboard = [
+        [InlineKeyboardButton("😄 Juda yaxshi (5)", callback_data="mood_5")],
+        [InlineKeyboardButton("🙂 Yaxshi (4)", callback_data="mood_4")],
+        [InlineKeyboardButton("😐 O‘rtacha (3)", callback_data="mood_3")],
+        [InlineKeyboardButton("😔 Yomon (2)", callback_data="mood_2")],
+        [InlineKeyboardButton("😢 Juda yomon (1)", callback_data="mood_1")],
+        [InlineKeyboardButton("🏠 Bosh menyu", callback_data="home")],
+    ]
+    return InlineKeyboardMarkup(keyboard)
+
+def get_meditate_menu_keyboard(lang: str) -> InlineKeyboardMarkup:
+    keyboard = [
+        [
+            InlineKeyboardButton(get_text(lang, "meditate_breathing"), callback_data="meditate_breathing")
+        ],
+        [
+            InlineKeyboardButton(get_text(lang, "meditate_calm"), callback_data="meditate_calm")
+        ],
+        [
+            InlineKeyboardButton(get_text(lang, "meditate_sleep"), callback_data="meditate_sleep")
+        ],
+        [
+            InlineKeyboardButton("🏠 Bosh menyu", callback_data="home")
+        ]
+    ]
+    return InlineKeyboardMarkup(keyboard)
+
+def get_back_home_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup([[InlineKeyboardButton("🏠 Bosh menyu", callback_data="home")]])
+
 # === AI ===
 
 def get_system_prompt(lang):
     prompts = {
-        "uz": "Sen MindMate - mehribon AI psixolog. O'zbek tilida gapir. Qisqa va samimiy javob ber (3-5 gap).",
-        "ru": "Ты MindMate - добрый AI психолог. Говори на русском. Отвечай кратко и душевно (3-5 предложений).",
-        "en": "You are MindMate - a kind AI psychologist. Speak English. Give short, warm responses (3-5 sentences)."
+        "uz": (
+            "Sen MindMate – mehribon, sokin ohangda gapiradigan AI psixologsan. "
+            "O'zbek tilida yoz. 3–5 gap atrofida qisqa, ammo samimiy, tushunarli va "
+            "tinchlantiruvchi javoblar ber. Nasihat berayotganda muloyim bo‘l."
+        ),
+        "ru": (
+            "Ты MindMate – добрый, спокойный AI-психолог. Говори на русском. "
+            "Отвечай коротко (3–5 предложений), тепло и поддерживающе. "
+            "Избегай сухой, формальной речи."
+        ),
+        "en": (
+            "You are MindMate – a calm, kind AI psychologist. Speak in warm, natural English. "
+            "Answer in 3–5 sentences, with supportive and practical advice. "
+            "Avoid sounding like a robot or a lecturer."
+        ),
     }
     return prompts.get(lang, prompts["en"])
 
@@ -277,58 +379,51 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     save_user(user.id, user.username)
     lang = get_user_lang(user.id)
-    
-    keyboard = [
-        [InlineKeyboardButton(get_text(lang, "btn_mood"), callback_data="mood"),
-         InlineKeyboardButton(get_text(lang, "btn_journal"), callback_data="journal")],
-        [InlineKeyboardButton(get_text(lang, "btn_meditate"), callback_data="meditate"),
-         InlineKeyboardButton("💪 Fitness", callback_data="fitness")],
-        [InlineKeyboardButton(get_text(lang, "btn_stats"), callback_data="stats"),
-         InlineKeyboardButton(get_text(lang, "btn_help"), callback_data="help")],
-        [InlineKeyboardButton("🌍 Language", callback_data="lang")]
-    ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    
-    await update.message.reply_text(get_text(lang, "welcome"), reply_markup=reply_markup, parse_mode="Markdown")
+
+    text = get_home_text(lang)
+    keyboard = get_main_menu_keyboard(lang)
+    await update.message.reply_text(text, reply_markup=keyboard, parse_mode="Markdown")
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     lang = get_user_lang(update.effective_user.id)
-    await update.message.reply_text(get_text(lang, "help"), parse_mode="Markdown")
+    # mavjud help matnini premium ko‘rinishda chiqaramiz
+    base_help = get_text(lang, "help")
+    text = f"❓ *Yordam*\n\n{base_help}\n\n" \
+           "💡 *Maslahat:* agar nima yozishni bilmasangiz, shunchaki kayfiyatingizni yoki bugungi kuningizni tasvirlab bering."
+    await update.message.reply_text(text, parse_mode="Markdown", reply_markup=get_back_home_keyboard())
 
 async def mood_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     lang = get_user_lang(update.effective_user.id)
-    keyboard = [
-        [InlineKeyboardButton(get_text(lang, "mood_5"), callback_data="mood_5"),
-         InlineKeyboardButton(get_text(lang, "mood_4"), callback_data="mood_4")],
-        [InlineKeyboardButton(get_text(lang, "mood_3"), callback_data="mood_3"),
-         InlineKeyboardButton(get_text(lang, "mood_2"), callback_data="mood_2")],
-        [InlineKeyboardButton(get_text(lang, "mood_1"), callback_data="mood_1")]
-    ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    await update.message.reply_text(get_text(lang, "mood_ask"), reply_markup=reply_markup)
+    text = get_text(lang, "mood_ask")
+    await update.message.reply_text(text, reply_markup=get_mood_keyboard())
 
 async def journal_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     lang = get_user_lang(update.effective_user.id)
     context.user_data["waiting_for"] = "journal"
-    await update.message.reply_text(get_text(lang, "journal_ask"), parse_mode="Markdown")
+    text = get_text(lang, "journal_ask")
+    await update.message.reply_text(text, parse_mode="Markdown", reply_markup=get_back_home_keyboard())
 
 async def meditate_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     lang = get_user_lang(update.effective_user.id)
-    keyboard = [
-        [InlineKeyboardButton(get_text(lang, "meditate_breathing"), callback_data="meditate_breathing"),
-         InlineKeyboardButton(get_text(lang, "meditate_calm"), callback_data="meditate_calm")],
-        [InlineKeyboardButton(get_text(lang, "meditate_sleep"), callback_data="meditate_sleep")]
-    ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    await update.message.reply_text(get_text(lang, "meditate_ask"), reply_markup=reply_markup)
+    text = get_text(lang, "meditate_ask")
+    await update.message.reply_text(text, reply_markup=get_meditate_menu_keyboard(lang))
 
 async def fitness_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     lang = get_user_lang(update.effective_user.id)
     btns = get_workout_buttons(lang)
     keyboard = [
-        [InlineKeyboardButton(btns["morning"], callback_data="workout_morning"),
-         InlineKeyboardButton(btns["energy"], callback_data="workout_energy")],
-        [InlineKeyboardButton(btns["relax"], callback_data="workout_relax")]
+        [
+            InlineKeyboardButton(btns["morning"], callback_data="workout_morning")
+        ],
+        [
+            InlineKeyboardButton(btns["energy"], callback_data="workout_energy")
+        ],
+        [
+            InlineKeyboardButton(btns["relax"], callback_data="workout_relax")
+        ],
+        [
+            InlineKeyboardButton("🏠 Bosh menyu", callback_data="home")
+        ]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
     await update.message.reply_text(btns["ask"], reply_markup=reply_markup)
@@ -341,32 +436,43 @@ async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     if stats["mood_count"] > 0:
         mood_emoji = ["😢", "😔", "😐", "🙂", "😄"][min(4, int(stats["avg_mood"]) - 1)]
+        avg_line = f"{get_text(lang, 'stats_avg')}: {mood_emoji} ({stats['avg_mood']:.1f}/5)"
     else:
         mood_emoji = "❓"
-    
-    stats_text = f"""
-{get_text(lang, "stats_title")}
+        avg_line = ""
 
-{get_text(lang, "stats_moods")}: {stats["mood_count"]}  
-{get_text(lang, "stats_journals")}: {stats["journal_count"]}  
-{get_workout_stats_label(lang)}: {workout_count}  
-{f"{get_text(lang, 'stats_avg')}: {mood_emoji} ({stats['avg_mood']:.1f}/5)" if stats["mood_count"] > 0 else ""}
+    text = (
+        f"📊 *{get_text(lang, 'stats_title')}*\n\n"
+        f"{get_text(lang, 'stats_moods')}: *{stats['mood_count']}*\n"
+        f"{get_text(lang, 'stats_journals')}: *{stats['journal_count']}*\n"
+        f"{get_workout_stats_label(lang)}: *{workout_count}*\n"
+    )
+    if avg_line:
+        text += f"{avg_line}\n"
 
-{get_text(lang, "stats_tip")}
-    """
-    await update.message.reply_text(stats_text, parse_mode="Markdown")
+    text += f"\n{get_text(lang, 'stats_tip')}"
+    await update.message.reply_text(text, parse_mode="Markdown", reply_markup=get_back_home_keyboard())
 
 async def reset_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     lang = get_user_lang(user_id)
     clear_conversations(user_id)
-    await update.message.reply_text(get_text(lang, "reset_done"))
+    await update.message.reply_text(get_text(lang, "reset_done"), reply_markup=get_back_home_keyboard())
 
 async def lang_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
-        [InlineKeyboardButton("🇺🇿 O'zbekcha", callback_data="lang_uz"),
-         InlineKeyboardButton("🇷🇺 Русский", callback_data="lang_ru")],
-        [InlineKeyboardButton("🇬🇧 English", callback_data="lang_en")]
+        [
+            InlineKeyboardButton("🇺🇿 O'zbekcha", callback_data="lang_uz")
+        ],
+        [
+            InlineKeyboardButton("🇷🇺 Русский", callback_data="lang_ru")
+        ],
+        [
+            InlineKeyboardButton("🇬🇧 English", callback_data="lang_en")
+        ],
+        [
+            InlineKeyboardButton("🏠 Bosh menyu", callback_data="home")
+        ]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
     await update.message.reply_text("🌍 Tilni tanlang / Choose language:", reply_markup=reply_markup)
@@ -379,11 +485,16 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = query.from_user.id
     lang = get_user_lang(user_id)
 
+    # Bosh menyuga qaytish
+    if query.data == "home":
+        await safe_edit(query, get_home_text(lang), reply_markup=get_main_menu_keyboard(lang), parse_mode="Markdown")
+        return
+
     # Til o'zgartirish
     if query.data.startswith("lang_"):
         new_lang = query.data.split("_")[1]
         set_user_lang(user_id, new_lang)
-        await safe_edit(query, get_text(new_lang, "lang_changed"))
+        await safe_edit(query, get_text(new_lang, "lang_changed"), reply_markup=get_main_menu_keyboard(new_lang))
         return
     
     # Kayfiyat saqlash
@@ -392,84 +503,89 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         save_mood(user_id, score)
         emojis = {1: "😢", 2: "😔", 3: "😐", 4: "🙂", 5: "😄"}
         response = get_mood_response(lang, score)
-        await safe_edit(query, f"{emojis[score]} {get_text(lang, 'mood_saved')}\n\n{response}")
+        text = f"{emojis[score]} {get_text(lang, 'mood_saved')}\n\n{response}"
+        await safe_edit(query, text, reply_markup=get_back_home_keyboard())
         return
 
     # Workout done
     if query.data.startswith("workout_done_"):
         workout_type = query.data.split("_")[2]
         save_workout(user_id, workout_type)
-        await safe_edit(query, get_workout_done(lang))
+        await safe_edit(query, get_workout_done(lang), reply_markup=get_back_home_keyboard())
         return
 
     # Workout start
     if query.data.startswith("workout_") and not query.data.startswith("workout_done_"):
         workout_type = query.data.split("_")[1]
         text = get_workout_text(lang, workout_type)
-        keyboard = [[InlineKeyboardButton("✅ Tayyor / Done", callback_data=f"workout_done_{workout_type}")]]
+        keyboard = [
+            [
+                InlineKeyboardButton("✅ Tayyor / Done", callback_data=f"workout_done_{workout_type}")
+            ],
+            [
+                InlineKeyboardButton("🏠 Bosh menyu", callback_data="home")
+            ]
+        ]
         await safe_edit(query, text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
         return
     
     if query.data == "fitness":
         btns = get_workout_buttons(lang)
         keyboard = [
-            [InlineKeyboardButton(btns["morning"], callback_data="workout_morning"),
-             InlineKeyboardButton(btns["energy"], callback_data="workout_energy")],
-            [InlineKeyboardButton(btns["relax"], callback_data="workout_relax")]
+            [
+                InlineKeyboardButton(btns["morning"], callback_data="workout_morning")
+            ],
+            [
+                InlineKeyboardButton(btns["energy"], callback_data="workout_energy")
+            ],
+            [
+                InlineKeyboardButton(btns["relax"], callback_data="workout_relax")
+            ],
+            [
+                InlineKeyboardButton("🏠 Bosh menyu", callback_data="home")
+            ]
         ]
         await safe_edit(query, btns["ask"], reply_markup=InlineKeyboardMarkup(keyboard))
         return
 
     if query.data == "mood":
-        keyboard = [
-            [InlineKeyboardButton(get_text(lang, "mood_5"), callback_data="mood_5"),
-             InlineKeyboardButton(get_text(lang, "mood_4"), callback_data="mood_4")],
-            [InlineKeyboardButton(get_text(lang, "mood_3"), callback_data="mood_3"),
-             InlineKeyboardButton(get_text(lang, "mood_2"), callback_data="mood_2")],
-            [InlineKeyboardButton(get_text(lang, "mood_1"), callback_data="mood_1")]
-        ]
-        await safe_edit(query, get_text(lang, "mood_ask"), reply_markup=InlineKeyboardMarkup(keyboard))
+        await safe_edit(query, get_text(lang, "mood_ask"), reply_markup=get_mood_keyboard())
         return
 
     if query.data == "journal":
         context.user_data["waiting_for"] = "journal"
-        await safe_edit(query, get_text(lang, "journal_ask"), parse_mode="Markdown")
+        await safe_edit(query, get_text(lang, "journal_ask"), reply_markup=get_back_home_keyboard(), parse_mode="Markdown")
         return
 
     if query.data == "meditate":
-        keyboard = [
-            [InlineKeyboardButton(get_text(lang, "meditate_breathing"), callback_data="meditate_breathing"),
-             InlineKeyboardButton(get_text(lang, "meditate_calm"), callback_data="meditate_calm")],
-            [InlineKeyboardButton(get_text(lang, "meditate_sleep"), callback_data="meditate_sleep")]
-        ]
-        await safe_edit(query, get_text(lang, "meditate_ask"), reply_markup=InlineKeyboardMarkup(keyboard))
+        await safe_edit(query, get_text(lang, "meditate_ask"), reply_markup=get_meditate_menu_keyboard(lang))
         return
 
     if query.data == "meditate_breathing":
         texts = {
-            "uz": "🌬️ **Nafas olish (2 daq)**\n\n1. 4 soniya nafas oling\n2. 4 soniya ushlab turing\n3. 4 soniya chiqaring\n4. 5 marta takrorlang",
-            "ru": "🌬️ **Дыхание (2 мин)**\n\n1. 4 сек вдох\n2. 4 сек задержка\n3. 4 сек выдох\n4. Повторите 5 раз",
-            "en": "🌬️ **Breathing (2 min)**\n\n1. 4 sec inhale\n2. 4 sec hold\n3. 4 sec exhale\n4. Repeat 5 times"
+            "uz": "🌬️ **Nafas olish (2 daq)**\n\n1. 4 soniya nafas oling\n2. 4 soniya ushlab turing\n3. 4 soniya chiqaring\n4. Buni 5 marta takrorlang.\n\nSekin va ongli nafas oling.",
+            "ru": "🌬️ **Дыхание (2 мин)**\n\n1. 4 секунды вдох\n2. 4 секунды задержка\n3. 4 секунды выдох\n4. Повторите 5 раз.\n\nДышите спокойно и осознанно.",
+            "en": "🌬️ **Breathing (2 min)**\n\n1. Inhale for 4 seconds\n2. Hold for 4 seconds\n3. Exhale for 4 seconds\n4. Repeat 5 times.\n\nBreathe slowly and stay present."
         }
-        await safe_edit(query, texts.get(lang, texts["en"]), parse_mode="Markdown")
+        await safe_edit(query, texts.get(lang, texts["en"]), reply_markup=get_back_home_keyboard(), parse_mode="Markdown")
         return
 
     if query.data == "meditate_calm":
         texts = {
-            "uz": "🧘 **Tinchlanish (5 daq)**\n\n1. Qulay o'tiring\n2. Ko'zni yuming\n3. Nafasga e'tibor bering\n4. Fikrlarni qo'yib yuboring",
-            "ru": "🧘 **Спокойствие (5 мин)**\n\n1. Сядьте удобно\n2. Закройте глаза\n3. Следите за дыханием\n4. Отпустите мысли",
-            "en": "🧘 **Calm (5 min)**\n\n1. Sit comfortably\n2. Close your eyes\n3. Focus on breath\n4. Let thoughts go"
+            "uz": "🧘 **Tinchlanish (5 daq)**\n\n1. Qulay o'tiring\n2. Ko'zingizni yuming\n3. Nafasingizni kuzating\n4. Kelgan fikrlarni sudlamang, shunchaki qo'yib yuboring.",
+            "ru": "🧘 **Спокойствие (5 мин)**\n\n1. Сядьте удобно\n2. Закройте глаза\n3. Наблюдайте за дыханием\n4. Мысли не оценивайте, просто отпускайте.",
+            "en": "🧘 **Calm (5 min)**\n\n1. Sit comfortably\n2. Close your eyes\n3. Watch your breath\n4. Don’t judge thoughts, just let them pass."
         }
-        await safe_edit(query, texts.get(lang, texts["en"]), parse_mode="Markdown")
+        await safe_edit(query, texts.get(lang, texts["en"]), reply_markup=get_back_home_keyboard(), parse_mode="Markdown")
         return
 
     if query.data == "meditate_sleep":
         texts = {
-            "uz": "😴 **Uyqu (10 daq)**\n\n1. Yoting va ko'z yuming\n2. Tanani bo'shating\n3. Sekin nafas oling\n4. Uyquga cho'ming\n\n🌙 Yoqimli tushlar!",
-            "ru": "😴 **Сон (10 мин)**\n\n1. Лягте и закройте глаза\n2. Расслабьте тело\n3. Дышите медленно\n4. Погрузитесь в сон\n\n🌙 Сладких снов!",
-            "en": "😴 **Sleep (10 min)**\n\n1. Lie down, close eyes\n2. Relax your body\n3. Breathe slowly\n4. Drift into sleep\n\n🌙 Sweet dreams!"
+            "uz": "😴 **Uyquga tayyorgarlik (10 daq)**\n\n1. Yotib, tanangizni bo‘shating\n2. Nafasingizni sekinlashtiring\n3. Har bir mushakni navbatma-navbat bo‘sh qo‘ying\n4. Fikrlar kelib ketsa ham, ularga yopishib olmang.\n\n🌙 Yoqimli tushlar!",
+            "ru": "😴 **Подготовка ко сну (10 мин)**\n\n1. Лягте и расслабьте тело\n2. Замедлите дыхание\n3. Поочередно расслабляйте мышцы\n4. Мысли пусть приходят и уходят.\n\n🌙 Сладких снов!",
+            "en": "😴 **Sleep wind-down (10 min)**\n\n1. Lie down and relax your body\n2. Slow down your breathing\n3. Gently relax each muscle group\n4. Let thoughts come and go.\n\n🌙 Sweet dreams!"
         }
-        await safe_edit(query, texts.get(lang, texts["en"]), parse_mode="Markdown")
+        await safe_edit(query, texts.get(lang, texts["en"]), reply_markup=get_back_home_keyboard(), parse_mode="Markdown")
         return
 
     if query.data == "stats":
@@ -477,35 +593,46 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         workout_count = get_workout_count(user_id)
         if stats["mood_count"] > 0:
             mood_emoji = ["😢", "😔", "😐", "🙂", "😄"][min(4, int(stats["avg_mood"]) - 1)]
+            avg_line = f"{get_text(lang, 'stats_avg')}: {mood_emoji} ({stats['avg_mood']:.1f}/5)"
         else:
-            mood_emoji = "❓"
+            avg_line = ""
 
-        stats_text = f"""
-{get_text(lang, "stats_title")}
+        text = (
+            f"📊 *{get_text(lang, 'stats_title')}*\n\n"
+            f"{get_text(lang, 'stats_moods')}: *{stats['mood_count']}*\n"
+            f"{get_text(lang, 'stats_journals')}: *{stats['journal_count']}*\n"
+            f"{get_workout_stats_label(lang)}: *{workout_count}*\n"
+        )
+        if avg_line:
+            text += f"{avg_line}\n"
 
-{get_text(lang, "stats_moods")}: {stats["mood_count"]}
-{get_text(lang, "stats_journals")}: {stats["journal_count"]}
-{get_workout_stats_label(lang)}: {workout_count}
-{f"{get_text(lang, 'stats_avg')}: {mood_emoji} ({stats['avg_mood']:.1f}/5)" if stats["mood_count"] > 0 else ""}
-        """
-        await safe_edit(query, stats_text, parse_mode="Markdown")
+        text += f"\n{get_text(lang, 'stats_tip')}"
+        await safe_edit(query, text, reply_markup=get_back_home_keyboard(), parse_mode="Markdown")
         return
 
     if query.data == "chat":
-        await safe_edit(query, get_text(lang, "chat_start"))
+        await safe_edit(query, get_text(lang, "chat_start"), reply_markup=get_back_home_keyboard())
         return
 
     if query.data == "help":
-        await safe_edit(query, get_text(lang, "help"), parse_mode="Markdown")
+        base_help = get_text(lang, "help")
+        text = f"❓ *Yordam*\n\n{base_help}\n\n" \
+               "💡 *Tip:* Menga savol, muammo yoki his-tuyg'ularingizni yozishingiz mumkin."
+        await safe_edit(query, text, reply_markup=get_back_home_keyboard(), parse_mode="Markdown")
         return
 
     if query.data == "lang":
         keyboard = [
-            [InlineKeyboardButton("🇺🇿 O'zbekcha", callback_data="lang_uz"),
-             InlineKeyboardButton("🇷🇺 Русский", callback_data="lang_ru")],
-            [InlineKeyboardButton("🇬🇧 English", callback_data="lang_en")]
+            [InlineKeyboardButton("🇺🇿 O'zbekcha", callback_data="lang_uz")],
+            [InlineKeyboardButton("🇷🇺 Русский", callback_data="lang_ru")],
+            [InlineKeyboardButton("🇬🇧 English", callback_data="lang_en")],
+            [InlineKeyboardButton("🏠 Bosh menyu", callback_data="home")],
         ]
-        await safe_edit(query, get_text(lang, "lang_ask"), reply_markup=InlineKeyboardMarkup(keyboard))
+        await safe_edit(
+            query,
+            get_text(lang, "lang_ask"),
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
         return
 
 # === XABAR HANDLER ===
@@ -518,12 +645,12 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if context.user_data.get("waiting_for") == "journal":
         save_journal(user_id, user_message)
         context.user_data["waiting_for"] = None
-        await update.message.reply_text(get_text(lang, "journal_saved"))
+        await update.message.reply_text(get_text(lang, "journal_saved"), reply_markup=get_back_home_keyboard())
         return
     
     await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
     response = await get_ai_response(user_id, user_message)
-    await update.message.reply_text(response)
+    await update.message.reply_text(response, reply_markup=get_back_home_keyboard())
 
 # === MAIN ===
 
