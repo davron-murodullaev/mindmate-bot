@@ -1,12 +1,13 @@
 import os
 import logging
-from psycopg import connect as pg_connect
+import psycopg
 from datetime import datetime
 from dotenv import load_dotenv
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, filters, ContextTypes
 from openai import OpenAI
 from languages import get_text, get_mood_response, TRANSLATIONS
+from fitness import get_workout_text, get_workout_buttons, get_workout_done, get_workout_stats_label
 
 load_dotenv()
 logging.basicConfig(level=logging.INFO)
@@ -21,7 +22,7 @@ client = OpenAI(api_key=OPENAI_API_KEY)
 # === DATABASE ===
 
 def get_db():
-    return pg_connect(DATABASE_URL)
+    return psycopg.connect(DATABASE_URL)
 
 def init_db():
     conn = get_db()
@@ -57,6 +58,14 @@ def init_db():
             user_id BIGINT,
             role TEXT,
             content TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    cur.execute('''
+        CREATE TABLE IF NOT EXISTS workouts (
+            id SERIAL PRIMARY KEY,
+            user_id BIGINT,
+            workout_type TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ''')
@@ -124,6 +133,23 @@ def get_user_stats(user_id):
         "journal_count": journal_count or 0
     }
 
+def save_workout(user_id, workout_type):
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute('INSERT INTO workouts (user_id, workout_type) VALUES (%s, %s)', (user_id, workout_type))
+    conn.commit()
+    cur.close()
+    conn.close()
+
+def get_workout_count(user_id):
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute('SELECT COUNT(*) FROM workouts WHERE user_id = %s', (user_id,))
+    count = cur.fetchone()[0]
+    cur.close()
+    conn.close()
+    return count or 0
+
 def save_conversation(user_id, role, content):
     conn = get_db()
     cur = conn.cursor()
@@ -156,9 +182,9 @@ def clear_conversations(user_id):
 
 def get_system_prompt(lang):
     prompts = {
-        "uz": """Sen MindMate - mehribon AI psixolog. O'zbek tilida gapir. Qisqa va samimiy javob ber (3-5 gap).""",
-        "ru": """Ты MindMate - добрый AI психолог. Говори на русском. Отвечай кратко и душевно (3-5 предложений).""",
-        "en": """You are MindMate - a kind AI psychologist. Speak English. Give short, warm responses (3-5 sentences)."""
+        "uz": "Sen MindMate - mehribon AI psixolog. O'zbek tilida gapir. Qisqa va samimiy javob ber (3-5 gap).",
+        "ru": "Ты MindMate - добрый AI психолог. Говори на русском. Отвечай кратко и душевно (3-5 предложений).",
+        "en": "You are MindMate - a kind AI psychologist. Speak English. Give short, warm responses (3-5 sentences)."
     }
     return prompts.get(lang, prompts["en"])
 
@@ -198,8 +224,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton(get_text(lang, "btn_mood"), callback_data="mood"),
          InlineKeyboardButton(get_text(lang, "btn_journal"), callback_data="journal")],
         [InlineKeyboardButton(get_text(lang, "btn_meditate"), callback_data="meditate"),
-         InlineKeyboardButton(get_text(lang, "btn_stats"), callback_data="stats")],
-        [InlineKeyboardButton(get_text(lang, "btn_chat"), callback_data="chat"),
+         InlineKeyboardButton("💪 Fitness", callback_data="fitness")],
+        [InlineKeyboardButton(get_text(lang, "btn_stats"), callback_data="stats"),
          InlineKeyboardButton(get_text(lang, "btn_help"), callback_data="help")],
         [InlineKeyboardButton("🌍 Language", callback_data="lang")]
     ]
@@ -238,10 +264,22 @@ async def meditate_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     reply_markup = InlineKeyboardMarkup(keyboard)
     await update.message.reply_text(get_text(lang, "meditate_ask"), reply_markup=reply_markup)
 
+async def fitness_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    lang = get_user_lang(update.effective_user.id)
+    btns = get_workout_buttons(lang)
+    keyboard = [
+        [InlineKeyboardButton(btns["morning"], callback_data="workout_morning"),
+         InlineKeyboardButton(btns["energy"], callback_data="workout_energy")],
+        [InlineKeyboardButton(btns["relax"], callback_data="workout_relax")]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await update.message.reply_text(btns["ask"], reply_markup=reply_markup)
+
 async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     lang = get_user_lang(user_id)
     stats = get_user_stats(user_id)
+    workout_count = get_workout_count(user_id)
     
     if stats["mood_count"] > 0:
         mood_emoji = ["😢", "😔", "😐", "🙂", "😄"][min(4, int(stats["avg_mood"]) - 1)]
@@ -253,6 +291,7 @@ async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 {get_text(lang, "stats_moods")}: {stats["mood_count"]}
 {get_text(lang, "stats_journals")}: {stats["journal_count"]}
+{get_workout_stats_label(lang)}: {workout_count}
 {f"{get_text(lang, 'stats_avg')}: {mood_emoji} ({stats['avg_mood']:.1f}/5)" if stats["mood_count"] > 0 else ""}
 
 {get_text(lang, "stats_tip")}
@@ -296,6 +335,30 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         emojis = {1: "😢", 2: "😔", 3: "😐", 4: "🙂", 5: "😄"}
         response = get_mood_response(lang, score)
         await query.edit_message_text(f"{emojis[score]} {get_text(lang, 'mood_saved')}\n\n{response}")
+        return
+    
+    # Workout
+    if query.data.startswith("workout_done_"):
+        workout_type = query.data.split("_")[2]
+        save_workout(user_id, workout_type)
+        await query.edit_message_text(get_workout_done(lang))
+        return
+    
+    if query.data.startswith("workout_"):
+        workout_type = query.data.split("_")[1]
+        text = get_workout_text(lang, workout_type)
+        keyboard = [[InlineKeyboardButton("✅ Tayyor / Done", callback_data=f"workout_done_{workout_type}")]]
+        await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
+        return
+    
+    if query.data == "fitness":
+        btns = get_workout_buttons(lang)
+        keyboard = [
+            [InlineKeyboardButton(btns["morning"], callback_data="workout_morning"),
+             InlineKeyboardButton(btns["energy"], callback_data="workout_energy")],
+            [InlineKeyboardButton(btns["relax"], callback_data="workout_relax")]
+        ]
+        await query.edit_message_text(btns["ask"], reply_markup=InlineKeyboardMarkup(keyboard))
         return
     
     if query.data == "mood":
@@ -346,6 +409,7 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     elif query.data == "stats":
         stats = get_user_stats(user_id)
+        workout_count = get_workout_count(user_id)
         if stats["mood_count"] > 0:
             mood_emoji = ["😢", "😔", "😐", "🙂", "😄"][min(4, int(stats["avg_mood"]) - 1)]
         else:
@@ -355,6 +419,7 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 {get_text(lang, "stats_moods")}: {stats["mood_count"]}
 {get_text(lang, "stats_journals")}: {stats["journal_count"]}
+{get_workout_stats_label(lang)}: {workout_count}
 {f"{get_text(lang, 'stats_avg')}: {mood_emoji} ({stats['avg_mood']:.1f}/5)" if stats["mood_count"] > 0 else ""}
         """
         await query.edit_message_text(stats_text, parse_mode="Markdown")
@@ -410,6 +475,7 @@ def main():
     app.add_handler(CommandHandler("mood", mood_command))
     app.add_handler(CommandHandler("journal", journal_command))
     app.add_handler(CommandHandler("meditate", meditate_command))
+    app.add_handler(CommandHandler("fitness", fitness_command))
     app.add_handler(CommandHandler("stats", stats_command))
     app.add_handler(CommandHandler("reset", reset_command))
     app.add_handler(CommandHandler("lang", lang_command))
