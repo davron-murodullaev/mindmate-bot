@@ -22,11 +22,16 @@ client = OpenAI(api_key=OPENAI_API_KEY)
 # === DATABASE ===
 
 def get_db():
-    return psycopg2.connect(DATABASE_URL, sslmode="require")
-
+    try:
+        return psycopg2.connect(DATABASE_URL, sslmode="require")
+    except Exception as e:
+        logger.error(f"❌ DB ulanish xatosi: {e}")
+        return None
 
 def init_db():
     conn = get_db()
+    if conn is None:
+        return
     cur = conn.cursor()
     cur.execute('''
         CREATE TABLE IF NOT EXISTS users (
@@ -77,6 +82,9 @@ def init_db():
 
 def save_user(user_id, username, lang="uz"):
     conn = get_db()
+    if conn is None:
+        logger.error("DB yo'q (save_user)")
+        return
     cur = conn.cursor()
     cur.execute('''
         INSERT INTO users (user_id, username, language) VALUES (%s, %s, %s)
@@ -88,6 +96,9 @@ def save_user(user_id, username, lang="uz"):
 
 def get_user_lang(user_id):
     conn = get_db()
+    if conn is None:
+        logger.error("DB yo'q (get_user_lang)")
+        return "uz"
     cur = conn.cursor()
     cur.execute('SELECT language FROM users WHERE user_id = %s', (user_id,))
     row = cur.fetchone()
@@ -97,6 +108,9 @@ def get_user_lang(user_id):
 
 def set_user_lang(user_id, lang):
     conn = get_db()
+    if conn is None:
+        logger.error("DB yo'q (set_user_lang)")
+        return
     cur = conn.cursor()
     cur.execute('UPDATE users SET language = %s WHERE user_id = %s', (lang, user_id))
     conn.commit()
@@ -105,6 +119,9 @@ def set_user_lang(user_id, lang):
 
 def save_mood(user_id, score, note=None):
     conn = get_db()
+    if conn is None:
+        logger.error("DB yo'q (save_mood)")
+        return
     cur = conn.cursor()
     cur.execute('INSERT INTO moods (user_id, score, note) VALUES (%s, %s, %s)', (user_id, score, note))
     conn.commit()
@@ -113,6 +130,9 @@ def save_mood(user_id, score, note=None):
 
 def save_journal(user_id, text):
     conn = get_db()
+    if conn is None:
+        logger.error("DB yo'q (save_journal)")
+        return
     cur = conn.cursor()
     cur.execute('INSERT INTO journals (user_id, text) VALUES (%s, %s)', (user_id, text))
     conn.commit()
@@ -121,6 +141,9 @@ def save_journal(user_id, text):
 
 def get_user_stats(user_id):
     conn = get_db()
+    if conn is None:
+        logger.error("DB yo'q (get_user_stats)")
+        return {"mood_count": 0, "avg_mood": 0, "journal_count": 0}
     cur = conn.cursor()
     cur.execute('SELECT COUNT(*), AVG(score) FROM moods WHERE user_id = %s', (user_id,))
     mood_count, avg_mood = cur.fetchone()
@@ -136,6 +159,9 @@ def get_user_stats(user_id):
 
 def save_workout(user_id, workout_type):
     conn = get_db()
+    if conn is None:
+        logger.error("DB yo'q (save_workout)")
+        return
     cur = conn.cursor()
     cur.execute('INSERT INTO workouts (user_id, workout_type) VALUES (%s, %s)', (user_id, workout_type))
     conn.commit()
@@ -144,6 +170,9 @@ def save_workout(user_id, workout_type):
 
 def get_workout_count(user_id):
     conn = get_db()
+    if conn is None:
+        logger.error("DB yo'q (get_workout_count)")
+        return 0
     cur = conn.cursor()
     cur.execute('SELECT COUNT(*) FROM workouts WHERE user_id = %s', (user_id,))
     count = cur.fetchone()[0]
@@ -153,6 +182,9 @@ def get_workout_count(user_id):
 
 def save_conversation(user_id, role, content):
     conn = get_db()
+    if conn is None:
+        logger.error("DB yo'q (save_conversation)")
+        return
     cur = conn.cursor()
     cur.execute('INSERT INTO conversations (user_id, role, content) VALUES (%s, %s, %s)', (user_id, role, content))
     conn.commit()
@@ -161,6 +193,9 @@ def save_conversation(user_id, role, content):
 
 def get_conversations(user_id, limit=20):
     conn = get_db()
+    if conn is None:
+        logger.error("DB yo'q (get_conversations)")
+        return []
     cur = conn.cursor()
     cur.execute('''
         SELECT role, content FROM conversations 
@@ -173,11 +208,33 @@ def get_conversations(user_id, limit=20):
 
 def clear_conversations(user_id):
     conn = get_db()
+    if conn is None:
+        logger.error("DB yo'q (clear_conversations)")
+        return
     cur = conn.cursor()
     cur.execute('DELETE FROM conversations WHERE user_id = %s', (user_id,))
     conn.commit()
     cur.close()
     conn.close()
+
+# === SAFE EDIT ===
+async def safe_edit(query, text, reply_markup=None, parse_mode=None):
+    try:
+        await query.edit_message_text(
+            text,
+            reply_markup=reply_markup,
+            parse_mode=parse_mode
+        )
+    except Exception as e:
+        logger.error(f"edit_message_text xato: {e}")
+        try:
+            await query.message.reply_text(
+                text,
+                reply_markup=reply_markup,
+                parse_mode=parse_mode
+            )
+        except Exception as e2:
+            logger.error(f"fallback reply xato: {e2}")
 
 # === AI ===
 
@@ -290,9 +347,9 @@ async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     stats_text = f"""
 {get_text(lang, "stats_title")}
 
-{get_text(lang, "stats_moods")}: {stats["mood_count"]}
-{get_text(lang, "stats_journals")}: {stats["journal_count"]}
-{get_workout_stats_label(lang)}: {workout_count}
+{get_text(lang, "stats_moods")}: {stats["mood_count"]}  
+{get_text(lang, "stats_journals")}: {stats["journal_count"]}  
+{get_workout_stats_label(lang)}: {workout_count}  
 {f"{get_text(lang, 'stats_avg')}: {mood_emoji} ({stats['avg_mood']:.1f}/5)" if stats["mood_count"] > 0 else ""}
 
 {get_text(lang, "stats_tip")}
@@ -321,12 +378,12 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
     user_id = query.from_user.id
     lang = get_user_lang(user_id)
-    
+
     # Til o'zgartirish
     if query.data.startswith("lang_"):
         new_lang = query.data.split("_")[1]
         set_user_lang(user_id, new_lang)
-        await query.edit_message_text(get_text(new_lang, "lang_changed"))
+        await safe_edit(query, get_text(new_lang, "lang_changed"))
         return
     
     # Kayfiyat saqlash
@@ -335,21 +392,22 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         save_mood(user_id, score)
         emojis = {1: "😢", 2: "😔", 3: "😐", 4: "🙂", 5: "😄"}
         response = get_mood_response(lang, score)
-        await query.edit_message_text(f"{emojis[score]} {get_text(lang, 'mood_saved')}\n\n{response}")
+        await safe_edit(query, f"{emojis[score]} {get_text(lang, 'mood_saved')}\n\n{response}")
         return
-    
-    # Workout
+
+    # Workout done
     if query.data.startswith("workout_done_"):
         workout_type = query.data.split("_")[2]
         save_workout(user_id, workout_type)
-        await query.edit_message_text(get_workout_done(lang))
+        await safe_edit(query, get_workout_done(lang))
         return
-    
-    if query.data.startswith("workout_"):
+
+    # Workout start
+    if query.data.startswith("workout_") and not query.data.startswith("workout_done_"):
         workout_type = query.data.split("_")[1]
         text = get_workout_text(lang, workout_type)
         keyboard = [[InlineKeyboardButton("✅ Tayyor / Done", callback_data=f"workout_done_{workout_type}")]]
-        await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
+        await safe_edit(query, text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
         return
     
     if query.data == "fitness":
@@ -359,9 +417,9 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
              InlineKeyboardButton(btns["energy"], callback_data="workout_energy")],
             [InlineKeyboardButton(btns["relax"], callback_data="workout_relax")]
         ]
-        await query.edit_message_text(btns["ask"], reply_markup=InlineKeyboardMarkup(keyboard))
+        await safe_edit(query, btns["ask"], reply_markup=InlineKeyboardMarkup(keyboard))
         return
-    
+
     if query.data == "mood":
         keyboard = [
             [InlineKeyboardButton(get_text(lang, "mood_5"), callback_data="mood_5"),
@@ -370,51 +428,58 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
              InlineKeyboardButton(get_text(lang, "mood_2"), callback_data="mood_2")],
             [InlineKeyboardButton(get_text(lang, "mood_1"), callback_data="mood_1")]
         ]
-        await query.edit_message_text(get_text(lang, "mood_ask"), reply_markup=InlineKeyboardMarkup(keyboard))
-    
-    elif query.data == "journal":
+        await safe_edit(query, get_text(lang, "mood_ask"), reply_markup=InlineKeyboardMarkup(keyboard))
+        return
+
+    if query.data == "journal":
         context.user_data["waiting_for"] = "journal"
-        await query.edit_message_text(get_text(lang, "journal_ask"), parse_mode="Markdown")
-    
-    elif query.data == "meditate":
+        await safe_edit(query, get_text(lang, "journal_ask"), parse_mode="Markdown")
+        return
+
+    if query.data == "meditate":
         keyboard = [
             [InlineKeyboardButton(get_text(lang, "meditate_breathing"), callback_data="meditate_breathing"),
              InlineKeyboardButton(get_text(lang, "meditate_calm"), callback_data="meditate_calm")],
             [InlineKeyboardButton(get_text(lang, "meditate_sleep"), callback_data="meditate_sleep")]
         ]
-        await query.edit_message_text(get_text(lang, "meditate_ask"), reply_markup=InlineKeyboardMarkup(keyboard))
-    
-    elif query.data == "meditate_breathing":
+        await safe_edit(query, get_text(lang, "meditate_ask"), reply_markup=InlineKeyboardMarkup(keyboard))
+        return
+
+    if query.data == "meditate_breathing":
         texts = {
             "uz": "🌬️ **Nafas olish (2 daq)**\n\n1. 4 soniya nafas oling\n2. 4 soniya ushlab turing\n3. 4 soniya chiqaring\n4. 5 marta takrorlang",
             "ru": "🌬️ **Дыхание (2 мин)**\n\n1. 4 сек вдох\n2. 4 сек задержка\n3. 4 сек выдох\n4. Повторите 5 раз",
             "en": "🌬️ **Breathing (2 min)**\n\n1. 4 sec inhale\n2. 4 sec hold\n3. 4 sec exhale\n4. Repeat 5 times"
         }
-        await query.edit_message_text(texts.get(lang, texts["en"]), parse_mode="Markdown")
-    
-    elif query.data == "meditate_calm":
+        await safe_edit(query, texts.get(lang, texts["en"]), parse_mode="Markdown")
+        return
+
+    if query.data == "meditate_calm":
         texts = {
             "uz": "🧘 **Tinchlanish (5 daq)**\n\n1. Qulay o'tiring\n2. Ko'zni yuming\n3. Nafasga e'tibor bering\n4. Fikrlarni qo'yib yuboring",
             "ru": "🧘 **Спокойствие (5 мин)**\n\n1. Сядьте удобно\n2. Закройте глаза\n3. Следите за дыханием\n4. Отпустите мысли",
             "en": "🧘 **Calm (5 min)**\n\n1. Sit comfortably\n2. Close your eyes\n3. Focus on breath\n4. Let thoughts go"
         }
-        await query.edit_message_text(texts.get(lang, texts["en"]), parse_mode="Markdown")
-    
-    elif query.data == "meditate_sleep":
+        await safe_edit(query, texts.get(lang, texts["en"]), parse_mode="Markdown")
+        return
+
+    if query.data == "meditate_sleep":
         texts = {
             "uz": "😴 **Uyqu (10 daq)**\n\n1. Yoting va ko'z yuming\n2. Tanani bo'shating\n3. Sekin nafas oling\n4. Uyquga cho'ming\n\n🌙 Yoqimli tushlar!",
             "ru": "😴 **Сон (10 мин)**\n\n1. Лягте и закройте глаза\n2. Расслабьте тело\n3. Дышите медленно\n4. Погрузитесь в сон\n\n🌙 Сладких снов!",
-            "en": "😴 **Sleep (10 min)**\n\n1. Lie down, close eyes\n2. Relax your body\n3. Breathe slowly\n4. Drift to sleep\n\n🌙 Sweet dreams!"
+            "en": "😴 **Sleep (10 min)**\n\n1. Lie down, close eyes\n2. Relax your body\n3. Breathe slowly\n4. Drift into sleep\n\n🌙 Sweet dreams!"
         }
-        await query.edit_message_text(texts.get(lang, texts["en"]), parse_mode="Markdown")
-    
-    elif query.data == "stats":
+        await safe_edit(query, texts.get(lang, texts["en"]), parse_mode="Markdown")
+        return
+
+    if query.data == "stats":
         stats = get_user_stats(user_id)
         workout_count = get_workout_count(user_id)
         if stats["mood_count"] > 0:
             mood_emoji = ["😢", "😔", "😐", "🙂", "😄"][min(4, int(stats["avg_mood"]) - 1)]
         else:
             mood_emoji = "❓"
+
         stats_text = f"""
 {get_text(lang, "stats_title")}
 
@@ -423,21 +488,25 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 {get_workout_stats_label(lang)}: {workout_count}
 {f"{get_text(lang, 'stats_avg')}: {mood_emoji} ({stats['avg_mood']:.1f}/5)" if stats["mood_count"] > 0 else ""}
         """
-        await query.edit_message_text(stats_text, parse_mode="Markdown")
-    
-    elif query.data == "chat":
-        await query.edit_message_text(get_text(lang, "chat_start"))
-    
-    elif query.data == "help":
-        await query.edit_message_text(get_text(lang, "help"), parse_mode="Markdown")
-    
-    elif query.data == "lang":
+        await safe_edit(query, stats_text, parse_mode="Markdown")
+        return
+
+    if query.data == "chat":
+        await safe_edit(query, get_text(lang, "chat_start"))
+        return
+
+    if query.data == "help":
+        await safe_edit(query, get_text(lang, "help"), parse_mode="Markdown")
+        return
+
+    if query.data == "lang":
         keyboard = [
             [InlineKeyboardButton("🇺🇿 O'zbekcha", callback_data="lang_uz"),
              InlineKeyboardButton("🇷🇺 Русский", callback_data="lang_ru")],
             [InlineKeyboardButton("🇬🇧 English", callback_data="lang_en")]
         ]
-        await query.edit_message_text(get_text(lang, "lang_ask"), reply_markup=InlineKeyboardMarkup(keyboard))
+        await safe_edit(query, get_text(lang, "lang_ask"), reply_markup=InlineKeyboardMarkup(keyboard))
+        return
 
 # === XABAR HANDLER ===
 
