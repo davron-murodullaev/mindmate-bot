@@ -403,6 +403,16 @@ def get_healer_count(user_id):
     return count or 0
 
 # === SAFE EDIT ===
+def escape_markdown(text):
+    """Markdown maxsus belgilaridan qochish"""
+    if not text:
+        return text
+    # Markdown maxsus belgilari
+    special_chars = ['_', '*', '[', ']', '(', ')', '~', '`', '>', '#', '+', '-', '=', '|', '{', '}', '.', '!']
+    for char in special_chars:
+        text = text.replace(char, f'\\{char}')
+    return text
+
 async def safe_edit(query, text, reply_markup=None, parse_mode=None):
     try:
         await query.edit_message_text(text, reply_markup=reply_markup, parse_mode=parse_mode)
@@ -673,18 +683,20 @@ async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     workout_count = get_workout_count(user_id)
     healer_count = get_healer_count(user_id)
     memories = get_user_memories(user_id)
-    
+
     if stats["mood_count"] > 0:
         mood_emoji = ["😢", "😔", "😐", "🙂", "😄"][min(4, int(stats["avg_mood"]) - 1)]
     else:
         mood_emoji = "❓"
-    
-    # Xotiradan ma'lumotlar
+
+    # Xotiradan ma'lumotlar - Markdown escape bilan
     memory_info = ""
     for m in memories[:5]:
         if m["key"] != "last_mood":
-            memory_info += f"• {m['key']}: {m['value']}\n"
-    
+            safe_key = escape_markdown(str(m['key']))
+            safe_value = escape_markdown(str(m['value']))
+            memory_info += f"• {safe_key}: {safe_value}\n"
+
     stats_text = f"""
 📊 **Sizning statistikangiz**
 
