@@ -560,6 +560,33 @@ Har bir javobda:
         logger.error(f"OpenAI xatosi: {e}")
         return get_text(lang, "error")
 
+# === HELPER FUNCTIONS ===
+
+def get_main_menu_keyboard(lang):
+    """Bosh menyu tugmalarini yaratish"""
+    keyboard = [
+        [InlineKeyboardButton("💬 Suhbat", callback_data="chat"),
+         InlineKeyboardButton("🌿 Shifokor", callback_data="healer")],
+        [InlineKeyboardButton(get_text(lang, "btn_mood"), callback_data="mood"),
+         InlineKeyboardButton(get_text(lang, "btn_journal"), callback_data="journal")],
+        [InlineKeyboardButton(get_text(lang, "btn_meditate"), callback_data="meditate"),
+         InlineKeyboardButton("💪 Fitness", callback_data="fitness")],
+        [InlineKeyboardButton(get_text(lang, "btn_stats"), callback_data="stats"),
+         InlineKeyboardButton("🌍 Til", callback_data="lang")]
+    ]
+    return InlineKeyboardMarkup(keyboard)
+
+def get_back_button(lang="uz"):
+    """Orqaga tugmasini yaratish"""
+    return InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ Orqaga", callback_data="back")]])
+
+def get_back_and_menu_buttons(lang="uz"):
+    """Orqaga va Bosh menyu tugmalarini yaratish"""
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton("⬅️ Orqaga", callback_data="back"),
+         InlineKeyboardButton("🏠 Bosh menyu", callback_data="main_menu")]
+    ])
+
 # === COMMANDS ===
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -581,18 +608,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         welcome = f"🌟 Xush kelibsiz, **{name}**! Sizni yana ko'rganimdan xursandman! Bugun qanday yordam bera olaman?"
     else:
         welcome = get_text(lang, "welcome")
-    
-    keyboard = [
-        [InlineKeyboardButton("💬 Suhbat", callback_data="chat"),
-         InlineKeyboardButton("🌿 Shifokor", callback_data="healer")],
-        [InlineKeyboardButton(get_text(lang, "btn_mood"), callback_data="mood"),
-         InlineKeyboardButton(get_text(lang, "btn_journal"), callback_data="journal")],
-        [InlineKeyboardButton(get_text(lang, "btn_meditate"), callback_data="meditate"),
-         InlineKeyboardButton("💪 Fitness", callback_data="fitness")],
-        [InlineKeyboardButton(get_text(lang, "btn_stats"), callback_data="stats"),
-         InlineKeyboardButton("🌍 Til", callback_data="lang")]
-    ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    reply_markup = get_main_menu_keyboard(lang)
     await update.message.reply_text(welcome, reply_markup=reply_markup, parse_mode="Markdown")
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -737,6 +754,40 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = query.from_user.id
     lang = get_user_lang(user_id)
 
+    # Bosh menyu
+    if query.data == "main_menu":
+        memories = get_user_memories(user_id)
+        name = None
+        for m in memories:
+            if m["key"] == "name":
+                name = m["value"]
+                break
+
+        if name:
+            welcome = f"🌟 Xush kelibsiz, **{name}**! Bugun qanday yordam bera olaman?"
+        else:
+            welcome = get_text(lang, "welcome")
+
+        await safe_edit(query, welcome, reply_markup=get_main_menu_keyboard(lang), parse_mode="Markdown")
+        return
+
+    # Orqaga (bosh menyuga qaytish)
+    if query.data == "back":
+        memories = get_user_memories(user_id)
+        name = None
+        for m in memories:
+            if m["key"] == "name":
+                name = m["value"]
+                break
+
+        if name:
+            welcome = f"🌟 **{name}**, bosh menyudasiz. Nima qilamiz?"
+        else:
+            welcome = "🏠 Bosh menyu"
+
+        await safe_edit(query, welcome, reply_markup=get_main_menu_keyboard(lang), parse_mode="Markdown")
+        return
+
     # Til
     if query.data.startswith("lang_"):
         new_lang = query.data.split("_")[1]
@@ -783,7 +834,20 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await safe_edit(query, text, parse_mode="Markdown")
         return
 
-    # Mood
+    # Mood - birinchi click (menu ko'rsatish)
+    if query.data == "mood":
+        keyboard = [
+            [InlineKeyboardButton("😄 Zo'r (5)", callback_data="mood_5"),
+             InlineKeyboardButton("🙂 Yaxshi (4)", callback_data="mood_4")],
+            [InlineKeyboardButton("😐 Normal (3)", callback_data="mood_3"),
+             InlineKeyboardButton("😔 Yomon (2)", callback_data="mood_2")],
+            [InlineKeyboardButton("😢 Juda yomon (1)", callback_data="mood_1")],
+            [InlineKeyboardButton("⬅️ Orqaga", callback_data="back")]
+        ]
+        await safe_edit(query, get_text(lang, "mood_ask"), reply_markup=InlineKeyboardMarkup(keyboard))
+        return
+
+    # Mood - ikkinchi click (ballni tanlash)
     if query.data.startswith("mood_") and query.data[5:].isdigit():
         score = int(query.data.split("_")[1])
         save_mood(user_id, score)
@@ -796,15 +860,15 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             follow_up = "\n\n🤔 Normal kun. Biror narsa yaxshilash mumkinmi?"
         else:
             follow_up = "\n\n🌟 Ajoyib! Bugungi yaxshi kayfiyatingiz davom etsin!"
-        
+
         response = f"{emojis[score]} Kayfiyatingiz saqlandi: {score}/5{follow_up}"
-        await safe_edit(query, response)
+        await safe_edit(query, response, reply_markup=get_back_and_menu_buttons(lang))
         return
 
     # Journal
     if query.data == "journal":
         context.user_data["waiting_for"] = "journal"
-        await safe_edit(query, get_text(lang, "journal_ask"), parse_mode="Markdown")
+        await safe_edit(query, get_text(lang, "journal_ask"), reply_markup=get_back_button(lang), parse_mode="Markdown")
         return
 
     # Meditate
@@ -812,7 +876,8 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         keyboard = [
             [InlineKeyboardButton("🌬️ Nafas (2 daq)", callback_data="meditate_breathing"),
              InlineKeyboardButton("🧘 Tinchlanish (5 daq)", callback_data="meditate_calm")],
-            [InlineKeyboardButton("😴 Uyqu (10 daq)", callback_data="meditate_sleep")]
+            [InlineKeyboardButton("😴 Uyqu (10 daq)", callback_data="meditate_sleep")],
+            [InlineKeyboardButton("⬅️ Orqaga", callback_data="back")]
         ]
         await safe_edit(query, get_text(lang, "meditate_ask"), reply_markup=InlineKeyboardMarkup(keyboard))
         return
@@ -829,7 +894,7 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 💡 Bu mashq asab tizimini tinchlantiradi va stressni kamaytiradi.
 
 Mashq qildingizmi? Qanday his qilyapsiz? 😊"""
-        await safe_edit(query, text, parse_mode="Markdown")
+        await safe_edit(query, text, reply_markup=get_back_and_menu_buttons(lang), parse_mode="Markdown")
         return
 
     if query.data == "meditate_calm":
@@ -847,7 +912,7 @@ Mashq qildingizmi? Qanday his qilyapsiz? 😊"""
 💭 Fikrlar kelsa - ularga yopishib qolmang, bulutlar kabi o'tkazib yuboring.
 
 Yaxshi meditatsiya! 🙏"""
-        await safe_edit(query, text, parse_mode="Markdown")
+        await safe_edit(query, text, reply_markup=get_back_and_menu_buttons(lang), parse_mode="Markdown")
         return
 
     if query.data == "meditate_sleep":
@@ -866,7 +931,7 @@ Yaxshi meditatsiya! 🙏"""
 ⭐ Sekin-asta uyquga cho'ming...
 
 Yoqimli tushlar ko'ring! 💫"""
-        await safe_edit(query, text, parse_mode="Markdown")
+        await safe_edit(query, text, reply_markup=get_back_and_menu_buttons(lang), parse_mode="Markdown")
         return
 
     # Fitness
@@ -875,7 +940,8 @@ Yoqimli tushlar ko'ring! 💫"""
         keyboard = [
             [InlineKeyboardButton(btns["morning"], callback_data="workout_morning"),
              InlineKeyboardButton(btns["energy"], callback_data="workout_energy")],
-            [InlineKeyboardButton(btns["relax"], callback_data="workout_relax")]
+            [InlineKeyboardButton(btns["relax"], callback_data="workout_relax")],
+            [InlineKeyboardButton("⬅️ Orqaga", callback_data="back")]
         ]
         await safe_edit(query, btns["ask"], reply_markup=InlineKeyboardMarkup(keyboard))
         return
@@ -883,7 +949,7 @@ Yoqimli tushlar ko'ring! 💫"""
     if query.data.startswith("workout_done_"):
         workout_type = query.data.split("_")[2]
         save_workout(user_id, workout_type)
-        await safe_edit(query, get_workout_done(lang) + "\n\n💪 Ajoyib! Davom eting!")
+        await safe_edit(query, get_workout_done(lang) + "\n\n💪 Ajoyib! Davom eting!", reply_markup=get_back_and_menu_buttons(lang))
         return
 
     if query.data.startswith("workout_"):
@@ -898,12 +964,12 @@ Yoqimli tushlar ko'ring! 💫"""
         stats = get_user_stats(user_id)
         workout_count = get_workout_count(user_id)
         healer_count = get_healer_count(user_id)
-        
+
         if stats["mood_count"] > 0:
             mood_emoji = ["😢", "😔", "😐", "🙂", "😄"][min(4, int(stats["avg_mood"]) - 1)]
         else:
             mood_emoji = "❓"
-        
+
         stats_text = f"""
 📊 **Statistika**
 
@@ -913,14 +979,15 @@ Yoqimli tushlar ko'ring! 💫"""
 🌿 Shifokor: {healer_count}
 {f"📈 O'rtacha: {mood_emoji} ({stats['avg_mood']:.1f}/5)" if stats["mood_count"] > 0 else ""}
         """
-        await safe_edit(query, stats_text, parse_mode="Markdown")
+        await safe_edit(query, stats_text, reply_markup=get_back_and_menu_buttons(lang), parse_mode="Markdown")
         return
 
     if query.data == "lang":
         keyboard = [
             [InlineKeyboardButton("🇺🇿 O'zbekcha", callback_data="lang_uz"),
              InlineKeyboardButton("🇷🇺 Русский", callback_data="lang_ru")],
-            [InlineKeyboardButton("🇬🇧 English", callback_data="lang_en")]
+            [InlineKeyboardButton("🇬🇧 English", callback_data="lang_en")],
+            [InlineKeyboardButton("⬅️ Orqaga", callback_data="back")]
         ]
         await safe_edit(query, "🌍 Tilni tanlang:", reply_markup=InlineKeyboardMarkup(keyboard))
         return
