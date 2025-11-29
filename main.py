@@ -1,6 +1,6 @@
 import os
 import logging
-import psycopg2
+import psycopg
 from datetime import datetime
 from dotenv import load_dotenv
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
@@ -21,7 +21,7 @@ client = OpenAI(api_key=OPENAI_API_KEY)
 # === DATABASE ===
 
 def get_db():
-    return psycopg2.connect(DATABASE_URL)
+    return psycopg.connect(DATABASE_URL)
 
 def init_db():
     conn = get_db()
