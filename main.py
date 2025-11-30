@@ -2,7 +2,8 @@ import os
 import logging
 import psycopg2
 import json
-from datetime import datetime
+import asyncio
+from datetime import datetime, time, timedelta
 from dotenv import load_dotenv
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, filters, ContextTypes
@@ -11,6 +12,11 @@ from languages import get_text, get_mood_response, TRANSLATIONS
 from fitness import get_workout_text, get_workout_buttons, get_workout_done, get_workout_stats_label
 from healer import get_healer_prompt, get_healer_buttons
 from ai_brain import get_master_prompt
+from reminders import (
+    get_reminder_text, get_reminder_menu_keyboard, get_time_keyboard,
+    get_mood_keyboard_for_reminder, format_reminder_list, 
+    get_reminder_type_name, get_reminder_emoji
+)
 
 load_dotenv()
 logging.basicConfig(level=logging.INFO)
@@ -37,7 +43,6 @@ def init_db():
         return
     cur = conn.cursor()
     
-    # Users jadvali - kengaytirilgan profil
     cur.execute('''
         CREATE TABLE IF NOT EXISTS users (
             user_id BIGINT PRIMARY KEY,
@@ -45,12 +50,12 @@ def init_db():
             full_name TEXT,
             language TEXT DEFAULT 'uz',
             profile_data JSONB DEFAULT '{}',
+            timezone TEXT DEFAULT 'Asia/Tashkent',
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             last_active TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ''')
     
-    # Kayfiyat tarixi
     cur.execute('''
         CREATE TABLE IF NOT EXISTS moods (
             id SERIAL PRIMARY KEY,
@@ -62,7 +67,6 @@ def init_db():
         )
     ''')
     
-    # Kundalik
     cur.execute('''
         CREATE TABLE IF NOT EXISTS journals (
             id SERIAL PRIMARY KEY,
@@ -73,7 +77,6 @@ def init_db():
         )
     ''')
     
-    # Suhbat tarixi - MUHIM!
     cur.execute('''
         CREATE TABLE IF NOT EXISTS conversations (
             id SERIAL PRIMARY KEY,
@@ -86,7 +89,6 @@ def init_db():
         )
     ''')
     
-    # Mashqlar
     cur.execute('''
         CREATE TABLE IF NOT EXISTS workouts (
             id SERIAL PRIMARY KEY,
@@ -96,7 +98,6 @@ def init_db():
         )
     ''')
     
-    # Shifokor seanslar
     cur.execute('''
         CREATE TABLE IF NOT EXISTS healer_sessions (
             id SERIAL PRIMARY KEY,
@@ -107,7 +108,6 @@ def init_db():
         )
     ''')
     
-    # Foydalanuvchi xotiralari - JARVIS uchun
     cur.execute('''
         CREATE TABLE IF NOT EXISTS user_memories (
             id SERIAL PRIMARY KEY,
@@ -121,10 +121,22 @@ def init_db():
         )
     ''')
     
+    # YANGI: Eslatmalar jadvali
+    cur.execute('''
+        CREATE TABLE IF NOT EXISTS reminders (
+            id SERIAL PRIMARY KEY,
+            user_id BIGINT,
+            reminder_type TEXT,
+            reminder_time TEXT,
+            is_active BOOLEAN DEFAULT TRUE,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    
     conn.commit()
     cur.close()
     conn.close()
-    logger.info("✅ Database initialized with JARVIS memory system")
+    logger.info("✅ Database initialized with reminders system")
 
 # === USER FUNCTIONS ===
 
@@ -305,8 +317,6 @@ def save_mood(user_id, score, note=None, context=None):
     conn.commit()
     cur.close()
     conn.close()
-    
-    # Kayfiyat tendensiyasini xotiraga saqlash
     save_memory(user_id, "mood", "last_mood", f"{score}/5", importance=1)
 
 def save_journal(user_id, text):
@@ -383,8 +393,6 @@ def save_healer_session(user_id, problem_type, notes=None):
     conn.commit()
     cur.close()
     conn.close()
-    
-    # Muammoni xotiraga saqlash
     save_memory(user_id, "health", "recent_problem", problem_type, importance=2)
 
 def get_healer_count(user_id):
@@ -398,6 +406,83 @@ def get_healer_count(user_id):
     conn.close()
     return count or 0
 
+# === REMINDER FUNCTIONS ===
+
+def save_reminder(user_id, reminder_type, reminder_time):
+    """Eslatma saqlash"""
+    conn = get_db()
+    if conn is None:
+        return False
+    cur = conn.cursor()
+    # Avvalgi eslatmani o'chirish (bir turdagi faqat bitta)
+    cur.execute('DELETE FROM reminders WHERE user_id = %s AND reminder_type = %s', 
+                (user_id, reminder_type))
+    # Yangi eslatma qo'shish
+    cur.execute('''
+        INSERT INTO reminders (user_id, reminder_type, reminder_time)
+        VALUES (%s, %s, %s)
+    ''', (user_id, reminder_type, reminder_time))
+    conn.commit()
+    cur.close()
+    conn.close()
+    return True
+
+def get_user_reminders(user_id):
+    """Foydalanuvchi eslatmalarini olish"""
+    conn = get_db()
+    if conn is None:
+        return []
+    cur = conn.cursor()
+    cur.execute('''
+        SELECT reminder_type, reminder_time FROM reminders 
+        WHERE user_id = %s AND is_active = TRUE
+        ORDER BY reminder_time
+    ''', (user_id,))
+    rows = cur.fetchall()
+    cur.close()
+    conn.close()
+    return [{"type": r[0], "time": r[1]} for r in rows]
+
+def delete_reminder(user_id, reminder_type):
+    """Eslatmani o'chirish"""
+    conn = get_db()
+    if conn is None:
+        return False
+    cur = conn.cursor()
+    cur.execute('DELETE FROM reminders WHERE user_id = %s AND reminder_type = %s', 
+                (user_id, reminder_type))
+    conn.commit()
+    cur.close()
+    conn.close()
+    return True
+
+def get_reminders_for_time(current_time):
+    """Berilgan vaqt uchun eslatmalarni olish"""
+    conn = get_db()
+    if conn is None:
+        return []
+    cur = conn.cursor()
+    cur.execute('''
+        SELECT user_id, reminder_type FROM reminders 
+        WHERE reminder_time = %s AND is_active = TRUE
+    ''', (current_time,))
+    rows = cur.fetchall()
+    cur.close()
+    conn.close()
+    return [{"user_id": r[0], "type": r[1]} for r in rows]
+
+def get_reminder_count(user_id):
+    """Eslatmalar sonini olish"""
+    conn = get_db()
+    if conn is None:
+        return 0
+    cur = conn.cursor()
+    cur.execute('SELECT COUNT(*) FROM reminders WHERE user_id = %s AND is_active = TRUE', (user_id,))
+    count = cur.fetchone()[0]
+    cur.close()
+    conn.close()
+    return count or 0
+
 # === SAFE EDIT ===
 async def safe_edit(query, text, reply_markup=None, parse_mode=None):
     try:
@@ -405,7 +490,6 @@ async def safe_edit(query, text, reply_markup=None, parse_mode=None):
     except Exception as e:
         logger.error(f"Edit xato: {e}")
         try:
-            # Markdown xato bo'lsa, parse_mode siz yuborish
             await query.edit_message_text(text, reply_markup=reply_markup, parse_mode=None)
         except:
             try:
@@ -413,10 +497,38 @@ async def safe_edit(query, text, reply_markup=None, parse_mode=None):
             except:
                 pass
 
+# === NAVIGATION BUTTONS ===
+
+def get_main_menu_button():
+    return InlineKeyboardMarkup([[
+        InlineKeyboardButton("🏠 Bosh menyu", callback_data="main_menu")
+    ]])
+
+def get_back_and_menu(back_to="main_menu"):
+    if back_to == "main_menu":
+        return get_main_menu_button()
+    return InlineKeyboardMarkup([[
+        InlineKeyboardButton("🔙 Orqaga", callback_data=back_to),
+        InlineKeyboardButton("🏠 Bosh menyu", callback_data="main_menu")
+    ]])
+
+def get_main_menu_keyboard(lang):
+    keyboard = [
+        [InlineKeyboardButton("💬 Suhbat", callback_data="chat"),
+         InlineKeyboardButton("🌿 Shifokor", callback_data="healer")],
+        [InlineKeyboardButton(get_text(lang, "btn_mood"), callback_data="mood"),
+         InlineKeyboardButton(get_text(lang, "btn_journal"), callback_data="journal")],
+        [InlineKeyboardButton(get_text(lang, "btn_meditate"), callback_data="meditate"),
+         InlineKeyboardButton("💪 Fitness", callback_data="fitness")],
+        [InlineKeyboardButton("⏰ Eslatmalar", callback_data="reminders"),
+         InlineKeyboardButton(get_text(lang, "btn_stats"), callback_data="stats")],
+        [InlineKeyboardButton("🌍 Til", callback_data="lang")]
+    ]
+    return InlineKeyboardMarkup(keyboard)
+
 # === AI BRAIN (JARVIS) ===
 
 async def extract_and_save_memories(user_id, user_message, ai_response, lang):
-    """AI javobidan muhim ma'lumotlarni ajratib, xotiraga saqlash"""
     try:
         extraction_prompt = f"""
 Quyidagi suhbatdan foydalanuvchi haqida muhim ma'lumotlarni ajrat.
@@ -445,7 +557,6 @@ Agar ma'lumot bo'lmasa, null yoz. Faqat JSON, boshqa hech narsa!"""
         
         result = response.choices[0].message.content.strip()
         
-        # JSON ni parse qilish
         if result.startswith("{"):
             data = json.loads(result)
             
@@ -471,16 +582,13 @@ Agar ma'lumot bo'lmasa, null yoz. Faqat JSON, boshqa hech narsa!"""
 async def get_ai_response(user_id: int, message: str, mode: str = "normal") -> str:
     lang = get_user_lang(user_id)
     
-    # Foydalanuvchi haqida ma'lumotlar
     profile = get_user_profile(user_id)
     memories = get_user_memories(user_id)
     memories_text = format_memories_for_ai(memories)
     
-    # Suhbat tarixi
     conversations = get_conversations(user_id, limit=20)
     important_convs = get_important_conversations(user_id, limit=5)
     
-    # Kayfiyat tarixi
     mood_history = get_mood_history(user_id, limit=5)
     mood_text = ""
     if mood_history:
@@ -488,13 +596,11 @@ async def get_ai_response(user_id: int, message: str, mode: str = "normal") -> s
         for m in mood_history:
             mood_text += f"- {m['date'].strftime('%d.%m')}: {m['score']}/5\n"
     
-    # System prompt tanlash
     if mode == "healer":
         base_prompt = get_healer_prompt(lang)
     else:
         base_prompt = get_master_prompt(lang, memories_text, "")
     
-    # To'liq kontekst
     full_context = f"""{base_prompt}
 
 {memories_text}
@@ -511,11 +617,9 @@ Har bir javobda:
     
     messages = [{"role": "system", "content": full_context}]
     
-    # Muhim suhbatlar
     for conv in important_convs:
         messages.append(conv)
     
-    # Oxirgi suhbatlar
     for conv in conversations[-10:]:
         messages.append({"role": conv["role"], "content": conv["content"]})
     
@@ -530,18 +634,77 @@ Har bir javobda:
         )
         ai_message = response.choices[0].message.content
         
-        # Suhbatni saqlash
         importance = 2 if mode == "healer" else 1
         save_conversation(user_id, "user", message, mode, importance)
         save_conversation(user_id, "assistant", ai_message, mode, importance)
         
-        # Xotiradan muhim ma'lumotlarni ajratish (background)
         await extract_and_save_memories(user_id, message, ai_message, lang)
         
         return ai_message
     except Exception as e:
         logger.error(f"OpenAI xatosi: {e}")
         return get_text(lang, "error")
+
+# === REMINDER SCHEDULER ===
+
+async def send_reminder_notification(app, user_id, reminder_type):
+    """Eslatma xabarini yuborish"""
+    try:
+        lang = get_user_lang(user_id)
+        
+        if reminder_type == "mood":
+            text = get_reminder_text(lang, "mood_notify")
+            keyboard = [
+                [InlineKeyboardButton("😄 5", callback_data="mood_5"),
+                 InlineKeyboardButton("🙂 4", callback_data="mood_4"),
+                 InlineKeyboardButton("😐 3", callback_data="mood_3")],
+                [InlineKeyboardButton("😔 2", callback_data="mood_2"),
+                 InlineKeyboardButton("😢 1", callback_data="mood_1")],
+                [InlineKeyboardButton("🏠 Bosh menyu", callback_data="main_menu")]
+            ]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+        elif reminder_type == "meditate":
+            text = get_reminder_text(lang, "meditate_notify")
+            keyboard = [
+                [InlineKeyboardButton("🧘 Meditatsiya", callback_data="meditate")],
+                [InlineKeyboardButton("🏠 Bosh menyu", callback_data="main_menu")]
+            ]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+        elif reminder_type == "workout":
+            text = get_reminder_text(lang, "workout_notify")
+            keyboard = [
+                [InlineKeyboardButton("💪 Mashq", callback_data="fitness")],
+                [InlineKeyboardButton("🏠 Bosh menyu", callback_data="main_menu")]
+            ]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+        elif reminder_type == "water":
+            text = get_reminder_text(lang, "water_notify")
+            keyboard = [[InlineKeyboardButton("✅ Ichdim", callback_data="water_done")],
+                        [InlineKeyboardButton("🏠 Bosh menyu", callback_data="main_menu")]]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+        else:
+            return
+        
+        await app.bot.send_message(chat_id=user_id, text=text, reply_markup=reply_markup)
+        logger.info(f"✅ Eslatma yuborildi: {user_id} - {reminder_type}")
+    except Exception as e:
+        logger.error(f"Eslatma yuborishda xato: {e}")
+
+async def check_and_send_reminders(app):
+    """Har daqiqada eslatmalarni tekshirish"""
+    while True:
+        try:
+            current_time = datetime.now().strftime("%H:%M")
+            reminders = get_reminders_for_time(current_time)
+            
+            for reminder in reminders:
+                await send_reminder_notification(app, reminder["user_id"], reminder["type"])
+            
+            # Keyingi daqiqagacha kutish
+            await asyncio.sleep(60)
+        except Exception as e:
+            logger.error(f"Reminder check error: {e}")
+            await asyncio.sleep(60)
 
 # === COMMANDS ===
 
@@ -551,57 +714,38 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     save_user(user.id, user.username, full_name)
     lang = get_user_lang(user.id)
     context.user_data["mode"] = "normal"
-    
-    # Qaytib kelgan foydalanuvchini tanish
+
     memories = get_user_memories(user.id)
     name = None
     for m in memories:
         if m["key"] == "name":
             name = m["value"]
             break
-    
+
     if name:
-        welcome = f"🌟 Xush kelibsiz, **{name}**! Sizni yana ko'rganimdan xursandman! Bugun qanday yordam bera olaman?"
+        welcome = f"🌟 Xush kelibsiz, **{name}**! Sizni yana ko'rganimdan xursandman!"
     else:
         welcome = get_text(lang, "welcome")
-    
-    keyboard = [
-        [InlineKeyboardButton("💬 Suhbat", callback_data="chat"),
-         InlineKeyboardButton("🌿 Shifokor", callback_data="healer")],
-        [InlineKeyboardButton(get_text(lang, "btn_mood"), callback_data="mood"),
-         InlineKeyboardButton(get_text(lang, "btn_journal"), callback_data="journal")],
-        [InlineKeyboardButton(get_text(lang, "btn_meditate"), callback_data="meditate"),
-         InlineKeyboardButton("💪 Fitness", callback_data="fitness")],
-        [InlineKeyboardButton(get_text(lang, "btn_stats"), callback_data="stats"),
-         InlineKeyboardButton("🌍 Til", callback_data="lang")]
-    ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    await update.message.reply_text(welcome, reply_markup=reply_markup, parse_mode="Markdown")
+
+    await update.message.reply_text(welcome, reply_markup=get_main_menu_keyboard(lang), parse_mode="Markdown")
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     lang = get_user_lang(update.effective_user.id)
     help_text = """
 🤖 **MindMate - Sizning JARVIS'ingiz**
 
-Men sizning shaxsiy AI yordamchingizman. Sizni tinglayman, tushunaman va yordam beraman.
-
 **Imkoniyatlar:**
-💬 **Suhbat** - Men bilan istalgan mavzuda gaplashing
-🌿 **Shifokor** - Tabiiy usullar bilan yordam
-😊 **Kayfiyat** - Har kungi kayfiyatingizni kuzating
-📝 **Kundalik** - Fikrlaringizni yozing
-🧘 **Meditatsiya** - Tinchlanish mashqlari
-💪 **Fitness** - Sog'lom turmush mashqlari
+💬 Suhbat - Men bilan gaplashing
+🌿 Shifokor - Tabiiy usullar
+😊 Kayfiyat - Kayfiyatingizni kuzating
+📝 Kundalik - Fikrlaringizni yozing
+🧘 Meditatsiya - Tinchlanish
+💪 Fitness - Mashqlar
+⏰ Eslatmalar - Kunlik eslatmalar
 
-**Men nimalarni eslab qolaman:**
-- Sizning ismingiz va qiziqishlaringiz
-- Oldingi muammolaringiz va yechimlar
-- Kayfiyat tarixingiz
-- Sizga mos maslahatlar
-
-Shunchaki yozing - men sizni tushunaman! ❤️
+Shunchaki yozing! ❤️
     """
-    await update.message.reply_text(help_text, parse_mode="Markdown")
+    await update.message.reply_text(help_text, reply_markup=get_main_menu_button(), parse_mode="Markdown")
 
 async def mood_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     lang = get_user_lang(update.effective_user.id)
@@ -610,25 +754,25 @@ async def mood_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
          InlineKeyboardButton("🙂 Yaxshi (4)", callback_data="mood_4")],
         [InlineKeyboardButton("😐 Normal (3)", callback_data="mood_3"),
          InlineKeyboardButton("😔 Yomon (2)", callback_data="mood_2")],
-        [InlineKeyboardButton("😢 Juda yomon (1)", callback_data="mood_1")]
+        [InlineKeyboardButton("😢 Juda yomon (1)", callback_data="mood_1")],
+        [InlineKeyboardButton("🏠 Bosh menyu", callback_data="main_menu")]
     ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    await update.message.reply_text(get_text(lang, "mood_ask"), reply_markup=reply_markup)
+    await update.message.reply_text(get_text(lang, "mood_ask"), reply_markup=InlineKeyboardMarkup(keyboard))
 
 async def journal_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     lang = get_user_lang(update.effective_user.id)
     context.user_data["waiting_for"] = "journal"
-    await update.message.reply_text(get_text(lang, "journal_ask"), parse_mode="Markdown")
+    await update.message.reply_text(get_text(lang, "journal_ask"), reply_markup=get_main_menu_button(), parse_mode="Markdown")
 
 async def meditate_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     lang = get_user_lang(update.effective_user.id)
     keyboard = [
         [InlineKeyboardButton("🌬️ Nafas (2 daq)", callback_data="meditate_breathing"),
          InlineKeyboardButton("🧘 Tinchlanish (5 daq)", callback_data="meditate_calm")],
-        [InlineKeyboardButton("😴 Uyqu (10 daq)", callback_data="meditate_sleep")]
+        [InlineKeyboardButton("😴 Uyqu (10 daq)", callback_data="meditate_sleep")],
+        [InlineKeyboardButton("🏠 Bosh menyu", callback_data="main_menu")]
     ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    await update.message.reply_text(get_text(lang, "meditate_ask"), reply_markup=reply_markup)
+    await update.message.reply_text(get_text(lang, "meditate_ask"), reply_markup=InlineKeyboardMarkup(keyboard))
 
 async def fitness_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     lang = get_user_lang(update.effective_user.id)
@@ -636,10 +780,10 @@ async def fitness_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
         [InlineKeyboardButton(btns["morning"], callback_data="workout_morning"),
          InlineKeyboardButton(btns["energy"], callback_data="workout_energy")],
-        [InlineKeyboardButton(btns["relax"], callback_data="workout_relax")]
+        [InlineKeyboardButton(btns["relax"], callback_data="workout_relax")],
+        [InlineKeyboardButton("🏠 Bosh menyu", callback_data="main_menu")]
     ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    await update.message.reply_text(btns["ask"], reply_markup=reply_markup)
+    await update.message.reply_text(btns["ask"], reply_markup=InlineKeyboardMarkup(keyboard))
 
 async def healer_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     lang = get_user_lang(update.effective_user.id)
@@ -653,11 +797,17 @@ async def healer_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             break
     
     if name:
-        text = f"🌿 **Assalomu alaykum, {name}!**\n\nMen sizning tabiiy shifokoringizman. Dardingizni ayting, tabiiy usullar bilan yordam beraman. ❤️"
+        text = f"🌿 **Assalomu alaykum, {name}!**\n\nDardingizni ayting, yordam beraman. ❤️"
     else:
-        text = "🌿 **Tabiiy Shifokor**\n\nMen sizni tinglayman va tabiiy usullar bilan yordam beraman. Dardingizni, muammoingizni ayting. ❤️"
+        text = "🌿 **Tabiiy Shifokor**\n\nDardingizni ayting, yordam beraman. ❤️"
     
-    await update.message.reply_text(text, parse_mode="Markdown")
+    await update.message.reply_text(text, reply_markup=get_main_menu_button(), parse_mode="Markdown")
+
+async def reminders_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Eslatmalar buyrug'i"""
+    lang = get_user_lang(update.effective_user.id)
+    text = get_reminder_text(lang, "reminder_menu")
+    await update.message.reply_text(text, reply_markup=get_reminder_menu_keyboard(lang), parse_mode="Markdown")
 
 async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
@@ -665,6 +815,7 @@ async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     stats = get_user_stats(user_id)
     workout_count = get_workout_count(user_id)
     healer_count = get_healer_count(user_id)
+    reminder_count = get_reminder_count(user_id)
     memories = get_user_memories(user_id)
     
     if stats["mood_count"] > 0:
@@ -672,7 +823,6 @@ async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         mood_emoji = "❓"
     
-    # Xotiradan ma'lumotlar
     memory_info = ""
     for m in memories[:5]:
         if m["key"] != "last_mood":
@@ -681,34 +831,32 @@ async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     stats_text = f"""
 📊 **Sizning statistikangiz**
 
-😊 Kayfiyat yozuvlari: {stats["mood_count"]}
-📝 Kundalik yozuvlari: {stats["journal_count"]}
+😊 Kayfiyat: {stats["mood_count"]}
+📝 Kundalik: {stats["journal_count"]}
 💪 Mashqlar: {workout_count}
-🌿 Shifokor seanslar: {healer_count}
-{f"📈 O'rtacha kayfiyat: {mood_emoji} ({stats['avg_mood']:.1f}/5)" if stats["mood_count"] > 0 else ""}
+🌿 Shifokor: {healer_count}
+⏰ Eslatmalar: {reminder_count}
+{f"📈 O'rtacha: {mood_emoji} ({stats['avg_mood']:.1f}/5)" if stats["mood_count"] > 0 else ""}
 
-🧠 **Men siz haqingizda bilganlarim:**
-{memory_info if memory_info else "Hali ma'lumot to'planmagan"}
-
-💡 Ko'proq suhbatlashsak, sizni yaxshiroq tushunaman!
+🧠 **Bilganlarim:**
+{memory_info if memory_info else "Hali ma'lumot yo'q"}
     """
-    await update.message.reply_text(stats_text, parse_mode="Markdown")
+    await update.message.reply_text(stats_text, reply_markup=get_main_menu_button(), parse_mode="Markdown")
 
 async def reset_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
-    lang = get_user_lang(user_id)
     clear_conversations(user_id)
     context.user_data["mode"] = "normal"
-    await update.message.reply_text("🔄 Suhbat tarixi tozalandi. Xotira saqlanadi.")
+    await update.message.reply_text("🔄 Suhbat tarixi tozalandi.", reply_markup=get_main_menu_button())
 
 async def lang_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
         [InlineKeyboardButton("🇺🇿 O'zbekcha", callback_data="lang_uz"),
          InlineKeyboardButton("🇷🇺 Русский", callback_data="lang_ru")],
-        [InlineKeyboardButton("🇬🇧 English", callback_data="lang_en")]
+        [InlineKeyboardButton("🇬🇧 English", callback_data="lang_en")],
+        [InlineKeyboardButton("🏠 Bosh menyu", callback_data="main_menu")]
     ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    await update.message.reply_text("🌍 Tilni tanlang:", reply_markup=reply_markup)
+    await update.message.reply_text("🌍 Tilni tanlang:", reply_markup=InlineKeyboardMarkup(keyboard))
 
 # === CALLBACK HANDLER ===
 
@@ -718,12 +866,31 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = query.from_user.id
     lang = get_user_lang(user_id)
 
+    # Main Menu
+    if query.data == "main_menu":
+        context.user_data["mode"] = "normal"
+        context.user_data["waiting_for"] = None
+        memories = get_user_memories(user_id)
+        name = None
+        for m in memories:
+            if m["key"] == "name":
+                name = m["value"]
+                break
+
+        if name:
+            welcome = f"🏠 **Bosh Menyu**\n\n{name}, qanday yordam kerak?"
+        else:
+            welcome = "🏠 **Bosh Menyu**\n\nBo'limni tanlang:"
+
+        await safe_edit(query, welcome, reply_markup=get_main_menu_keyboard(lang), parse_mode="Markdown")
+        return
+
     # Til
     if query.data.startswith("lang_"):
         new_lang = query.data.split("_")[1]
         set_user_lang(user_id, new_lang)
         save_memory(user_id, "preferences", "language", new_lang, importance=2)
-        await safe_edit(query, get_text(new_lang, "lang_changed"))
+        await safe_edit(query, get_text(new_lang, "lang_changed"), reply_markup=get_main_menu_button())
         return
 
     # Chat mode
@@ -737,10 +904,10 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 break
         
         if name:
-            text = f"💬 **{name}**, men sizni tinglayman! Qanday yordam bera olaman?"
+            text = f"💬 **{name}**, men sizni tinglayman!"
         else:
-            text = "💬 Men sizni tinglayman! Ismingiz nima, qanday yordam bera olaman?"
-        await safe_edit(query, text, parse_mode="Markdown")
+            text = "💬 Men sizni tinglayman! Ismingiz nima?"
+        await safe_edit(query, text, reply_markup=get_main_menu_button(), parse_mode="Markdown")
         return
 
     # Healer mode
@@ -756,36 +923,103 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 recent_problem = m["value"]
         
         if name and recent_problem:
-            text = f"🌿 **{name}**, yana ko'rishganimdan xursandman!\n\nOxirgi safar **{recent_problem}** haqida gaplashgan edik. Qanday bo'ldi? Yoki boshqa narsa bormi?"
+            text = f"🌿 **{name}**, oxirgi safar **{recent_problem}** haqida gaplashgan edik. Qanday bo'ldi?"
         elif name:
-            text = f"🌿 **{name}**, tabiiy shifokoringiz sizni tinglaydi. Qanday yordam kerak?"
+            text = f"🌿 **{name}**, tabiiy shifokoringiz sizni tinglaydi."
         else:
-            text = "🌿 **Tabiiy Shifokor** sizni tinglaydi.\n\nDardingizni ayting, tabiiy usullar bilan yordam beraman. ❤️"
-        await safe_edit(query, text, parse_mode="Markdown")
+            text = "🌿 **Tabiiy Shifokor** sizni tinglaydi. Dardingizni ayting. ❤️"
+        await safe_edit(query, text, reply_markup=get_main_menu_button(), parse_mode="Markdown")
+        return
+
+    # === REMINDERS ===
+    if query.data == "reminders":
+        text = get_reminder_text(lang, "reminder_menu")
+        await safe_edit(query, text, reply_markup=get_reminder_menu_keyboard(lang), parse_mode="Markdown")
+        return
+
+    # Eslatma turini tanlash
+    if query.data.startswith("remind_") and not query.data.startswith("remind_list"):
+        reminder_type = query.data.replace("remind_", "")
+        text = get_reminder_text(lang, "set_time")
+        await safe_edit(query, text, reply_markup=get_time_keyboard(reminder_type))
+        return
+
+    # Eslatmalar ro'yxati
+    if query.data == "remind_list":
+        reminders = get_user_reminders(user_id)
+        text = format_reminder_list(reminders, lang)
+        
+        # O'chirish tugmalari
+        keyboard = []
+        for r in reminders:
+            emoji = get_reminder_emoji(r["type"])
+            name = get_reminder_type_name(r["type"], lang)
+            keyboard.append([InlineKeyboardButton(f"❌ {emoji} {name} - {r['time']}", 
+                           callback_data=f"rdel_{r['type']}")])
+        keyboard.append([InlineKeyboardButton("🔙 Orqaga", callback_data="reminders"),
+                        InlineKeyboardButton("🏠 Bosh menyu", callback_data="main_menu")])
+        
+        await safe_edit(query, text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
+        return
+
+    # Eslatma vaqtini saqlash
+    if query.data.startswith("rtime_"):
+        parts = query.data.split("_")
+        reminder_type = parts[1]
+        reminder_time = parts[2]
+        
+        save_reminder(user_id, reminder_type, reminder_time)
+        text = get_reminder_text(lang, "reminder_set").format(time=reminder_time)
+        await safe_edit(query, text, reply_markup=get_back_and_menu("reminders"))
+        return
+
+    # Eslatmani o'chirish
+    if query.data.startswith("rdel_"):
+        reminder_type = query.data.replace("rdel_", "")
+        delete_reminder(user_id, reminder_type)
+        text = get_reminder_text(lang, "reminder_deleted")
+        await safe_edit(query, text, reply_markup=get_back_and_menu("reminders"))
+        return
+
+    # Water done
+    if query.data == "water_done":
+        text = "💧 Zo'r! Suv ichish sog'liq uchun juda muhim! 👍"
+        await safe_edit(query, text, reply_markup=get_main_menu_button())
         return
 
     # Mood
+    if query.data == "mood":
+        keyboard = [
+            [InlineKeyboardButton("😄 Zo'r (5)", callback_data="mood_5"),
+             InlineKeyboardButton("🙂 Yaxshi (4)", callback_data="mood_4")],
+            [InlineKeyboardButton("😐 Normal (3)", callback_data="mood_3"),
+             InlineKeyboardButton("😔 Yomon (2)", callback_data="mood_2")],
+            [InlineKeyboardButton("😢 Juda yomon (1)", callback_data="mood_1")],
+            [InlineKeyboardButton("🏠 Bosh menyu", callback_data="main_menu")]
+        ]
+        await safe_edit(query, get_text(lang, "mood_ask"), reply_markup=InlineKeyboardMarkup(keyboard))
+        return
+
     if query.data.startswith("mood_") and query.data[5:].isdigit():
         score = int(query.data.split("_")[1])
         save_mood(user_id, score)
         emojis = {1: "😢", 2: "😔", 3: "😐", 4: "🙂", 5: "😄"}
-        
-        # Kayfiyatga mos javob
+
         if score <= 2:
-            follow_up = "\n\n💬 Nima bo'ldi? Gaplashmoqchimisiz? Men sizni tinglayman..."
+            follow_up = "\n\n💬 Nima bo'ldi? Gaplashmoqchimisiz?"
         elif score == 3:
-            follow_up = "\n\n🤔 Normal kun. Biror narsa yaxshilash mumkinmi?"
+            follow_up = "\n\n🤔 Normal kun."
         else:
-            follow_up = "\n\n🌟 Ajoyib! Bugungi yaxshi kayfiyatingiz davom etsin!"
-        
-        response = f"{emojis[score]} Kayfiyatingiz saqlandi: {score}/5{follow_up}"
-        await safe_edit(query, response)
+            follow_up = "\n\n🌟 Ajoyib!"
+
+        response = f"{emojis[score]} Kayfiyat saqlandi: {score}/5{follow_up}"
+        await safe_edit(query, response, reply_markup=get_back_and_menu("mood"))
         return
 
     # Journal
     if query.data == "journal":
         context.user_data["waiting_for"] = "journal"
-        await safe_edit(query, get_text(lang, "journal_ask"), parse_mode="Markdown")
+        await safe_edit(query, get_text(lang, "journal_ask"), reply_markup=get_main_menu_button(), parse_mode="Markdown")
         return
 
     # Meditate
@@ -793,7 +1027,8 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         keyboard = [
             [InlineKeyboardButton("🌬️ Nafas (2 daq)", callback_data="meditate_breathing"),
              InlineKeyboardButton("🧘 Tinchlanish (5 daq)", callback_data="meditate_calm")],
-            [InlineKeyboardButton("😴 Uyqu (10 daq)", callback_data="meditate_sleep")]
+            [InlineKeyboardButton("😴 Uyqu (10 daq)", callback_data="meditate_sleep")],
+            [InlineKeyboardButton("🏠 Bosh menyu", callback_data="main_menu")]
         ]
         await safe_edit(query, get_text(lang, "meditate_ask"), reply_markup=InlineKeyboardMarkup(keyboard))
         return
@@ -802,15 +1037,13 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         text = """🌬️ **4-7-8 Nafas Mashqi**
 
 1️⃣ Qulay o'tiring, ko'zingizni yuming
-2️⃣ 4 soniya - nafas oling (burun orqali)
-3️⃣ 7 soniya - nafasni ushlab turing
-4️⃣ 8 soniya - sekin chiqaring (og'iz orqali)
+2️⃣ 4 soniya - nafas oling
+3️⃣ 7 soniya - ushlab turing
+4️⃣ 8 soniya - sekin chiqaring
 5️⃣ 4-5 marta takrorlang
 
-💡 Bu mashq asab tizimini tinchlantiradi va stressni kamaytiradi.
-
-Mashq qildingizmi? Qanday his qilyapsiz? 😊"""
-        await safe_edit(query, text, parse_mode="Markdown")
+💡 Asab tizimini tinchlantiradi."""
+        await safe_edit(query, text, reply_markup=get_back_and_menu("meditate"), parse_mode="Markdown")
         return
 
     if query.data == "meditate_calm":
@@ -818,36 +1051,24 @@ Mashq qildingizmi? Qanday his qilyapsiz? 😊"""
 
 1️⃣ Qulay joyga o'tiring
 2️⃣ Ko'zingizni yuming
-3️⃣ Chuqur nafas oling va chiqaring
-4️⃣ Tanangizni bo'shating - boshdan oyoqqacha
-5️⃣ Fikrlarga e'tibor bermang, ular o'tib ketsin
-6️⃣ Faqat nafasingizga diqqat qiling
+3️⃣ Chuqur nafas oling
+4️⃣ Tanangizni bo'shating
+5️⃣ Faqat nafasga diqqat qiling
 
-🕐 5 daqiqa shu holatda qoling
-
-💭 Fikrlar kelsa - ularga yopishib qolmang, bulutlar kabi o'tkazib yuboring.
-
-Yaxshi meditatsiya! 🙏"""
-        await safe_edit(query, text, parse_mode="Markdown")
+🕐 5 daqiqa shu holatda qoling."""
+        await safe_edit(query, text, reply_markup=get_back_and_menu("meditate"), parse_mode="Markdown")
         return
 
     if query.data == "meditate_sleep":
         text = """😴 **Uyqu Meditatsiyasi**
 
-🛏️ Yotib, ko'z yumganingizda:
-
 1️⃣ 3 marta chuqur nafas oling
-2️⃣ Oyoq barmoqlaridan boshlab bo'shating
-3️⃣ Sekin yuqoriga ko'tariling - boldir, tizza, son...
-4️⃣ Qorin, ko'krak, qo'llar...
-5️⃣ Bo'yin, yuz, bosh...
-6️⃣ Butun tana og'ir va bo'sh
+2️⃣ Oyoq barmoqlaridan boshlang
+3️⃣ Sekin yuqoriga ko'tariling
+4️⃣ Butun tana bo'sh va og'ir
 
-🌙 O'zingizni bulut ustida his qiling...
-⭐ Sekin-asta uyquga cho'ming...
-
-Yoqimli tushlar ko'ring! 💫"""
-        await safe_edit(query, text, parse_mode="Markdown")
+🌙 Yoqimli tushlar! 💫"""
+        await safe_edit(query, text, reply_markup=get_back_and_menu("meditate"), parse_mode="Markdown")
         return
 
     # Fitness
@@ -856,7 +1077,8 @@ Yoqimli tushlar ko'ring! 💫"""
         keyboard = [
             [InlineKeyboardButton(btns["morning"], callback_data="workout_morning"),
              InlineKeyboardButton(btns["energy"], callback_data="workout_energy")],
-            [InlineKeyboardButton(btns["relax"], callback_data="workout_relax")]
+            [InlineKeyboardButton(btns["relax"], callback_data="workout_relax")],
+            [InlineKeyboardButton("🏠 Bosh menyu", callback_data="main_menu")]
         ]
         await safe_edit(query, btns["ask"], reply_markup=InlineKeyboardMarkup(keyboard))
         return
@@ -864,13 +1086,17 @@ Yoqimli tushlar ko'ring! 💫"""
     if query.data.startswith("workout_done_"):
         workout_type = query.data.split("_")[2]
         save_workout(user_id, workout_type)
-        await safe_edit(query, get_workout_done(lang) + "\n\n💪 Ajoyib! Davom eting!")
+        await safe_edit(query, get_workout_done(lang) + "\n\n💪 Ajoyib!", reply_markup=get_back_and_menu("fitness"))
         return
 
     if query.data.startswith("workout_"):
         workout_type = query.data.split("_")[1]
         text = get_workout_text(lang, workout_type)
-        keyboard = [[InlineKeyboardButton("✅ Bajardim!", callback_data=f"workout_done_{workout_type}")]]
+        keyboard = [
+            [InlineKeyboardButton("✅ Bajardim!", callback_data=f"workout_done_{workout_type}")],
+            [InlineKeyboardButton("🔙 Orqaga", callback_data="fitness"),
+             InlineKeyboardButton("🏠 Bosh menyu", callback_data="main_menu")]
+        ]
         await safe_edit(query, text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
         return
 
@@ -879,12 +1105,13 @@ Yoqimli tushlar ko'ring! 💫"""
         stats = get_user_stats(user_id)
         workout_count = get_workout_count(user_id)
         healer_count = get_healer_count(user_id)
-        
+        reminder_count = get_reminder_count(user_id)
+
         if stats["mood_count"] > 0:
             mood_emoji = ["😢", "😔", "😐", "🙂", "😄"][min(4, int(stats["avg_mood"]) - 1)]
         else:
             mood_emoji = "❓"
-        
+
         stats_text = f"""
 📊 **Statistika**
 
@@ -892,16 +1119,18 @@ Yoqimli tushlar ko'ring! 💫"""
 📝 Kundalik: {stats["journal_count"]}
 💪 Mashqlar: {workout_count}
 🌿 Shifokor: {healer_count}
+⏰ Eslatmalar: {reminder_count}
 {f"📈 O'rtacha: {mood_emoji} ({stats['avg_mood']:.1f}/5)" if stats["mood_count"] > 0 else ""}
         """
-        await safe_edit(query, stats_text, parse_mode="Markdown")
+        await safe_edit(query, stats_text, reply_markup=get_main_menu_button(), parse_mode="Markdown")
         return
 
     if query.data == "lang":
         keyboard = [
             [InlineKeyboardButton("🇺🇿 O'zbekcha", callback_data="lang_uz"),
              InlineKeyboardButton("🇷🇺 Русский", callback_data="lang_ru")],
-            [InlineKeyboardButton("🇬🇧 English", callback_data="lang_en")]
+            [InlineKeyboardButton("🇬🇧 English", callback_data="lang_en")],
+            [InlineKeyboardButton("🏠 Bosh menyu", callback_data="main_menu")]
         ]
         await safe_edit(query, "🌍 Tilni tanlang:", reply_markup=InlineKeyboardMarkup(keyboard))
         return
@@ -913,22 +1142,25 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_message = update.message.text
     lang = get_user_lang(user_id)
     
-    # Journal
     if context.user_data.get("waiting_for") == "journal":
         save_journal(user_id, user_message)
         context.user_data["waiting_for"] = None
-        await update.message.reply_text(get_text(lang, "journal_saved") + "\n\n💭 Yozganlaringiz sizning shaxsiy fikrlaringiz. Men ularni eslab qolaman.")
+        text = get_text(lang, "journal_saved") + "\n\n💭 Yozganlaringizni eslab qolaman."
+        await update.message.reply_text(text, reply_markup=get_main_menu_button())
         return
     
-    # Typing animation
     await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
     
-    # AI Response
     mode = context.user_data.get("mode", "normal")
     response = await get_ai_response(user_id, user_message, mode)
-    await update.message.reply_text(response)
+    await update.message.reply_text(response, reply_markup=get_main_menu_button())
 
 # === MAIN ===
+
+async def post_init(app: Application):
+    """Bot ishga tushgandan keyin eslatmalar schedulerini boshlash"""
+    asyncio.create_task(check_and_send_reminders(app))
+    logger.info("✅ Reminder scheduler started")
 
 def main():
     if not TELEGRAM_TOKEN:
@@ -941,7 +1173,7 @@ def main():
     if DATABASE_URL:
         init_db()
     
-    app = Application.builder().token(TELEGRAM_TOKEN).build()
+    app = Application.builder().token(TELEGRAM_TOKEN).post_init(post_init).build()
     
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("help", help_command))
@@ -950,6 +1182,7 @@ def main():
     app.add_handler(CommandHandler("meditate", meditate_command))
     app.add_handler(CommandHandler("fitness", fitness_command))
     app.add_handler(CommandHandler("healer", healer_command))
+    app.add_handler(CommandHandler("reminders", reminders_command))
     app.add_handler(CommandHandler("stats", stats_command))
     app.add_handler(CommandHandler("reset", reset_command))
     app.add_handler(CommandHandler("lang", lang_command))
