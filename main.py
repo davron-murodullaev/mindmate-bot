@@ -852,11 +852,21 @@ async def reset_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def lang_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
         [InlineKeyboardButton("🇺🇿 O'zbekcha", callback_data="lang_uz"),
-         InlineKeyboardButton("🇷🇺 Русский", callback_data="lang_ru")],
-        [InlineKeyboardButton("🇬🇧 English", callback_data="lang_en")],
-        [InlineKeyboardButton("🏠 Bosh menyu", callback_data="main_menu")]
+         InlineKeyboardButton("🇷🇺 Русский", callback_data="lang_ru"),
+         InlineKeyboardButton("🇬🇧 English", callback_data="lang_en")],
+        [InlineKeyboardButton("🇹🇷 Türkçe", callback_data="lang_tr"),
+         InlineKeyboardButton("🇸🇦 العربية", callback_data="lang_ar"),
+         InlineKeyboardButton("🇮🇳 हिंदी", callback_data="lang_hi")],
+        [InlineKeyboardButton("🇨🇳 中文", callback_data="lang_zh"),
+         InlineKeyboardButton("🇰🇷 한국어", callback_data="lang_ko"),
+         InlineKeyboardButton("🇯🇵 日本語", callback_data="lang_ja")],
+        [InlineKeyboardButton("🇪🇸 Español", callback_data="lang_es"),
+         InlineKeyboardButton("🇫🇷 Français", callback_data="lang_fr"),
+         InlineKeyboardButton("🇩🇪 Deutsch", callback_data="lang_de")],
+        [InlineKeyboardButton("🇵🇹 Português", callback_data="lang_pt")],
+        [InlineKeyboardButton("🏠 Menu", callback_data="main_menu")]
     ]
-    await update.message.reply_text("🌍 Tilni tanlang:", reply_markup=InlineKeyboardMarkup(keyboard))
+    await update.message.reply_text("🌍 Tilni tanlang / Choose language:", reply_markup=InlineKeyboardMarkup(keyboard))
 
 # === CALLBACK HANDLER ===
 
@@ -1128,11 +1138,21 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if query.data == "lang":
         keyboard = [
             [InlineKeyboardButton("🇺🇿 O'zbekcha", callback_data="lang_uz"),
-             InlineKeyboardButton("🇷🇺 Русский", callback_data="lang_ru")],
-            [InlineKeyboardButton("🇬🇧 English", callback_data="lang_en")],
-            [InlineKeyboardButton("🏠 Bosh menyu", callback_data="main_menu")]
+             InlineKeyboardButton("🇷🇺 Русский", callback_data="lang_ru"),
+             InlineKeyboardButton("🇬🇧 English", callback_data="lang_en")],
+            [InlineKeyboardButton("🇹🇷 Türkçe", callback_data="lang_tr"),
+             InlineKeyboardButton("🇸🇦 العربية", callback_data="lang_ar"),
+             InlineKeyboardButton("🇮🇳 हिंदी", callback_data="lang_hi")],
+            [InlineKeyboardButton("🇨🇳 中文", callback_data="lang_zh"),
+             InlineKeyboardButton("🇰🇷 한국어", callback_data="lang_ko"),
+             InlineKeyboardButton("🇯🇵 日本語", callback_data="lang_ja")],
+            [InlineKeyboardButton("🇪🇸 Español", callback_data="lang_es"),
+             InlineKeyboardButton("🇫🇷 Français", callback_data="lang_fr"),
+             InlineKeyboardButton("🇩🇪 Deutsch", callback_data="lang_de")],
+            [InlineKeyboardButton("🇵🇹 Português", callback_data="lang_pt")],
+            [InlineKeyboardButton("🏠 Menu", callback_data="main_menu")]
         ]
-        await safe_edit(query, "🌍 Tilni tanlang:", reply_markup=InlineKeyboardMarkup(keyboard))
+        await safe_edit(query, "🌍 Tilni tanlang / Choose language:", reply_markup=InlineKeyboardMarkup(keyboard))
         return
 
 # === MESSAGE HANDLER ===
