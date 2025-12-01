@@ -117,7 +117,8 @@ def init_db():
             memory_value TEXT,
             importance INTEGER DEFAULT 1,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            CONSTRAINT unique_user_memory UNIQUE (user_id, memory_type, memory_key)
         )
     ''')
     
@@ -132,11 +133,21 @@ def init_db():
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ''')
-    
+
+    # Indexlar yaratish (performance uchun)
+    cur.execute('CREATE INDEX IF NOT EXISTS idx_moods_user_id ON moods(user_id)')
+    cur.execute('CREATE INDEX IF NOT EXISTS idx_journals_user_id ON journals(user_id)')
+    cur.execute('CREATE INDEX IF NOT EXISTS idx_conversations_user_id ON conversations(user_id)')
+    cur.execute('CREATE INDEX IF NOT EXISTS idx_workouts_user_id ON workouts(user_id)')
+    cur.execute('CREATE INDEX IF NOT EXISTS idx_healer_sessions_user_id ON healer_sessions(user_id)')
+    cur.execute('CREATE INDEX IF NOT EXISTS idx_user_memories_user_id ON user_memories(user_id)')
+    cur.execute('CREATE INDEX IF NOT EXISTS idx_reminders_user_id ON reminders(user_id)')
+    cur.execute('CREATE INDEX IF NOT EXISTS idx_reminders_time ON reminders(reminder_time, is_active)')
+
     conn.commit()
     cur.close()
     conn.close()
-    logger.info("✅ Database initialized with reminders system")
+    logger.info("✅ Database initialized with reminders system and indexes")
 
 # === USER FUNCTIONS ===
 
@@ -323,6 +334,9 @@ def save_journal(user_id, text):
     conn = get_db()
     if conn is None:
         return
+    # Input validation: limit text length
+    if len(text) > 10000:
+        text = text[:10000]
     cur = conn.cursor()
     cur.execute('INSERT INTO journals (user_id, text) VALUES (%s, %s)', (user_id, text))
     conn.commit()
@@ -491,38 +505,39 @@ async def safe_edit(query, text, reply_markup=None, parse_mode=None):
         logger.error(f"Edit xato: {e}")
         try:
             await query.edit_message_text(text, reply_markup=reply_markup, parse_mode=None)
-        except:
+        except Exception as e2:
+            logger.error(f"Edit fallback 1 xato: {e2}")
             try:
                 await query.message.reply_text(text, reply_markup=reply_markup, parse_mode=None)
-            except:
-                pass
+            except Exception as e3:
+                logger.error(f"Edit fallback 2 xato: {e3}")
 
 # === NAVIGATION BUTTONS ===
 
-def get_main_menu_button():
+def get_main_menu_button(lang="uz"):
     return InlineKeyboardMarkup([[
-        InlineKeyboardButton("🏠 Bosh menyu", callback_data="main_menu")
+        InlineKeyboardButton(get_text(lang, "btn_main_menu"), callback_data="main_menu")
     ]])
 
-def get_back_and_menu(back_to="main_menu"):
+def get_back_and_menu(back_to="main_menu", lang="uz"):
     if back_to == "main_menu":
-        return get_main_menu_button()
+        return get_main_menu_button(lang)
     return InlineKeyboardMarkup([[
-        InlineKeyboardButton("🔙 Orqaga", callback_data=back_to),
-        InlineKeyboardButton("🏠 Bosh menyu", callback_data="main_menu")
+        InlineKeyboardButton(get_text(lang, "btn_back"), callback_data=back_to),
+        InlineKeyboardButton(get_text(lang, "btn_main_menu"), callback_data="main_menu")
     ]])
 
 def get_main_menu_keyboard(lang):
     keyboard = [
-        [InlineKeyboardButton("💬 Suhbat", callback_data="chat"),
-         InlineKeyboardButton("🌿 Shifokor", callback_data="healer")],
+        [InlineKeyboardButton(get_text(lang, "btn_chat"), callback_data="chat"),
+         InlineKeyboardButton(get_text(lang, "btn_healer"), callback_data="healer")],
         [InlineKeyboardButton(get_text(lang, "btn_mood"), callback_data="mood"),
          InlineKeyboardButton(get_text(lang, "btn_journal"), callback_data="journal")],
         [InlineKeyboardButton(get_text(lang, "btn_meditate"), callback_data="meditate"),
-         InlineKeyboardButton("💪 Fitness", callback_data="fitness")],
-        [InlineKeyboardButton("⏰ Eslatmalar", callback_data="reminders"),
+         InlineKeyboardButton(get_text(lang, "btn_fitness"), callback_data="fitness")],
+        [InlineKeyboardButton(get_text(lang, "btn_reminders"), callback_data="reminders"),
          InlineKeyboardButton(get_text(lang, "btn_stats"), callback_data="stats")],
-        [InlineKeyboardButton("🌍 Til", callback_data="lang")]
+        [InlineKeyboardButton(get_text(lang, "btn_lang"), callback_data="lang")]
     ]
     return InlineKeyboardMarkup(keyboard)
 
@@ -745,7 +760,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 Shunchaki yozing! ❤️
     """
-    await update.message.reply_text(help_text, reply_markup=get_main_menu_button(), parse_mode="Markdown")
+    await update.message.reply_text(help_text, reply_markup=get_main_menu_button(lang), parse_mode="Markdown")
 
 async def mood_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     lang = get_user_lang(update.effective_user.id)
@@ -762,7 +777,7 @@ async def mood_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def journal_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     lang = get_user_lang(update.effective_user.id)
     context.user_data["waiting_for"] = "journal"
-    await update.message.reply_text(get_text(lang, "journal_ask"), reply_markup=get_main_menu_button(), parse_mode="Markdown")
+    await update.message.reply_text(get_text(lang, "journal_ask"), reply_markup=get_main_menu_button(lang), parse_mode="Markdown")
 
 async def meditate_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     lang = get_user_lang(update.effective_user.id)
@@ -801,7 +816,7 @@ async def healer_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         text = "🌿 **Tabiiy Shifokor**\n\nDardingizni ayting, yordam beraman. ❤️"
     
-    await update.message.reply_text(text, reply_markup=get_main_menu_button(), parse_mode="Markdown")
+    await update.message.reply_text(text, reply_markup=get_main_menu_button(lang), parse_mode="Markdown")
 
 async def reminders_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Eslatmalar buyrug'i"""
@@ -841,13 +856,14 @@ async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 🧠 **Bilganlarim:**
 {memory_info if memory_info else "Hali ma'lumot yo'q"}
     """
-    await update.message.reply_text(stats_text, reply_markup=get_main_menu_button(), parse_mode="Markdown")
+    await update.message.reply_text(stats_text, reply_markup=get_main_menu_button(lang), parse_mode="Markdown")
 
 async def reset_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
+    lang = get_user_lang(user_id)
     clear_conversations(user_id)
     context.user_data["mode"] = "normal"
-    await update.message.reply_text("🔄 Suhbat tarixi tozalandi.", reply_markup=get_main_menu_button())
+    await update.message.reply_text(get_text(lang, "reset_done") if lang != "uz" else "🔄 Suhbat tarixi tozalandi.", reply_markup=get_main_menu_button(lang))
 
 async def lang_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
@@ -900,7 +916,7 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         new_lang = query.data.split("_")[1]
         set_user_lang(user_id, new_lang)
         save_memory(user_id, "preferences", "language", new_lang, importance=2)
-        await safe_edit(query, get_text(new_lang, "lang_changed"), reply_markup=get_main_menu_button())
+        await safe_edit(query, get_text(new_lang, "lang_changed"), reply_markup=get_main_menu_button(lang))
         return
 
     # Chat mode
@@ -917,7 +933,7 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             text = f"💬 **{name}**, men sizni tinglayman!"
         else:
             text = "💬 Men sizni tinglayman! Ismingiz nima?"
-        await safe_edit(query, text, reply_markup=get_main_menu_button(), parse_mode="Markdown")
+        await safe_edit(query, text, reply_markup=get_main_menu_button(lang), parse_mode="Markdown")
         return
 
     # Healer mode
@@ -938,7 +954,7 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             text = f"🌿 **{name}**, tabiiy shifokoringiz sizni tinglaydi."
         else:
             text = "🌿 **Tabiiy Shifokor** sizni tinglaydi. Dardingizni ayting. ❤️"
-        await safe_edit(query, text, reply_markup=get_main_menu_button(), parse_mode="Markdown")
+        await safe_edit(query, text, reply_markup=get_main_menu_button(lang), parse_mode="Markdown")
         return
 
     # === REMINDERS ===
@@ -980,7 +996,7 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         save_reminder(user_id, reminder_type, reminder_time)
         text = get_reminder_text(lang, "reminder_set").format(time=reminder_time)
-        await safe_edit(query, text, reply_markup=get_back_and_menu("reminders"))
+        await safe_edit(query, text, reply_markup=get_back_and_menu("reminders", lang))
         return
 
     # Eslatmani o'chirish
@@ -988,13 +1004,13 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reminder_type = query.data.replace("rdel_", "")
         delete_reminder(user_id, reminder_type)
         text = get_reminder_text(lang, "reminder_deleted")
-        await safe_edit(query, text, reply_markup=get_back_and_menu("reminders"))
+        await safe_edit(query, text, reply_markup=get_back_and_menu("reminders", lang))
         return
 
     # Water done
     if query.data == "water_done":
         text = "💧 Zo'r! Suv ichish sog'liq uchun juda muhim! 👍"
-        await safe_edit(query, text, reply_markup=get_main_menu_button())
+        await safe_edit(query, text, reply_markup=get_main_menu_button(lang))
         return
 
     # Mood
@@ -1023,13 +1039,13 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             follow_up = "\n\n🌟 Ajoyib!"
 
         response = f"{emojis[score]} Kayfiyat saqlandi: {score}/5{follow_up}"
-        await safe_edit(query, response, reply_markup=get_back_and_menu("mood"))
+        await safe_edit(query, response, reply_markup=get_back_and_menu("mood", lang))
         return
 
     # Journal
     if query.data == "journal":
         context.user_data["waiting_for"] = "journal"
-        await safe_edit(query, get_text(lang, "journal_ask"), reply_markup=get_main_menu_button(), parse_mode="Markdown")
+        await safe_edit(query, get_text(lang, "journal_ask"), reply_markup=get_main_menu_button(lang), parse_mode="Markdown")
         return
 
     # Meditate
@@ -1053,7 +1069,7 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 5️⃣ 4-5 marta takrorlang
 
 💡 Asab tizimini tinchlantiradi."""
-        await safe_edit(query, text, reply_markup=get_back_and_menu("meditate"), parse_mode="Markdown")
+        await safe_edit(query, text, reply_markup=get_back_and_menu("meditate", lang), parse_mode="Markdown")
         return
 
     if query.data == "meditate_calm":
@@ -1066,7 +1082,7 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 5️⃣ Faqat nafasga diqqat qiling
 
 🕐 5 daqiqa shu holatda qoling."""
-        await safe_edit(query, text, reply_markup=get_back_and_menu("meditate"), parse_mode="Markdown")
+        await safe_edit(query, text, reply_markup=get_back_and_menu("meditate", lang), parse_mode="Markdown")
         return
 
     if query.data == "meditate_sleep":
@@ -1078,7 +1094,7 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 4️⃣ Butun tana bo'sh va og'ir
 
 🌙 Yoqimli tushlar! 💫"""
-        await safe_edit(query, text, reply_markup=get_back_and_menu("meditate"), parse_mode="Markdown")
+        await safe_edit(query, text, reply_markup=get_back_and_menu("meditate", lang), parse_mode="Markdown")
         return
 
     # Fitness
@@ -1096,7 +1112,7 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if query.data.startswith("workout_done_"):
         workout_type = query.data.split("_")[2]
         save_workout(user_id, workout_type)
-        await safe_edit(query, get_workout_done(lang) + "\n\n💪 Ajoyib!", reply_markup=get_back_and_menu("fitness"))
+        await safe_edit(query, get_workout_done(lang) + "\n\n💪 Ajoyib!", reply_markup=get_back_and_menu("fitness", lang))
         return
 
     if query.data.startswith("workout_"):
@@ -1132,7 +1148,7 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 ⏰ Eslatmalar: {reminder_count}
 {f"📈 O'rtacha: {mood_emoji} ({stats['avg_mood']:.1f}/5)" if stats["mood_count"] > 0 else ""}
         """
-        await safe_edit(query, stats_text, reply_markup=get_main_menu_button(), parse_mode="Markdown")
+        await safe_edit(query, stats_text, reply_markup=get_main_menu_button(lang), parse_mode="Markdown")
         return
 
     if query.data == "lang":
@@ -1161,19 +1177,27 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     user_message = update.message.text
     lang = get_user_lang(user_id)
-    
+
+    # Input validation: check message length
+    if not user_message or len(user_message) > 4000:
+        await update.message.reply_text(
+            get_text(lang, "error") if len(user_message) > 4000 else "⚠️ Xabar bo'sh bo'lishi mumkin emas.",
+            reply_markup=get_main_menu_button(lang)
+        )
+        return
+
     if context.user_data.get("waiting_for") == "journal":
         save_journal(user_id, user_message)
         context.user_data["waiting_for"] = None
         text = get_text(lang, "journal_saved") + "\n\n💭 Yozganlaringizni eslab qolaman."
-        await update.message.reply_text(text, reply_markup=get_main_menu_button())
+        await update.message.reply_text(text, reply_markup=get_main_menu_button(lang))
         return
-    
+
     await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
-    
+
     mode = context.user_data.get("mode", "normal")
     response = await get_ai_response(user_id, user_message, mode)
-    await update.message.reply_text(response, reply_markup=get_main_menu_button())
+    await update.message.reply_text(response, reply_markup=get_main_menu_button(lang))
 
 # === MAIN ===
 

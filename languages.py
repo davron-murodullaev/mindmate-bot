@@ -16,6 +16,7 @@ Men sizga yordam bera olaman:
 Quyidagi tugmalardan birini tanlang yoki shunchaki xabar yozing!
         """,
         "help": "📚 **Yordam**\n\nMen sizning shaxsiy AI yordamchingizman.",
+        "main_menu": "🏠 **Bosh Menyu**\n\nBo'limni tanlang:",
         "mood_ask": "Bugun o'zingizni qanday his qilyapsiz?",
         "mood_saved": "Kayfiyat saqlandi!",
         "mood_responses": {
@@ -31,10 +32,17 @@ Quyidagi tugmalardan birini tanlang yoki shunchaki xabar yozing!
         "stats_title": "📊 **Sizning statistikangiz**",
         "reset_done": "🔄 Suhbat yangilandi!",
         "lang_changed": "✅ Til o'zgartirildi!",
+        "btn_chat": "💬 Suhbat",
+        "btn_healer": "🌿 Shifokor",
         "btn_mood": "😊 Kayfiyat",
         "btn_journal": "📝 Kundalik",
         "btn_meditate": "🧘 Meditatsiya",
+        "btn_fitness": "💪 Fitness",
+        "btn_reminders": "⏰ Eslatmalar",
         "btn_stats": "📊 Statistika",
+        "btn_lang": "🌍 Til",
+        "btn_back": "🔙 Orqaga",
+        "btn_main_menu": "🏠 Bosh menyu",
         "error": "Kechirasiz, hozir javob bera olmayapman. Keyinroq urinib ko'ring."
     },
     
@@ -52,6 +60,7 @@ Quyidagi tugmalardan birini tanlang yoki shunchaki xabar yozing!
 Выберите кнопку ниже или просто напишите мне!
         """,
         "help": "📚 **Помощь**\n\nЯ ваш личный AI помощник.",
+        "main_menu": "🏠 **Главное меню**\n\nВыберите раздел:",
         "mood_ask": "Как вы себя чувствуете сегодня?",
         "mood_saved": "Настроение сохранено!",
         "mood_responses": {
@@ -67,10 +76,17 @@ Quyidagi tugmalardan birini tanlang yoki shunchaki xabar yozing!
         "stats_title": "📊 **Ваша статистика**",
         "reset_done": "🔄 Чат сброшен!",
         "lang_changed": "✅ Язык изменён!",
+        "btn_chat": "💬 Чат",
+        "btn_healer": "🌿 Целитель",
         "btn_mood": "😊 Настроение",
         "btn_journal": "📝 Дневник",
         "btn_meditate": "🧘 Медитация",
+        "btn_fitness": "💪 Фитнес",
+        "btn_reminders": "⏰ Напоминания",
         "btn_stats": "📊 Статистика",
+        "btn_lang": "🌍 Язык",
+        "btn_back": "🔙 Назад",
+        "btn_main_menu": "🏠 Главное меню",
         "error": "Извините, не могу ответить сейчас. Попробуйте позже."
     },
     
@@ -88,6 +104,7 @@ I can help you with:
 Choose a button below or just send me a message!
         """,
         "help": "📚 **Help**\n\nI'm your personal AI assistant.",
+        "main_menu": "🏠 **Main Menu**\n\nChoose a section:",
         "mood_ask": "How are you feeling today?",
         "mood_saved": "Mood saved!",
         "mood_responses": {
@@ -103,10 +120,17 @@ Choose a button below or just send me a message!
         "stats_title": "📊 **Your Statistics**",
         "reset_done": "🔄 Chat reset!",
         "lang_changed": "✅ Language changed!",
+        "btn_chat": "💬 Chat",
+        "btn_healer": "🌿 Healer",
         "btn_mood": "😊 Mood",
         "btn_journal": "📝 Journal",
         "btn_meditate": "🧘 Meditate",
+        "btn_fitness": "💪 Fitness",
+        "btn_reminders": "⏰ Reminders",
         "btn_stats": "📊 Stats",
+        "btn_lang": "🌍 Language",
+        "btn_back": "🔙 Back",
+        "btn_main_menu": "🏠 Main Menu",
         "error": "Sorry, I can't respond right now. Please try later."
     },
     
@@ -124,6 +148,7 @@ Size yardımcı olabilirim:
 Aşağıdaki butonlardan birini seçin veya bana mesaj yazın!
         """,
         "help": "📚 **Yardım**\n\nBen kişisel AI asistanınızım.",
+        "main_menu": "🏠 **Ana Menü**\n\nBir bölüm seçin:",
         "mood_ask": "Bugün kendinizi nasıl hissediyorsunuz?",
         "mood_saved": "Ruh hali kaydedildi!",
         "mood_responses": {
@@ -139,10 +164,17 @@ Aşağıdaki butonlardan birini seçin veya bana mesaj yazın!
         "stats_title": "📊 **İstatistikleriniz**",
         "reset_done": "🔄 Sohbet sıfırlandı!",
         "lang_changed": "✅ Dil değiştirildi!",
+        "btn_chat": "💬 Sohbet",
+        "btn_healer": "🌿 Şifacı",
         "btn_mood": "😊 Ruh Hali",
         "btn_journal": "📝 Günlük",
         "btn_meditate": "🧘 Meditasyon",
+        "btn_fitness": "💪 Fitness",
+        "btn_reminders": "⏰ Hatırlatıcılar",
         "btn_stats": "📊 İstatistik",
+        "btn_lang": "🌍 Dil",
+        "btn_back": "🔙 Geri",
+        "btn_main_menu": "🏠 Ana Menü",
         "error": "Üzgünüm, şu anda yanıt veremiyorum. Daha sonra deneyin."
     },
     
@@ -160,6 +192,7 @@ Aşağıdaki butonlardan birini seçin veya bana mesaj yazın!
 اختر زراً أدناه أو أرسل لي رسالة!
         """,
         "help": "📚 **مساعدة**\n\nأنا مساعدك الشخصي بالذكاء الاصطناعي.",
+        "main_menu": "🏠 **القائمة الرئيسية**\n\nاختر قسماً:",
         "mood_ask": "كيف تشعر اليوم؟",
         "mood_saved": "تم حفظ المزاج!",
         "mood_responses": {
@@ -175,10 +208,17 @@ Aşağıdaki butonlardan birini seçin veya bana mesaj yazın!
         "stats_title": "📊 **إحصائياتك**",
         "reset_done": "🔄 تم إعادة ضبط المحادثة!",
         "lang_changed": "✅ تم تغيير اللغة!",
+        "btn_chat": "💬 دردشة",
+        "btn_healer": "🌿 معالج",
         "btn_mood": "😊 المزاج",
         "btn_journal": "📝 اليوميات",
         "btn_meditate": "🧘 تأمل",
+        "btn_fitness": "💪 لياقة",
+        "btn_reminders": "⏰ تذكيرات",
         "btn_stats": "📊 إحصائيات",
+        "btn_lang": "🌍 اللغة",
+        "btn_back": "🔙 رجوع",
+        "btn_main_menu": "🏠 القائمة الرئيسية",
         "error": "عذراً، لا أستطيع الرد الآن. حاول لاحقاً."
     },
     
@@ -196,6 +236,7 @@ Aşağıdaki butonlardan birini seçin veya bana mesaj yazın!
 नीचे दिए गए बटन चुनें या मुझे संदेश भेजें!
         """,
         "help": "📚 **सहायता**\n\nमैं आपका व्यक्तिगत AI सहायक हूं।",
+        "main_menu": "🏠 **मुख्य मेनू**\n\nएक अनुभाग चुनें:",
         "mood_ask": "आज आप कैसा महसूस कर रहे हैं?",
         "mood_saved": "मूड सहेजा गया!",
         "mood_responses": {
@@ -211,10 +252,17 @@ Aşağıdaki butonlardan birini seçin veya bana mesaj yazın!
         "stats_title": "📊 **आपके आंकड़े**",
         "reset_done": "🔄 चैट रीसेट हो गई!",
         "lang_changed": "✅ भाषा बदल गई!",
+        "btn_chat": "💬 चैट",
+        "btn_healer": "🌿 हीलर",
         "btn_mood": "😊 मूड",
         "btn_journal": "📝 डायरी",
         "btn_meditate": "🧘 ध्यान",
+        "btn_fitness": "💪 फिटनेस",
+        "btn_reminders": "⏰ रिमाइंडर",
         "btn_stats": "📊 आंकड़े",
+        "btn_lang": "🌍 भाषा",
+        "btn_back": "🔙 वापस",
+        "btn_main_menu": "🏠 मुख्य मेनू",
         "error": "क्षमा करें, अभी जवाब नहीं दे सकता। बाद में कोशिश करें।"
     },
     
@@ -232,6 +280,7 @@ Aşağıdaki butonlardan birini seçin veya bana mesaj yazın!
 选择下面的按钮或给我发消息！
         """,
         "help": "📚 **帮助**\n\n我是你的个人AI助手。",
+        "main_menu": "🏠 **主菜单**\n\n选择一个部分：",
         "mood_ask": "今天感觉怎么样？",
         "mood_saved": "心情已保存！",
         "mood_responses": {
@@ -247,10 +296,17 @@ Aşağıdaki butonlardan birini seçin veya bana mesaj yazın!
         "stats_title": "📊 **你的统计**",
         "reset_done": "🔄 聊天已重置！",
         "lang_changed": "✅ 语言已更改！",
+        "btn_chat": "💬 聊天",
+        "btn_healer": "🌿 治愈师",
         "btn_mood": "😊 心情",
         "btn_journal": "📝 日记",
         "btn_meditate": "🧘 冥想",
+        "btn_fitness": "💪 健身",
+        "btn_reminders": "⏰ 提醒",
         "btn_stats": "📊 统计",
+        "btn_lang": "🌍 语言",
+        "btn_back": "🔙 返回",
+        "btn_main_menu": "🏠 主菜单",
         "error": "抱歉，现在无法回复。请稍后再试。"
     },
     
@@ -268,6 +324,7 @@ Aşağıdaki butonlardan birini seçin veya bana mesaj yazın!
 아래 버튼을 선택하거나 메시지를 보내세요!
         """,
         "help": "📚 **도움말**\n\n저는 당신의 개인 AI 도우미입니다.",
+        "main_menu": "🏠 **메인 메뉴**\n\n섹션을 선택하세요:",
         "mood_ask": "오늘 기분이 어떠세요?",
         "mood_saved": "기분이 저장되었습니다!",
         "mood_responses": {
@@ -283,10 +340,17 @@ Aşağıdaki butonlardan birini seçin veya bana mesaj yazın!
         "stats_title": "📊 **당신의 통계**",
         "reset_done": "🔄 채팅이 초기화되었습니다!",
         "lang_changed": "✅ 언어가 변경되었습니다!",
+        "btn_chat": "💬 채팅",
+        "btn_healer": "🌿 힐러",
         "btn_mood": "😊 기분",
         "btn_journal": "📝 일기",
         "btn_meditate": "🧘 명상",
+        "btn_fitness": "💪 피트니스",
+        "btn_reminders": "⏰ 알림",
         "btn_stats": "📊 통계",
+        "btn_lang": "🌍 언어",
+        "btn_back": "🔙 뒤로",
+        "btn_main_menu": "🏠 메인 메뉴",
         "error": "죄송합니다, 지금은 답변할 수 없습니다. 나중에 다시 시도해주세요."
     },
     
@@ -304,6 +368,7 @@ Aşağıdaki butonlardan birini seçin veya bana mesaj yazın!
 下のボタンを選択するか、メッセージを送ってください！
         """,
         "help": "📚 **ヘルプ**\n\n私はあなたの個人AIアシスタントです。",
+        "main_menu": "🏠 **メインメニュー**\n\nセクションを選択：",
         "mood_ask": "今日の気分はいかがですか？",
         "mood_saved": "気分が保存されました！",
         "mood_responses": {
@@ -319,10 +384,17 @@ Aşağıdaki butonlardan birini seçin veya bana mesaj yazın!
         "stats_title": "📊 **あなたの統計**",
         "reset_done": "🔄 チャットがリセットされました！",
         "lang_changed": "✅ 言語が変更されました！",
+        "btn_chat": "💬 チャット",
+        "btn_healer": "🌿 ヒーラー",
         "btn_mood": "😊 気分",
         "btn_journal": "📝 日記",
         "btn_meditate": "🧘 瞑想",
+        "btn_fitness": "💪 フィットネス",
+        "btn_reminders": "⏰ リマインダー",
         "btn_stats": "📊 統計",
+        "btn_lang": "🌍 言語",
+        "btn_back": "🔙 戻る",
+        "btn_main_menu": "🏠 メインメニュー",
         "error": "申し訳ありません、今は返信できません。後でもう一度お試しください。"
     },
     
