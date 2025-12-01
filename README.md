@@ -14,6 +14,12 @@
 - **Context-Aware Responses**: Uses conversation history and user memories for personalized interactions
 - **Multi-Modal Support**: Handles complex conversations with emotional intelligence
 
+### 📄 Content Creation Tools
+- **PDF Generator**: Create professional PDF documents, reports, and resumes
+- **PowerPoint Presentations**: Generate presentations with multiple slides
+- **Resume/CV Builder**: Create professional resumes with customizable templates
+- **Document Templates**: Pre-built templates for various document types
+
 ### 🌍 Multi-Language Support (13 Languages)
 - 🇺🇿 Uzbek (O'zbekcha)
 - 🇷🇺 Russian (Русский)
@@ -47,6 +53,16 @@
 - Mood history and trends
 - Workout and meditation progress
 - Memory insights about what the AI knows about you
+
+### 🤖 Advanced AI Tools
+- **🎨 AI Image Generation**: Create images using DALL-E based on text descriptions
+- **🌐 Smart Translation**: Translate text between 13+ languages
+- **👨‍💻 Code Generator**: Generate code in Python, JavaScript, Java, C++, and more
+- **🍳 Recipe Finder**: Get detailed recipes for any dish
+- **✈️ Travel Planner**: Create detailed day-by-day travel itineraries
+- **📚 Study Materials**: Generate comprehensive study guides on any topic
+- **💼 Business Idea Generator**: Get innovative business ideas with detailed plans
+- **✉️ Email Writer**: Craft professional emails for any purpose
 
 ---
 
@@ -118,6 +134,21 @@ python main.py
 | `/reset` | Clear conversation history |
 | `/lang` | Change interface language |
 
+### 📄 Content Creation Menu
+- **PDF Creator**: Generate custom PDFs
+- **Presentation Maker**: Create PowerPoint presentations
+- **Resume Builder**: Build professional CVs
+
+### 🤖 AI Tools Menu
+- **Image Generator**: Create AI-generated images
+- **Translator**: Translate text between languages
+- **Code Writer**: Generate programming code
+- **Recipe Finder**: Find cooking recipes
+- **Travel Planner**: Plan your trips
+- **Study Helper**: Get study materials
+- **Business Ideas**: Generate business concepts
+- **Email Assistant**: Write professional emails
+
 ---
 
 ## 🏗️ Project Structure
@@ -126,6 +157,8 @@ python main.py
 MindMate/
 ├── main.py              # Main bot logic and handlers
 ├── ai_brain.py          # JARVIS AI prompts and personality
+├── ai_tools.py          # AI tools (image gen, translation, code, etc.)
+├── content_generator.py # PDF, PPT, and document creation
 ├── languages.py         # Multi-language translations (13 languages)
 ├── reminders.py         # Reminder system implementation
 ├── fitness.py           # Workout routines and exercises

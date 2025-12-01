@@ -14,8 +14,17 @@ from healer import get_healer_prompt, get_healer_buttons
 from ai_brain import get_master_prompt
 from reminders import (
     get_reminder_text, get_reminder_menu_keyboard, get_time_keyboard,
-    get_mood_keyboard_for_reminder, format_reminder_list, 
+    get_mood_keyboard_for_reminder, format_reminder_list,
     get_reminder_type_name, get_reminder_emoji
+)
+from content_generator import (
+    create_pdf_document, create_resume_pdf, create_presentation,
+    get_content_templates, get_content_text
+)
+from ai_tools import (
+    generate_image, translate_text, generate_code, find_recipe,
+    create_travel_plan, create_study_material, generate_business_idea,
+    write_email, get_ai_tools_text
 )
 
 load_dotenv()
@@ -535,6 +544,8 @@ def get_main_menu_keyboard(lang):
          InlineKeyboardButton(get_text(lang, "btn_journal"), callback_data="journal")],
         [InlineKeyboardButton(get_text(lang, "btn_meditate"), callback_data="meditate"),
          InlineKeyboardButton(get_text(lang, "btn_fitness"), callback_data="fitness")],
+        [InlineKeyboardButton("📄 PDF/PPT", callback_data="content_menu"),
+         InlineKeyboardButton("🤖 AI Tools", callback_data="ai_tools_menu")],
         [InlineKeyboardButton(get_text(lang, "btn_reminders"), callback_data="reminders"),
          InlineKeyboardButton(get_text(lang, "btn_stats"), callback_data="stats")],
         [InlineKeyboardButton(get_text(lang, "btn_lang"), callback_data="lang")]
@@ -616,13 +627,16 @@ async def get_ai_response(user_id: int, message: str, mode: str = "normal") -> s
     else:
         base_prompt = get_master_prompt(lang, memories_text, "")
     
+    unknown_text = "noma'lum"
+    full_name_display = profile.get('full_name') or profile.get('username') or unknown_text
+
     full_context = f"""{base_prompt}
 
 {memories_text}
 {mood_text}
 
 📝 MUHIM ESLATMALAR:
-- Foydalanuvchi ismi: {profile.get('full_name') or profile.get('username') or 'noma\'lum'}
+- Foydalanuvchi ismi: {full_name_display}
 - Bot bilan: {profile.get('member_since', 'yangi')}dan beri
 
 Har bir javobda:
@@ -1171,6 +1185,116 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await safe_edit(query, "🌍 Tilni tanlang / Choose language:", reply_markup=InlineKeyboardMarkup(keyboard))
         return
 
+    # === CONTENT MENU (PDF/PPT) ===
+    if query.data == "content_menu":
+        keyboard = [
+            [InlineKeyboardButton("📄 PDF yaratish", callback_data="create_pdf"),
+             InlineKeyboardButton("📊 Prezentatsiya", callback_data="create_ppt")],
+            [InlineKeyboardButton("📋 Rezyume/CV", callback_data="create_resume")],
+            [InlineKeyboardButton("🏠 Bosh menyu", callback_data="main_menu")]
+        ]
+        text = "📄 **Hujjat Yaratish**\n\nQanday hujjat kerak?"
+        await safe_edit(query, text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
+        return
+
+    if query.data == "create_pdf":
+        context.user_data["waiting_for"] = "pdf_title"
+        text = "📄 **PDF Yaratish**\n\n📝 Sarlavhani kiriting:"
+        await safe_edit(query, text, reply_markup=get_main_menu_button(lang), parse_mode="Markdown")
+        return
+
+    if query.data == "create_ppt":
+        context.user_data["waiting_for"] = "ppt_title"
+        text = "📊 **Prezentatsiya Yaratish**\n\n📝 Prezentatsiya sarlavhasini kiriting:"
+        await safe_edit(query, text, reply_markup=get_main_menu_button(lang), parse_mode="Markdown")
+        return
+
+    if query.data == "create_resume":
+        context.user_data["waiting_for"] = "resume_name"
+        text = "📋 **Rezyume Yaratish**\n\n👤 Ism-familiyangizni kiriting:"
+        await safe_edit(query, text, reply_markup=get_main_menu_button(lang), parse_mode="Markdown")
+        return
+
+    # === AI TOOLS MENU ===
+    if query.data == "ai_tools_menu":
+        keyboard = [
+            [InlineKeyboardButton("🎨 Rasm yaratish", callback_data="ai_image"),
+             InlineKeyboardButton("🌐 Tarjima", callback_data="ai_translate")],
+            [InlineKeyboardButton("👨‍💻 Kod yozish", callback_data="ai_code"),
+             InlineKeyboardButton("🍳 Retsept", callback_data="ai_recipe")],
+            [InlineKeyboardButton("✈️ Sayohat", callback_data="ai_travel"),
+             InlineKeyboardButton("📚 O'quv", callback_data="ai_study")],
+            [InlineKeyboardButton("💼 Biznes g'oya", callback_data="ai_business"),
+             InlineKeyboardButton("✉️ Email", callback_data="ai_email")],
+            [InlineKeyboardButton("🏠 Bosh menyu", callback_data="main_menu")]
+        ]
+        text = "🤖 **AI Yordamchilar**\n\nQaysi vositadan foydalanmoqchisiz?"
+        await safe_edit(query, text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
+        return
+
+    if query.data == "ai_image":
+        context.user_data["waiting_for"] = "image_prompt"
+        text = "🎨 **Rasm Yaratish**\n\nQanday rasm yaratishni xohlaysiz? Batafsil tasvirlang:"
+        await safe_edit(query, text, reply_markup=get_main_menu_button(lang), parse_mode="Markdown")
+        return
+
+    if query.data == "ai_translate":
+        context.user_data["waiting_for"] = "translate_text"
+        text = "🌐 **Tarjima**\n\nTarjima qilmoqchi bo'lgan matnni yuboring:"
+        await safe_edit(query, text, reply_markup=get_main_menu_button(lang), parse_mode="Markdown")
+        return
+
+    if query.data == "ai_code":
+        context.user_data["waiting_for"] = "code_description"
+        text = "👨‍💻 **Kod Yozish**\n\nQanday kod kerak? Batafsil yozing:"
+        await safe_edit(query, text, reply_markup=get_main_menu_button(lang), parse_mode="Markdown")
+        return
+
+    if query.data == "ai_recipe":
+        context.user_data["waiting_for"] = "recipe_name"
+        text = "🍳 **Retsept Topish**\n\nQaysi taom retseptini qidiryapsiz?"
+        await safe_edit(query, text, reply_markup=get_main_menu_button(lang), parse_mode="Markdown")
+        return
+
+    if query.data == "ai_travel":
+        context.user_data["waiting_for"] = "travel_destination"
+        text = "✈️ **Sayohat Rejasi**\n\nQayerga sayohat qilmoqchisiz?"
+        await safe_edit(query, text, reply_markup=get_main_menu_button(lang), parse_mode="Markdown")
+        return
+
+    if query.data == "ai_study":
+        context.user_data["waiting_for"] = "study_topic"
+        text = "📚 **O'quv Materiali**\n\nQaysi mavzuni o'rganmoqchisiz?"
+        await safe_edit(query, text, reply_markup=get_main_menu_button(lang), parse_mode="Markdown")
+        return
+
+    if query.data == "ai_business":
+        context.user_data["waiting_for"] = "business_industry"
+        text = "💼 **Biznes G'oyasi**\n\nQaysi sohada biznes g'oyasi kerak? (yoki 'ixtiyoriy' deb yozing)"
+        await safe_edit(query, text, reply_markup=get_main_menu_button(lang), parse_mode="Markdown")
+        return
+
+    if query.data == "ai_email":
+        context.user_data["waiting_for"] = "email_purpose"
+        text = "✉️ **Email Yozish**\n\nEmail maqsadi nima? (masalan: 'ishga ariza', 'shikoyat', 'so'rov')"
+        await safe_edit(query, text, reply_markup=get_main_menu_button(lang), parse_mode="Markdown")
+        return
+
+    # Translation language selection
+    if query.data.startswith("tlang_"):
+        target_lang = query.data.replace("tlang_", "")
+        text_to_translate = context.user_data.get("translate_text", "")
+        if text_to_translate:
+            await query.message.reply_text("🌐 Tarjima qilinmoqda...")
+            translation = await translate_text(text_to_translate, target_lang)
+            if translation:
+                await query.message.reply_text(f"✅ **Tarjima:**\n\n{translation}", parse_mode="Markdown")
+            else:
+                await query.message.reply_text("⚠️ Tarjima qilishda xatolik.", reply_markup=get_main_menu_button(lang))
+        context.user_data["waiting_for"] = None
+        context.user_data["translate_text"] = None
+        return
+
 # === MESSAGE HANDLER ===
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -1186,15 +1310,217 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
-    if context.user_data.get("waiting_for") == "journal":
+    waiting_for = context.user_data.get("waiting_for")
+
+    # Journal
+    if waiting_for == "journal":
         save_journal(user_id, user_message)
         context.user_data["waiting_for"] = None
         text = get_text(lang, "journal_saved") + "\n\n💭 Yozganlaringizni eslab qolaman."
         await update.message.reply_text(text, reply_markup=get_main_menu_button(lang))
         return
 
-    await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
+    # PDF Creation
+    if waiting_for == "pdf_title":
+        context.user_data["pdf_title"] = user_message
+        context.user_data["waiting_for"] = "pdf_content"
+        await update.message.reply_text("✍️ Endi matnni kiriting (har bir paragraf alohida qatorda):", reply_markup=get_main_menu_button(lang))
+        return
 
+    if waiting_for == "pdf_content":
+        await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="upload_document")
+        title = context.user_data.get("pdf_title", "Document")
+        pdf_buffer = create_pdf_document(title, user_message)
+        if pdf_buffer:
+            await update.message.reply_document(
+                document=pdf_buffer,
+                filename=f"{title}.pdf",
+                caption="📄 PDF hujjatingiz tayyor!"
+            )
+        else:
+            await update.message.reply_text("⚠️ Xatolik yuz berdi. Qaytadan urinib ko'ring.", reply_markup=get_main_menu_button(lang))
+        context.user_data["waiting_for"] = None
+        context.user_data["pdf_title"] = None
+        return
+
+    # Presentation Creation
+    if waiting_for == "ppt_title":
+        context.user_data["ppt_title"] = user_message
+        context.user_data["waiting_for"] = "ppt_slides"
+        await update.message.reply_text("📊 Slayd mazmunini kiriting (har bir slayd uchun: 'SLAYD: sarlavha\nmatn'):", reply_markup=get_main_menu_button(lang))
+        return
+
+    if waiting_for == "ppt_slides":
+        await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="upload_document")
+        title = context.user_data.get("ppt_title", "Presentation")
+        # Parse slides
+        slides_data = []
+        slides_raw = user_message.split("SLAYD:")
+        for slide_text in slides_raw[1:]:  # Skip first empty
+            lines = slide_text.strip().split('\n', 1)
+            slide_title = lines[0].strip() if lines else "Slide"
+            slide_content = lines[1].strip() if len(lines) > 1 else ""
+            slides_data.append({"title": slide_title, "content": slide_content})
+
+        if not slides_data:
+            # Auto-generate simple slides from text
+            paragraphs = user_message.split('\n\n')
+            for i, para in enumerate(paragraphs[:10], 1):
+                slides_data.append({"title": f"Slayd {i}", "content": para})
+
+        ppt_buffer = create_presentation(title, slides_data)
+        if ppt_buffer:
+            await update.message.reply_document(
+                document=ppt_buffer,
+                filename=f"{title}.pptx",
+                caption="📊 Prezentatsiya tayyor!"
+            )
+        else:
+            await update.message.reply_text("⚠️ Xatolik yuz berdi. Qaytadan urinib ko'ring.", reply_markup=get_main_menu_button(lang))
+        context.user_data["waiting_for"] = None
+        context.user_data["ppt_title"] = None
+        return
+
+    # Resume Creation
+    if waiting_for == "resume_name":
+        context.user_data["resume_name"] = user_message
+        context.user_data["waiting_for"] = "resume_details"
+        await update.message.reply_text("📋 Qisqacha ma'lumotlaringizni kiriting:\n\nEmail:\nTelefon:\nTajriba:\nKo'nikmalar:", reply_markup=get_main_menu_button(lang))
+        return
+
+    if waiting_for == "resume_details":
+        await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="upload_document")
+        name = context.user_data.get("resume_name", "Name")
+        resume_data = {"name": name, "summary": user_message, "experience": [], "skills": [], "education": []}
+        pdf_buffer = create_resume_pdf(resume_data)
+        if pdf_buffer:
+            await update.message.reply_document(
+                document=pdf_buffer,
+                filename=f"Resume_{name}.pdf",
+                caption="📋 Rezyume tayyor!"
+            )
+        else:
+            await update.message.reply_text("⚠️ Xatolik yuz berdi. Qaytadan urinib ko'ring.", reply_markup=get_main_menu_button(lang))
+        context.user_data["waiting_for"] = None
+        context.user_data["resume_name"] = None
+        return
+
+    # AI Image Generation
+    if waiting_for == "image_prompt":
+        await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="upload_photo")
+        await update.message.reply_text("🎨 Rasm yaratilmoqda... Kuting...")
+        image_url = await generate_image(user_message)
+        if image_url:
+            await update.message.reply_photo(photo=image_url, caption="✅ Rasm tayyor!")
+        else:
+            await update.message.reply_text("⚠️ Rasm yaratishda xatolik. Qaytadan urinib ko'ring.", reply_markup=get_main_menu_button(lang))
+        context.user_data["waiting_for"] = None
+        return
+
+    # Translation
+    if waiting_for == "translate_text":
+        context.user_data["translate_text"] = user_message
+        context.user_data["waiting_for"] = "translate_lang"
+        keyboard = [
+            [InlineKeyboardButton("🇺🇿 O'zbekcha", callback_data="tlang_uz"),
+             InlineKeyboardButton("🇷🇺 Русский", callback_data="tlang_ru")],
+            [InlineKeyboardButton("🇬🇧 English", callback_data="tlang_en"),
+             InlineKeyboardButton("🇹🇷 Türkçe", callback_data="tlang_tr")],
+            [InlineKeyboardButton("🇸🇦 العربية", callback_data="tlang_ar"),
+             InlineKeyboardButton("🇨🇳 中文", callback_data="tlang_zh")]
+        ]
+        await update.message.reply_text("🌍 Qaysi tilga tarjima qilish kerak?", reply_markup=InlineKeyboardMarkup(keyboard))
+        return
+
+    # Code Generation
+    if waiting_for == "code_description":
+        await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
+        code = await generate_code(user_message)
+        if code:
+            await update.message.reply_text(f"👨‍💻 **Kod:**\n\n{code}", parse_mode="Markdown")
+        else:
+            await update.message.reply_text("⚠️ Kod yaratishda xatolik.", reply_markup=get_main_menu_button(lang))
+        context.user_data["waiting_for"] = None
+        return
+
+    # Recipe
+    if waiting_for == "recipe_name":
+        await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
+        recipe = await find_recipe(user_message, lang)
+        if recipe:
+            await update.message.reply_text(f"🍳 **Retsept:**\n\n{recipe}", parse_mode="Markdown")
+        else:
+            await update.message.reply_text("⚠️ Retsept topilmadi.", reply_markup=get_main_menu_button(lang))
+        context.user_data["waiting_for"] = None
+        return
+
+    # Travel Planning
+    if waiting_for == "travel_destination":
+        context.user_data["travel_dest"] = user_message
+        context.user_data["waiting_for"] = "travel_days"
+        await update.message.reply_text("📅 Necha kunlik sayohat?")
+        return
+
+    if waiting_for == "travel_days":
+        await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
+        dest = context.user_data.get("travel_dest", "")
+        try:
+            days = int(user_message)
+            plan = await create_travel_plan(dest, days, lang=lang)
+            if plan:
+                await update.message.reply_text(f"✈️ **Sayohat Rejasi:**\n\n{plan}", parse_mode="Markdown")
+            else:
+                await update.message.reply_text("⚠️ Reja yaratishda xatolik.", reply_markup=get_main_menu_button(lang))
+        except:
+            await update.message.reply_text("⚠️ Kun sonini raqamda kiriting.")
+        context.user_data["waiting_for"] = None
+        context.user_data["travel_dest"] = None
+        return
+
+    # Study Material
+    if waiting_for == "study_topic":
+        await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
+        material = await create_study_material(user_message, lang=lang)
+        if material:
+            await update.message.reply_text(f"📚 **O'quv Materiali:**\n\n{material}", parse_mode="Markdown")
+        else:
+            await update.message.reply_text("⚠️ Material yaratishda xatolik.", reply_markup=get_main_menu_button(lang))
+        context.user_data["waiting_for"] = None
+        return
+
+    # Business Idea
+    if waiting_for == "business_industry":
+        await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
+        industry = None if user_message.lower() in ["ixtiyoriy", "any", "none"] else user_message
+        idea = await generate_business_idea(industry, lang)
+        if idea:
+            await update.message.reply_text(f"💼 **Biznes G'oyasi:**\n\n{idea}", parse_mode="Markdown")
+        else:
+            await update.message.reply_text("⚠️ G'oya yaratishda xatolik.", reply_markup=get_main_menu_button(lang))
+        context.user_data["waiting_for"] = None
+        return
+
+    # Email Writing
+    if waiting_for == "email_purpose":
+        context.user_data["email_purpose"] = user_message
+        context.user_data["waiting_for"] = "email_points"
+        await update.message.reply_text("📝 Asosiy fikrlarni kiriting:")
+        return
+
+    if waiting_for == "email_points":
+        await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
+        purpose = context.user_data.get("email_purpose", "")
+        email = await write_email(purpose, "recipient", user_message, lang)
+        if email:
+            await update.message.reply_text(f"✉️ **Email:**\n\n{email}", parse_mode="Markdown")
+        else:
+            await update.message.reply_text("⚠️ Email yozishda xatolik.", reply_markup=get_main_menu_button(lang))
+        context.user_data["waiting_for"] = None
+        context.user_data["email_purpose"] = None
+        return
+
+    # Default: AI Chat
+    await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
     mode = context.user_data.get("mode", "normal")
     response = await get_ai_response(user_id, user_message, mode)
     await update.message.reply_text(response, reply_markup=get_main_menu_button(lang))
