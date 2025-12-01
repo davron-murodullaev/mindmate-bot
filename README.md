@@ -63,7 +63,7 @@
 
 1. **Clone the repository**
 ```bash
-git clone https://github.com/yourusername/mindmate-bot.git
+git clone https://github.com/davron-murodullaev/mindmate-bot.git
 cd mindmate-bot
 ```
 
@@ -203,13 +203,13 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 ## 🐛 Bug Reports & Feature Requests
 
 Found a bug or have a feature request? Please open an issue on GitHub:
-[GitHub Issues](https://github.com/yourusername/mindmate-bot/issues)
+[GitHub Issues](https://github.com/davron-murodullaev/mindmate-bot/issues)
 
 ---
 
 ## 📧 Contact
 
-For questions or support, please contact: your.email@example.com
+For questions or support, please contact: d.murodullaev@mail.ru
 
 ---
 
