@@ -26,6 +26,22 @@ from ai_tools import (
     create_travel_plan, create_study_material, generate_business_idea,
     write_email, get_ai_tools_text
 )
+from premium import (
+    init_premium_tables, get_user_subscription, check_usage_limit,
+    increment_usage, get_usage_stats, get_premium_texts,
+    create_referral, get_referral_stats, get_referral_code, parse_referral_code,
+    SUBSCRIPTION_TIERS
+)
+from financial_coach import (
+    init_financial_tables, add_expense, add_income, get_monthly_summary,
+    get_financial_advice, analyze_spending_habits, create_budget_plan,
+    get_investment_advice, check_budget_alerts, get_financial_texts
+)
+from productivity_ai import (
+    init_productivity_tables, add_task, complete_task, get_user_tasks,
+    create_daily_plan, analyze_productivity, start_focus_session,
+    complete_focus_session, get_productivity_texts
+)
 
 load_dotenv()
 logging.basicConfig(level=logging.INFO)
@@ -156,7 +172,16 @@ def init_db():
     conn.commit()
     cur.close()
     conn.close()
-    logger.info("✅ Database initialized with reminders system and indexes")
+
+    # Initialize premium, financial, productivity tables
+    conn = get_db()
+    if conn:
+        init_premium_tables(conn)
+        init_financial_tables(conn)
+        init_productivity_tables(conn)
+        conn.close()
+
+    logger.info("✅ Database initialized with all features")
 
 # === USER FUNCTIONS ===
 
@@ -542,13 +567,16 @@ def get_main_menu_keyboard(lang):
          InlineKeyboardButton(get_text(lang, "btn_healer"), callback_data="healer")],
         [InlineKeyboardButton(get_text(lang, "btn_mood"), callback_data="mood"),
          InlineKeyboardButton(get_text(lang, "btn_journal"), callback_data="journal")],
+        [InlineKeyboardButton("💰 Moliya", callback_data="financial_menu"),
+         InlineKeyboardButton("⚡ Productivity", callback_data="productivity_menu")],
         [InlineKeyboardButton(get_text(lang, "btn_meditate"), callback_data="meditate"),
          InlineKeyboardButton(get_text(lang, "btn_fitness"), callback_data="fitness")],
         [InlineKeyboardButton("📄 PDF/PPT", callback_data="content_menu"),
          InlineKeyboardButton("🤖 AI Tools", callback_data="ai_tools_menu")],
         [InlineKeyboardButton(get_text(lang, "btn_reminders"), callback_data="reminders"),
          InlineKeyboardButton(get_text(lang, "btn_stats"), callback_data="stats")],
-        [InlineKeyboardButton(get_text(lang, "btn_lang"), callback_data="lang")]
+        [InlineKeyboardButton("💎 Premium", callback_data="premium_menu"),
+         InlineKeyboardButton(get_text(lang, "btn_lang"), callback_data="lang")]
     ]
     return InlineKeyboardMarkup(keyboard)
 
