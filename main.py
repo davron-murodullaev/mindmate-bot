@@ -1308,6 +1308,332 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await safe_edit(query, text, reply_markup=get_main_menu_button(lang), parse_mode="Markdown")
         return
 
+    # === PREMIUM MENU ===
+    if query.data == "premium_menu":
+        conn = get_db()
+        if conn:
+            stats = get_usage_stats(conn, user_id)
+            texts = get_premium_texts(lang)
+
+            # Format expiry date
+            expires_text = ""
+            if stats.get("expires_at"):
+                expires_text = f"⏰ Tugaydi: {stats['expires_at'].strftime('%Y-%m-%d')}"
+
+            # Format limits (-1 = unlimited)
+            ai_limit_text = "♾️" if stats["ai_limit_daily"] == -1 else str(stats["ai_limit_daily"])
+            pdf_limit_text = "♾️" if stats["pdf_limit_month"] == -1 else str(stats["pdf_limit_month"])
+            img_limit_text = "♾️" if stats["images_limit_month"] == -1 else str(stats["images_limit_month"])
+
+            usage_text = texts.get("usage_stats", "").format(
+                tier=stats["tier"].upper(),
+                ai_used=stats["ai_used_today"],
+                ai_limit=ai_limit_text,
+                pdf_used=stats["pdf_used_month"],
+                pdf_limit=pdf_limit_text,
+                img_used=stats["images_used_month"],
+                img_limit=img_limit_text,
+                expires_text=expires_text
+            )
+
+            keyboard = [
+                [InlineKeyboardButton("🌟 Premium ($4.99/oy)", callback_data="buy_premium")],
+                [InlineKeyboardButton("⭐ Pro ($14.99/oy)", callback_data="buy_pro")],
+                [InlineKeyboardButton("🎁 Referral", callback_data="show_referral")],
+                [InlineKeyboardButton("🏠 Bosh menyu", callback_data="main_menu")]
+            ]
+
+            await safe_edit(query, usage_text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
+            conn.close()
+        return
+
+    if query.data == "show_referral":
+        conn = get_db()
+        if conn:
+            texts = get_premium_texts(lang)
+            ref_code = get_referral_code(user_id)
+            ref_count = get_referral_stats(conn, user_id)
+
+            ref_text = texts.get("referral_info", "").format(
+                code=ref_code,
+                count=ref_count
+            )
+
+            keyboard = [
+                [InlineKeyboardButton("🔙 Orqaga", callback_data="premium_menu")],
+                [InlineKeyboardButton("🏠 Bosh menyu", callback_data="main_menu")]
+            ]
+
+            await safe_edit(query, ref_text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
+            conn.close()
+        return
+
+    if query.data in ["buy_premium", "buy_pro"]:
+        # TODO: Implement Telegram Stars payment
+        tier = "premium" if query.data == "buy_premium" else "pro"
+        price = SUBSCRIPTION_TIERS[tier]["price"]
+
+        text = f"""💎 **{SUBSCRIPTION_TIERS[tier]["name"]} Obuna**
+
+💵 Narx: ${price}/oy
+
+**Imkoniyatlar:**
+"""
+        for feature in SUBSCRIPTION_TIERS[tier]["features"]:
+            text += f"✅ {feature}\n"
+
+        text += "\n⚠️ **To'lov tizimi hozircha ishlamayapti.**\nTez orada ishga tushadi! 🚀"
+
+        keyboard = [
+            [InlineKeyboardButton("🔙 Orqaga", callback_data="premium_menu")],
+            [InlineKeyboardButton("🏠 Bosh menyu", callback_data="main_menu")]
+        ]
+
+        await safe_edit(query, text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
+        return
+
+    # === FINANCIAL MENU ===
+    if query.data == "financial_menu":
+        keyboard = [
+            [InlineKeyboardButton("💸 Xarajat qo'shish", callback_data="add_expense"),
+             InlineKeyboardButton("💵 Daromad qo'shish", callback_data="add_income")],
+            [InlineKeyboardButton("📊 Oylik hisobot", callback_data="financial_report")],
+            [InlineKeyboardButton("💡 AI Maslahat", callback_data="financial_advice_start")],
+            [InlineKeyboardButton("📈 Investitsiya", callback_data="investment_advice")],
+            [InlineKeyboardButton("🏠 Bosh menyu", callback_data="main_menu")]
+        ]
+        text = "💰 **Moliyaviy Coach**\n\nQaysi xizmat kerak?"
+        await safe_edit(query, text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
+        return
+
+    if query.data == "add_expense":
+        context.user_data["waiting_for"] = "expense_amount"
+        text = "💸 **Xarajat qo'shish**\n\nXarajat summasini kiriting (masalan: 50000):"
+        await safe_edit(query, text, reply_markup=get_main_menu_button(lang), parse_mode="Markdown")
+        return
+
+    if query.data == "add_income":
+        context.user_data["waiting_for"] = "income_amount"
+        text = "💵 **Daromad qo'shish**\n\nDaromad summasini kiriting (masalan: 1000000):"
+        await safe_edit(query, text, reply_markup=get_main_menu_button(lang), parse_mode="Markdown")
+        return
+
+    if query.data == "financial_report":
+        conn = get_db()
+        if conn:
+            summary = get_monthly_summary(conn, user_id)
+
+            breakdown = ""
+            for cat, amt in summary["expenses_by_category"].items():
+                percentage = (amt / summary["total_expenses"] * 100) if summary["total_expenses"] > 0 else 0
+                breakdown += f"• {cat}: {amt:,.0f} so'm ({percentage:.1f}%)\n"
+
+            if not breakdown:
+                breakdown = "Hali xarajatlar yo'q"
+
+            report_text = f"""📊 **Oylik Moliyaviy Hisobot**
+
+💵 Daromad: {summary['total_income']:,.0f} so'm
+💸 Xarajat: {summary['total_expenses']:,.0f} so'm
+💰 Balans: {summary['balance']:,.0f} so'm
+
+📈 **Xarajatlar taqsimoti:**
+{breakdown}
+
+💡 Tahlil uchun "AI Maslahat" tugmasini bosing."""
+
+            keyboard = [
+                [InlineKeyboardButton("💡 AI Tahlil", callback_data="analyze_spending")],
+                [InlineKeyboardButton("🔙 Orqaga", callback_data="financial_menu")],
+                [InlineKeyboardButton("🏠 Bosh menyu", callback_data="main_menu")]
+            ]
+
+            await safe_edit(query, report_text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
+            conn.close()
+        return
+
+    if query.data == "analyze_spending":
+        conn = get_db()
+        if conn:
+            await query.message.reply_text("🔍 Xarajatlaringizni tahlil qilyapman...")
+            analysis = await analyze_spending_habits(user_id, conn, lang)
+            await query.message.reply_text(analysis, parse_mode="Markdown")
+            conn.close()
+        return
+
+    if query.data == "financial_advice_start":
+        context.user_data["waiting_for"] = "financial_question"
+        text = "💡 **AI Moliyaviy Maslahat**\n\nSavolingizni yozing (masalan: 'Qanday qilib pul tejash mumkin?'):"
+        await safe_edit(query, text, reply_markup=get_main_menu_button(lang), parse_mode="Markdown")
+        return
+
+    if query.data == "investment_advice":
+        context.user_data["waiting_for"] = "investment_amount"
+        text = "📈 **Investitsiya Maslahati**\n\nInvestitsiya qilmoqchi bo'lgan summangizni kiriting:"
+        await safe_edit(query, text, reply_markup=get_main_menu_button(lang), parse_mode="Markdown")
+        return
+
+    # === PRODUCTIVITY MENU ===
+    if query.data == "productivity_menu":
+        keyboard = [
+            [InlineKeyboardButton("📝 Vazifa qo'shish", callback_data="add_task_start"),
+             InlineKeyboardButton("📋 Vazifalarim", callback_data="view_tasks")],
+            [InlineKeyboardButton("📅 Kunlik reja", callback_data="create_daily_plan_start")],
+            [InlineKeyboardButton("🎯 Fokus sessiya", callback_data="start_focus_25")],
+            [InlineKeyboardButton("📊 Productivity hisobot", callback_data="productivity_report")],
+            [InlineKeyboardButton("🏠 Bosh menyu", callback_data="main_menu")]
+        ]
+        text = "⚡ **Productivity Coach**\n\nQaysi xizmat kerak?"
+        await safe_edit(query, text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
+        return
+
+    if query.data == "add_task_start":
+        context.user_data["waiting_for"] = "task_title"
+        text = "📝 **Vazifa qo'shish**\n\nVazifa nomini kiriting:"
+        await safe_edit(query, text, reply_markup=get_main_menu_button(lang), parse_mode="Markdown")
+        return
+
+    if query.data == "view_tasks":
+        conn = get_db()
+        if conn:
+            tasks = get_user_tasks(conn, user_id, include_completed=False)
+
+            if not tasks:
+                text = "📝 Hozircha vazifalar yo'q.\n\n/add_task bilan vazifa qo'shing!"
+                keyboard = [
+                    [InlineKeyboardButton("➕ Vazifa qo'shish", callback_data="add_task_start")],
+                    [InlineKeyboardButton("🏠 Bosh menyu", callback_data="main_menu")]
+                ]
+            else:
+                text = "📋 **Sizning Vazifalaringiz:**\n\n"
+                keyboard = []
+
+                for i, task in enumerate(tasks[:10], 1):
+                    priority_emoji = {"urgent": "🔴", "high": "🟠", "medium": "🟡", "low": "🟢"}.get(task["priority"], "⚪")
+                    text += f"{i}. {priority_emoji} {task['title']}\n"
+                    keyboard.append([
+                        InlineKeyboardButton(f"✅ {i}. {task['title'][:20]}...", callback_data=f"complete_task_{task['id']}")
+                    ])
+
+                keyboard.append([InlineKeyboardButton("🔙 Orqaga", callback_data="productivity_menu")])
+                keyboard.append([InlineKeyboardButton("🏠 Bosh menyu", callback_data="main_menu")])
+
+            await safe_edit(query, text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
+            conn.close()
+        return
+
+    if query.data.startswith("complete_task_"):
+        task_id = int(query.data.split("_")[2])
+        conn = get_db()
+        if conn:
+            success = complete_task(conn, task_id)
+            if success:
+                await query.answer("🎉 Vazifa bajarildi! Tabriklaymiz!", show_alert=True)
+            conn.close()
+        # Refresh task list
+        await button_callback(update, context)  # Recursively call to refresh
+        return
+
+    if query.data == "create_daily_plan_start":
+        conn = get_db()
+        if conn:
+            await query.message.reply_text("📅 Bugun uchun reja yaratyapman...")
+            plan = await create_daily_plan(user_id, conn, work_hours=8, lang=lang)
+            await query.message.reply_text(f"📅 **Kunlik Reja:**\n\n{plan}", parse_mode="Markdown")
+            conn.close()
+        return
+
+    if query.data == "start_focus_25":
+        conn = get_db()
+        if conn:
+            session_id = start_focus_session(conn, user_id, duration=25)
+            text = """🎯 **Fokus Sessiyasi Boshlandi!**
+
+⏱️ 25 minut
+
+💡 **Qoidalar:**
+• Telefon va ijtimoiy tarmoqlarni yoping
+• Faqat bitta vazifaga e'tibor bering
+• 25 minut tugagach 5 minut dam oling
+
+Muvaffaqiyat! 💪"""
+
+            keyboard = [
+                [InlineKeyboardButton("✅ Tugatdim", callback_data=f"end_focus_{session_id}")],
+                [InlineKeyboardButton("🏠 Bosh menyu", callback_data="main_menu")]
+            ]
+
+            await safe_edit(query, text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
+            conn.close()
+        return
+
+    if query.data.startswith("end_focus_"):
+        session_id = int(query.data.split("_")[2])
+        conn = get_db()
+        if conn:
+            complete_focus_session(conn, session_id)
+            text = """🎉 **Fokus Sessiyasi Tugadi!**
+
+Ajoyib! Siz 25 minut to'liq fokusda ishladingiz!
+
+☕ **5 daqiqa dam oling:**
+• Cho'zilib oling
+• Suvdan iching
+• Ko'zlaringizni dam oldiring
+
+Keyingi sessiyaga tayyormisiz?"""
+
+            keyboard = [
+                [InlineKeyboardButton("🔁 Yana 25 min", callback_data="start_focus_25")],
+                [InlineKeyboardButton("📊 Hisobot", callback_data="productivity_report")],
+                [InlineKeyboardButton("🏠 Bosh menyu", callback_data="main_menu")]
+            ]
+
+            await safe_edit(query, text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
+            conn.close()
+        return
+
+    if query.data == "productivity_report":
+        conn = get_db()
+        if conn:
+            await query.message.reply_text("📊 Unumdorlikni tahlil qilyapman...")
+            report = await analyze_productivity(user_id, conn, days=7, lang=lang)
+            await query.message.reply_text(f"📊 **Unumdorlik Hisoboti:**\n\n{report}", parse_mode="Markdown")
+            conn.close()
+        return
+
+    # === FINANCIAL CALLBACKS ===
+    if query.data.startswith("excat_"):
+        category = query.data.replace("excat_", "")
+        amount = context.user_data.get("expense_amount", 0)
+
+        conn = get_db()
+        if conn and amount > 0:
+            add_expense(conn, user_id, amount, category)
+            await query.answer("✅ Xarajat saqlandi!", show_alert=True)
+            await query.message.reply_text(
+                f"✅ Xarajat saqlandi: {amount:,.0f} so'm ({category})",
+                reply_markup=get_main_menu_button(lang)
+            )
+            conn.close()
+
+        context.user_data["waiting_for"] = None
+        context.user_data["expense_amount"] = None
+        return
+
+    if query.data.startswith("risk_"):
+        risk_level = query.data.replace("risk_", "")
+        amount = context.user_data.get("investment_amount", 0)
+
+        if amount > 0:
+            await query.message.reply_text("📊 Investitsiya maslahatini tayyorlamoqdaman...")
+            advice = await get_investment_advice(amount, risk_level, "1 yil", lang)
+            await query.message.reply_text(f"📈 **Investitsiya Maslahati:**\n\n{advice}", parse_mode="Markdown")
+
+        context.user_data["waiting_for"] = None
+        context.user_data["investment_amount"] = None
+        return
+
     # Translation language selection
     if query.data.startswith("tlang_"):
         target_lang = query.data.replace("tlang_", "")
@@ -1545,6 +1871,92 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text("⚠️ Email yozishda xatolik.", reply_markup=get_main_menu_button(lang))
         context.user_data["waiting_for"] = None
         context.user_data["email_purpose"] = None
+        return
+
+    # === FINANCIAL INPUTS ===
+    if waiting_for == "expense_amount":
+        try:
+            amount = float(user_message.replace(",", "").replace(" ", ""))
+            context.user_data["expense_amount"] = amount
+            context.user_data["waiting_for"] = "expense_category"
+
+            keyboard = [
+                [InlineKeyboardButton("🍽️ Ovqat", callback_data="excat_food"),
+                 InlineKeyboardButton("🚗 Transport", callback_data="excat_transport")],
+                [InlineKeyboardButton("🏠 Uy-joy", callback_data="excat_housing"),
+                 InlineKeyboardButton("💡 Kommunal", callback_data="excat_utilities")],
+                [InlineKeyboardButton("🏥 Sog'liq", callback_data="excat_healthcare"),
+                 InlineKeyboardButton("📚 Ta'lim", callback_data="excat_education")],
+                [InlineKeyboardButton("🎬 O'yin-kulgi", callback_data="excat_entertainment"),
+                 InlineKeyboardButton("🛍️ Xaridlar", callback_data="excat_shopping")],
+                [InlineKeyboardButton("📦 Boshqa", callback_data="excat_other")]
+            ]
+
+            await update.message.reply_text(
+                f"💸 Summa: {amount:,.0f} so'm\n\n📂 Kategoriyani tanlang:",
+                reply_markup=InlineKeyboardMarkup(keyboard)
+            )
+        except:
+            await update.message.reply_text("⚠️ Summa raqamda kiriting (masalan: 50000)")
+        return
+
+    if waiting_for == "income_amount":
+        try:
+            amount = float(user_message.replace(",", "").replace(" ", ""))
+            conn = get_db()
+            if conn:
+                add_income(conn, user_id, amount, "salary", "Daromad")
+                await update.message.reply_text(
+                    f"✅ Daromad saqlandi: {amount:,.0f} so'm",
+                    reply_markup=get_main_menu_button(lang)
+                )
+                conn.close()
+            context.user_data["waiting_for"] = None
+        except:
+            await update.message.reply_text("⚠️ Summa raqamda kiriting (masalan: 1000000)")
+        return
+
+    if waiting_for == "financial_question":
+        await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
+        conn = get_db()
+        if conn:
+            advice = await get_financial_advice(user_id, conn, user_message, lang)
+            await update.message.reply_text(f"💡 **AI Maslahat:**\n\n{advice}", parse_mode="Markdown")
+            conn.close()
+        context.user_data["waiting_for"] = None
+        return
+
+    if waiting_for == "investment_amount":
+        try:
+            amount = float(user_message.replace(",", "").replace(" ", ""))
+            context.user_data["investment_amount"] = amount
+            context.user_data["waiting_for"] = "investment_risk"
+
+            keyboard = [
+                [InlineKeyboardButton("🟢 Past", callback_data="risk_low")],
+                [InlineKeyboardButton("🟡 O'rta", callback_data="risk_medium")],
+                [InlineKeyboardButton("🔴 Yuqori", callback_data="risk_high")]
+            ]
+
+            await update.message.reply_text(
+                "📊 Risk darajasini tanlang:",
+                reply_markup=InlineKeyboardMarkup(keyboard)
+            )
+        except:
+            await update.message.reply_text("⚠️ Summa raqamda kiriting")
+        return
+
+    # === PRODUCTIVITY INPUTS ===
+    if waiting_for == "task_title":
+        conn = get_db()
+        if conn:
+            task_id = add_task(conn, user_id, user_message, priority="medium")
+            await update.message.reply_text(
+                f"✅ Vazifa qo'shildi: {user_message}",
+                reply_markup=get_main_menu_button(lang)
+            )
+            conn.close()
+        context.user_data["waiting_for"] = None
         return
 
     # Default: AI Chat
