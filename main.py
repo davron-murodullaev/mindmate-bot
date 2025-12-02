@@ -166,7 +166,7 @@ def init_db():
         )
     ''')
 
-    # Indexlar yaratish (performance uchun)
+    # Create indexes (for performance)
     cur.execute('CREATE INDEX IF NOT EXISTS idx_moods_user_id ON moods(user_id)')
     cur.execute('CREATE INDEX IF NOT EXISTS idx_journals_user_id ON journals(user_id)')
     cur.execute('CREATE INDEX IF NOT EXISTS idx_conversations_user_id ON conversations(user_id)')
@@ -298,9 +298,9 @@ def get_user_memories(user_id, limit=50):
 
 def format_memories_for_ai(memories):
     if not memories:
-        return "Yangi foydalanuvchi - hali ma'lumot yo'q"
-    
-    text = "📋 FOYDALANUVCHI HAQIDA BILGANLARIM:\n"
+        return "New user - no data yet"
+
+    text = "📋 WHAT I KNOW ABOUT THE USER:\n"
     for m in memories:
         text += f"- {m['key']}: {m['value']}\n"
     return text
@@ -485,7 +485,7 @@ def save_reminder(user_id, reminder_type, reminder_time):
     return True
 
 def get_user_reminders(user_id):
-    """Foydalanuvchi eslatmalarini olish"""
+    """Get user reminders"""
     conn = get_db()
     if conn is None:
         return []
@@ -514,7 +514,7 @@ def delete_reminder(user_id, reminder_type):
     return True
 
 def get_reminders_for_time(current_time):
-    """Berilgan vaqt uchun eslatmalarni olish"""
+    """Get reminders for given time"""
     conn = get_db()
     if conn is None:
         return []
@@ -1131,7 +1131,7 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Water done
     if query.data == "water_done":
-        text = "💧 Zo'r! Suv ichish sog'liq uchun juda muhim! 👍"
+        text = "💧 Great! Drinking water is very important for health! 👍"
         await safe_edit(query, text, reply_markup=get_main_menu_button(lang))
         return
 
@@ -1160,7 +1160,7 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         else:
             follow_up = "\n\n🌟 Ajoyib!"
 
-        response = f"{emojis[score]} Kayfiyat saqlandi: {score}/5{follow_up}"
+        response = f"{emojis[score]} Mood saved: {score}/5{follow_up}"
         await safe_edit(query, response, reply_markup=get_back_and_menu("mood", lang))
         return
 
@@ -1629,7 +1629,7 @@ Send screenshot to this bot and we'll activate within 24 hours!
     if query.data == "analyze_spending":
         conn = get_db()
         if conn:
-            await query.message.reply_text("🔍 Xarajatlaringizni tahlil qilyapman...")
+            await query.message.reply_text("🔍 Analyzing your expenses...")
             analysis = await analyze_spending_habits(user_id, conn, lang)
             await query.message.reply_text(analysis, parse_mode="Markdown")
             conn.close()
@@ -1689,7 +1689,7 @@ Send screenshot to this bot and we'll activate within 24 hours!
             cur.close()
 
             if usage_count >= 3:
-                text = "⚠️ Siz bu oyda 3 ta bepul sinov maslahatidan foydalandingiz.\n\n💎 Premium xarid qiling!"
+                text = "⚠️ You've used all 3 free trial consultations this month.\n\n💎 Upgrade to Premium!"
                 keyboard = [
                     [InlineKeyboardButton("💎 Premium", callback_data="buy_premium")],
                     [InlineKeyboardButton("🔙 Back", callback_data="financial_menu")]
@@ -1997,9 +1997,9 @@ Ready for the next session?"""
         amount = context.user_data.get("investment_amount", 0)
 
         if amount > 0:
-            await query.message.reply_text("📊 Investitsiya maslahatini tayyorlamoqdaman...")
-            advice = await get_investment_advice(amount, risk_level, "1 yil", lang)
-            await query.message.reply_text(f"📈 **Investitsiya Maslahati:**\n\n{advice}", parse_mode="Markdown")
+            await query.message.reply_text("📊 Preparing investment advice...")
+            advice = await get_investment_advice(amount, risk_level, "1 year", lang)
+            await query.message.reply_text(f"📈 **Investment Advice:**\n\n{advice}", parse_mode="Markdown")
 
         context.user_data["waiting_for"] = None
         context.user_data["investment_amount"] = None
@@ -2010,12 +2010,12 @@ Ready for the next session?"""
         target_lang = query.data.replace("tlang_", "")
         text_to_translate = context.user_data.get("translate_text", "")
         if text_to_translate:
-            await query.message.reply_text("🌐 Tarjima qilinmoqda...")
+            await query.message.reply_text("🌐 Translating...")
             translation = await translate_text(text_to_translate, target_lang)
             if translation:
-                await query.message.reply_text(f"✅ **Tarjima:**\n\n{translation}", parse_mode="Markdown")
+                await query.message.reply_text(f"✅ **Translation:**\n\n{translation}", parse_mode="Markdown")
             else:
-                await query.message.reply_text("⚠️ Tarjima qilishda xatolik.", reply_markup=get_main_menu_button(lang))
+                await query.message.reply_text("⚠️ Error translating.", reply_markup=get_main_menu_button(lang))
         context.user_data["waiting_for"] = None
         context.user_data["translate_text"] = None
         return
@@ -2149,7 +2149,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if waiting_for == "ppt_title":
         context.user_data["ppt_title"] = user_message
         context.user_data["waiting_for"] = "ppt_slides"
-        await update.message.reply_text("📊 Slayd mazmunini kiriting (har bir slayd uchun: 'SLAYD: sarlavha\nmatn'):", reply_markup=get_main_menu_button(lang))
+        await update.message.reply_text("📊 Enter slide content (for each slide: 'SLIDE: title\ncontent'):", reply_markup=get_main_menu_button(lang))
         return
 
     if waiting_for == "ppt_slides":
@@ -2231,7 +2231,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             [InlineKeyboardButton("🇸🇦 العربية", callback_data="tlang_ar"),
              InlineKeyboardButton("🇨🇳 中文", callback_data="tlang_zh")]
         ]
-        await update.message.reply_text("🌍 Qaysi tilga tarjima qilish kerak?", reply_markup=InlineKeyboardMarkup(keyboard))
+        await update.message.reply_text("🌍 Which language to translate to?", reply_markup=InlineKeyboardMarkup(keyboard))
         return
 
     # Code Generation
@@ -2369,7 +2369,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         conn = get_db()
         if conn:
             advice = await get_financial_advice(user_id, conn, user_message, lang)
-            await update.message.reply_text(f"💡 **AI Maslahat:**\n\n{advice}", parse_mode="Markdown")
+            await update.message.reply_text(f"💡 **AI Advice:**\n\n{advice}", parse_mode="Markdown")
             conn.close()
         context.user_data["waiting_for"] = None
         return
@@ -2400,7 +2400,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if conn:
             task_id = add_task(conn, user_id, user_message, priority="medium")
             await update.message.reply_text(
-                f"✅ Vazifa qo'shildi: {user_message}",
+                f"✅ Task added: {user_message}",
                 reply_markup=get_main_menu_button(lang)
             )
             conn.close()
