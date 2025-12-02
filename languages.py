@@ -43,7 +43,64 @@ Quyidagi tugmalardan birini tanlang yoki shunchaki xabar yozing!
         "btn_lang": "🌍 Til",
         "btn_back": "🔙 Orqaga",
         "btn_main_menu": "🏠 Bosh menyu",
-        "error": "Kechirasiz, hozir javob bera olmayapman. Keyinroq urinib ko'ring."
+        "error": "Kechirasiz, hozir javob bera olmayapman. Keyinroq urinib ko'ring.",
+
+        # AI Do'st
+        "journal_mode": "📝 **Kundalik**\n\nBugun qanday o'tdingiz? Hamma narsani yozib qo'ying - his-tuyg'ular, voqealar, fikrlar.\n\nMen diqqat bilan tinglab, tahlil qilaman va maslahat beraman.\n\nBu yerda hamma narsa maxfiy! ❤️",
+        "deep_chat": "💭 **Chuqur Suhbat**\n\nKeling, muhim narsalar haqida gaplashamiz.\n\nSizni nima tashvishga solmoqda?\nNima haqida fikr yuritasiz?\nQaysi muammoga yechim qidiryapsiz?\n\nMen sizni tinglayman va tushunaman.",
+        "chat_mode_name": "💬 **{name}**, men sizni tinglayman! Gapirishingiz mumkin.",
+        "chat_mode_noname": "💬 Salom! Men sizning AI do'stingizman. Ismingiz nima?",
+
+        # Moliya
+        "add_expense": "💸 **Xarajat qo'shish**\n\nXarajat summasini kiriting (masalan: 50000):",
+        "add_income": "💵 **Daromad qo'shish**\n\nDaromad summasini kiriting (masalan: 1000000):",
+        "financial_report": "📊 **Oylik Moliyaviy Hisobot**",
+        "expense_added": "✅ **Xarajat Qo'shildi!**",
+        "income_added": "✅ **Daromad Qo'shildi!**",
+        "financial_advice_prompt": "💡 **AI Moliyaviy Maslahat**\n\nSavolingizni yozing (masalan: 'Qanday qilib pul tejash mumkin?'):",
+        "recurring_expense": "🔄 **Doimiy Xarajat Qo'shish**\n\nBu sizning har oy yoki har hafta to'laydigan xarajatlaringiz (uy-ijara, internet, elektr, va h.k.)\n\nXarajat summasini kiriting:",
+
+        # Unumdorlik
+        "add_task": "📝 **Vazifa qo'shish**\n\nVazifa nomini kiriting:",
+        "task_added": "✅ Vazifa qo'shildi!",
+        "no_tasks": "📝 Hozircha vazifalar yo'q.\n\n/add_task bilan vazifa qo'shing!",
+        "your_tasks": "📋 **Sizning Vazifalaringiz:**",
+        "focus_started": "🎯 **Fokus Sessiyasi Boshlandi!**",
+        "focus_completed": "🎉 **Fokus Sessiyasi Tugadi!**",
+
+        # Premium / To'lov
+        "premium_menu": "💎 **Premium**",
+        "subscription_tier": "💎 **Obuna:** {tier}",
+        "paypal_payment": "💳 **PayPal To'lov**",
+        "payment_method": "💳 **To'lov usullari:**\n\n1️⃣ **Telegram Stars** - To'g'ridan-to'g'ri telegram orqali\n2️⃣ **PayPal** - Xalqaro to'lov\n\nTo'lov usulini tanlang:",
+        "your_bonuses": "🎁 **Sizning Bonuslaringiz**",
+
+        # Profil / Statistika
+        "your_statistics": "📊 **Sizning Statistikangiz**",
+        "your_goals": "🎯 **Maqsadlaringiz**\n\nBu bo'lim tez orada ishga tushadi!\n\nSiz o'zingizning moliyaviy, jismoniy va shaxsiy maqsadlaringizni belgilay olasiz.",
+        "achievements": "🏆 **Yutuqlar**\n\nBu bo'lim tez orada ishga tushadi!\n\nSiz turli vazifalarni bajarganingizda yutuqlarga ega bo'lasiz:\n• 🔥 7 kun ketma-ket foydalanish\n• 💪 50 ta vazifa bajarish\n• 💰 1 million so'm tejash\n• Va boshqalar!",
+        "progress": "📈 **Progress**\n\nBu bo'lim tez orada ishga tushadi!\n\nSizning haftalik va oylik progressingizni grafik ko'rinishida ko'rishingiz mumkin bo'ladi.",
+
+        # Sozlamalar
+        "notifications": "🔔 **Bildirishnomalar**\n\nBu bo'lim tez orada ishga tushadi!\n\nSiz eslatmalar, maqsad yangiliklari va boshqa bildirishnomalarni sozlashingiz mumkin bo'ladi.",
+        "reset_history": "⚠️ **Tarikhni Tozalash**\n\nBu barcha suhbat tarixini o'chiradi. Moliya va vazifa ma'lumotlari saqlanadi.\n\nDavom etasizmi?",
+        "history_cleared": "✅ Tarix tozalandi! Suhbatni yangidan boshlashingiz mumkin.",
+        "help_text": "ℹ️ **Yordam**\n\n**MindMate - Sizning AI Yordamchingiz**\n\n📌 **Asosiy Bo'limlar:**\n\n💬 **AI Do'st** - Suhbatlashing, kundalik yozing\n💰 **Moliya** - Xarajat/daromad, hisobot, maslahat\n⚡ **Unumdorlik** - Vazifalar, fokus, kunlik reja\n🎨 **Ijod** - PDF, PPT, kod, rasm yaratish\n🧘 **Salomatlik** - Meditatsiya, fitness, sog'liq\n\n💎 **Premium** - Cheklovlarsiz foydalanish!\n\n❓ Savollaringiz bo'lsa, menga yozing!",
+
+        # Salomatlik
+        "health_ai": "🏥 **Sog'liq AI**\n\nMen sizning sog'lig'ingiz haqida umumiy maslahatlar bera olaman.\n\n⚠️ **Muhim:** Men tibbiy diagnoz qo'ymayman va dori tavsiya qilmayman. Jiddiy muammolar bo'lsa, shifokorga murojaat qiling!\n\nSavolingizni yozing:",
+        "breathing": "🌬️ **4-7-8 Nafas Mashqi**\n\n1️⃣ Qulay o'tiring, ko'zingizni yuming\n2️⃣ 4 soniya - nafas oling\n3️⃣ 7 soniya - ushlab turing\n4️⃣ 8 soniya - sekin chiqaring\n5️⃣ 4-5 marta takrorlang\n\n💡 Asab tizimini tinchlantiradi.",
+        "calm": "🧘 **5 Daqiqalik Tinchlanish**\n\n1️⃣ Qulay joyga o'tiring\n2️⃣ Ko'zingizni yuming\n3️⃣ Chuqur nafas oling\n4️⃣ Tanangizni bo'shating\n5️⃣ Faqat nafasga diqqat qiling\n\n🕐 5 daqiqa shu holatda qoling.",
+        "sleep": "😴 **Uyqu Meditatsiyasi**\n\n1️⃣ 3 marta chuqur nafas oling\n2️⃣ Oyoq barmoqlaridan boshlang\n3️⃣ Sekin yuqoriga ko'tariling\n4️⃣ Butun tana bo'sh va og'ir\n\n🌙 Yoqimli tushlar! 💫",
+
+        # Ijod Vositalari
+        "pdf_content": "📝 PDF mazmunini kiriting (yoki tugagach /done yuboring):",
+        "ppt_content": "📊 Slayd mazmunini kiriting (har bir slayd uchun: 'SLAYD: sarlavha\nmatn'):",
+        "resume_info": "📋 Qisqacha ma'lumotlaringizni kiriting:\n\nEmail:\nTelefon:\nTajriba:\nKo'nikmalar:",
+        "image_prompt": "🎨 **Rasm Yaratish**\n\nQanday rasm kerakligini ta'riflang:",
+        "code_prompt": "👨‍💻 **Kod Yozish**\n\nQanday kod kerakligini ta'riflang:",
+        "translate_prompt": "🌐 **Tarjima**\n\nTarjima qilish uchun matn kiriting:",
+        "error_occurred": "⚠️ Xatolik yuz berdi. Qaytadan urinib ko'ring."
     },
     
     # ============ RUS TILI ============
@@ -131,7 +188,64 @@ Choose a button below or just send me a message!
         "btn_lang": "🌍 Language",
         "btn_back": "🔙 Back",
         "btn_main_menu": "🏠 Main Menu",
-        "error": "Sorry, I can't respond right now. Please try later."
+        "error": "Sorry, I can't respond right now. Please try later.",
+
+        # AI Friend
+        "journal_mode": "📝 **Journal**\n\nHow was your day? Write everything - feelings, events, thoughts.\n\nI'll listen carefully, analyze, and give advice.\n\nEverything here is private! ❤️",
+        "deep_chat": "💭 **Deep Conversation**\n\nLet's talk about important things.\n\nWhat's worrying you?\nWhat are you thinking about?\nWhat problem are you trying to solve?\n\nI'll listen and understand.",
+        "chat_mode_name": "💬 {name}, I'm listening! You can talk to me.",
+        "chat_mode_noname": "💬 Hello! I'm your AI friend. What's your name?",
+
+        # Financial
+        "add_expense": "💸 **Add Expense**\n\nEnter expense amount (e.g., 50000):",
+        "add_income": "💵 **Add Income**\n\nEnter income amount (e.g., 1000000):",
+        "financial_report": "📊 **Monthly Financial Report**",
+        "expense_added": "✅ **Expense Added!**",
+        "income_added": "✅ **Income Added!**",
+        "financial_advice_prompt": "💡 **AI Financial Advice**\n\nAsk your question (e.g., 'How can I save money?'):",
+        "recurring_expense": "🔄 **Add Recurring Expense**\n\nThese are your monthly or weekly expenses (rent, internet, electricity, etc.)\n\nEnter expense amount:",
+
+        # Productivity
+        "add_task": "📝 **Add Task**\n\nEnter task name:",
+        "task_added": "✅ Task added!",
+        "no_tasks": "📝 No tasks yet.\n\nAdd a task with /add_task!",
+        "your_tasks": "📋 **Your Tasks:**",
+        "focus_started": "🎯 **Focus Session Started!**",
+        "focus_completed": "🎉 **Focus Session Complete!**",
+
+        # Premium / Payment
+        "premium_menu": "💎 **Premium**",
+        "subscription_tier": "💎 **Subscription:** {tier}",
+        "paypal_payment": "💳 **PayPal Payment**",
+        "payment_method": "💳 **Payment Methods:**\n\n1️⃣ **Telegram Stars** - Direct payment via Telegram\n2️⃣ **PayPal** - International payment\n\nChoose payment method:",
+        "your_bonuses": "🎁 **Your Bonuses**",
+
+        # Profile / Stats
+        "your_statistics": "📊 **Your Statistics**",
+        "your_goals": "🎯 **Your Goals**\n\nThis section is coming soon!\n\nYou'll be able to set your financial, physical, and personal goals.",
+        "achievements": "🏆 **Achievements**\n\nThis section is coming soon!\n\nYou'll earn achievements for completing tasks:\n• 🔥 7 days streak\n• 💪 Complete 50 tasks\n• 💰 Save 1 million\n• And more!",
+        "progress": "📈 **Progress**\n\nThis section is coming soon!\n\nYou'll see your weekly and monthly progress in graph form.",
+
+        # Settings
+        "notifications": "🔔 **Notifications**\n\nThis section is coming soon!\n\nYou'll be able to configure reminders, goal updates, and other notifications.",
+        "reset_history": "⚠️ **Clear History**\n\nThis will delete all chat history. Financial and task data will be preserved.\n\nContinue?",
+        "history_cleared": "✅ History cleared! You can start a fresh conversation.",
+        "help_text": "ℹ️ **Help**\n\n**MindMate - Your AI Assistant**\n\n📌 **Main Sections:**\n\n💬 **AI Friend** - Chat, journal\n💰 **Finance** - Expenses/income, reports, advice\n⚡ **Productivity** - Tasks, focus, daily plan\n🎨 **Creative** - PDF, PPT, code, images\n🧘 **Health** - Meditation, fitness, health\n\n💎 **Premium** - Unlimited access!\n\n❓ If you have questions, write to me!",
+
+        # Health
+        "health_ai": "🏥 **Health AI**\n\nI can give you general health advice.\n\n⚠️ **Important:** I don't diagnose or prescribe medication. For serious issues, consult a doctor!\n\nWrite your question:",
+        "breathing": "🌬️ **4-7-8 Breathing Exercise**\n\n1️⃣ Sit comfortably, close your eyes\n2️⃣ 4 seconds - inhale\n3️⃣ 7 seconds - hold\n4️⃣ 8 seconds - exhale slowly\n5️⃣ Repeat 4-5 times\n\n💡 Calms the nervous system.",
+        "calm": "🧘 **5-Minute Calm**\n\n1️⃣ Sit in a comfortable place\n2️⃣ Close your eyes\n3️⃣ Take a deep breath\n4️⃣ Relax your body\n5️⃣ Focus only on breathing\n\n🕐 Stay in this state for 5 minutes.",
+        "sleep": "😴 **Sleep Meditation**\n\n1️⃣ Take 3 deep breaths\n2️⃣ Start from your toes\n3️⃣ Slowly move upward\n4️⃣ Whole body feels loose and heavy\n\n🌙 Sweet dreams! 💫",
+
+        # Creative Tools
+        "pdf_content": "📝 Enter PDF content (or send /done when finished):",
+        "ppt_content": "📊 Enter slide content (for each slide: 'SLIDE: title\ntext'):",
+        "resume_info": "📋 Enter your information:\n\nEmail:\nPhone:\nExperience:\nSkills:",
+        "image_prompt": "🎨 **Generate Image**\n\nDescribe the image you want:",
+        "code_prompt": "👨‍💻 **Write Code**\n\nDescribe what code you need:",
+        "translate_prompt": "🌐 **Translate**\n\nEnter text to translate:",
+        "error_occurred": "⚠️ An error occurred. Please try again."
     },
     
     # ============ TURK TILI ============
