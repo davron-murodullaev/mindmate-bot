@@ -752,32 +752,32 @@ async def send_reminder_notification(app, user_id, reminder_type):
         elif reminder_type == "meditate":
             text = get_reminder_text(lang, "meditate_notify")
             keyboard = [
-                [InlineKeyboardButton("🧘 Meditatsiya", callback_data="meditate")],
+                [InlineKeyboardButton("🧘 Meditation", callback_data="meditate")],
                 [InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")]
             ]
             reply_markup = InlineKeyboardMarkup(keyboard)
         elif reminder_type == "workout":
             text = get_reminder_text(lang, "workout_notify")
             keyboard = [
-                [InlineKeyboardButton("💪 Mashq", callback_data="fitness")],
+                [InlineKeyboardButton("💪 Workout", callback_data="fitness")],
                 [InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")]
             ]
             reply_markup = InlineKeyboardMarkup(keyboard)
         elif reminder_type == "water":
             text = get_reminder_text(lang, "water_notify")
-            keyboard = [[InlineKeyboardButton("✅ Ichdim", callback_data="water_done")],
+            keyboard = [[InlineKeyboardButton("✅ Drank", callback_data="water_done")],
                         [InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")]]
             reply_markup = InlineKeyboardMarkup(keyboard)
         else:
             return
-        
+
         await app.bot.send_message(chat_id=user_id, text=text, reply_markup=reply_markup)
-        logger.info(f"✅ Eslatma yuborildi: {user_id} - {reminder_type}")
+        logger.info(f"✅ Reminder sent: {user_id} - {reminder_type}")
     except Exception as e:
-        logger.error(f"Eslatma yuborishda xato: {e}")
+        logger.error(f"Error sending reminder: {e}")
 
 async def check_and_send_reminders(app):
-    """Har daqiqada eslatmalarni tekshirish"""
+    """Check reminders every minute"""
     while True:
         try:
             current_time = datetime.now().strftime("%H:%M")
@@ -818,29 +818,29 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     lang = get_user_lang(update.effective_user.id)
     help_text = """
-🤖 **MindMate - Sizning JARVIS'ingiz**
+🤖 **MindMate - Your Personal JARVIS**
 
-**Imkoniyatlar:**
-💬 Suhbat - Men bilan gaplashing
-🌿 Shifokor - Tabiiy usullar
-😊 Kayfiyat - Kayfiyatingizni kuzating
-📝 Kundalik - Fikrlaringizni yozing
-🧘 Meditatsiya - Tinchlanish
-💪 Fitness - Mashqlar
-⏰ Eslatmalar - Kunlik eslatmalar
+**Features:**
+💬 Chat - Talk with me
+🌿 Healer - Natural remedies
+😊 Mood - Track your mood
+📝 Journal - Write your thoughts
+🧘 Meditation - Relax
+💪 Fitness - Workouts
+⏰ Reminders - Daily reminders
 
-Shunchaki yozing! ❤️
+Just write! ❤️
     """
     await update.message.reply_text(help_text, reply_markup=get_main_menu_button(lang), parse_mode="Markdown")
 
 async def mood_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     lang = get_user_lang(update.effective_user.id)
     keyboard = [
-        [InlineKeyboardButton("😄 Zo'r (5)", callback_data="mood_5"),
-         InlineKeyboardButton("🙂 Yaxshi (4)", callback_data="mood_4")],
+        [InlineKeyboardButton("😄 Great (5)", callback_data="mood_5"),
+         InlineKeyboardButton("🙂 Good (4)", callback_data="mood_4")],
         [InlineKeyboardButton("😐 Normal (3)", callback_data="mood_3"),
-         InlineKeyboardButton("😔 Yomon (2)", callback_data="mood_2")],
-        [InlineKeyboardButton("😢 Juda yomon (1)", callback_data="mood_1")],
+         InlineKeyboardButton("😔 Bad (2)", callback_data="mood_2")],
+        [InlineKeyboardButton("😢 Very Bad (1)", callback_data="mood_1")],
         [InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")]
     ]
     await update.message.reply_text(get_text(lang, "mood_ask"), reply_markup=InlineKeyboardMarkup(keyboard))
@@ -853,9 +853,9 @@ async def journal_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def meditate_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     lang = get_user_lang(update.effective_user.id)
     keyboard = [
-        [InlineKeyboardButton("🌬️ Nafas (2 daq)", callback_data="meditate_breathing"),
-         InlineKeyboardButton("🧘 Tinchlanish (5 daq)", callback_data="meditate_calm")],
-        [InlineKeyboardButton("😴 Uyqu (10 daq)", callback_data="meditate_sleep")],
+        [InlineKeyboardButton("🌬️ Breathing (2 min)", callback_data="meditate_breathing"),
+         InlineKeyboardButton("🧘 Calm (5 min)", callback_data="meditate_calm")],
+        [InlineKeyboardButton("😴 Sleep (10 min)", callback_data="meditate_sleep")],
         [InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")]
     ]
     await update.message.reply_text(get_text(lang, "meditate_ask"), reply_markup=InlineKeyboardMarkup(keyboard))
@@ -1600,16 +1600,16 @@ Ushbu bot'ga screenshot yuboring va biz 24 soat ichida faollashtramiz!
             breakdown = ""
             for cat, amt in summary["expenses_by_category"].items():
                 percentage = (amt / summary["total_expenses"] * 100) if summary["total_expenses"] > 0 else 0
-                breakdown += f"• {cat}: {amt:,.0f} so'm ({percentage:.1f}%)\n"
+                breakdown += f"• {cat}: ${amt:,.2f} ({percentage:.1f}%)\n"
 
             if not breakdown:
                 breakdown = "No expenses yet"
 
             report_text = f"""📊 **Monthly Financial Report**
 
-💵 Income: {summary['total_income']:,.0f} sum
-💸 Expenses: {summary['total_expenses']:,.0f} sum
-💰 Balance: {summary['balance']:,.0f} sum
+💵 Income: ${summary['total_income']:,.2f}
+💸 Expenses: ${summary['total_expenses']:,.2f}
+💰 Balance: ${summary['balance']:,.2f}
 
 📈 **Expense breakdown:**
 {breakdown}
@@ -1751,9 +1751,9 @@ Ushbu bot'ga screenshot yuboring va biz 24 soat ichida faollashtramiz!
 • Total: {len(tasks_completed)}
 
 💰 **Finance (this month):**
-• Income: {financial_summary.get('total_income', 0):,.0f} sum
-• Expenses: {financial_summary.get('total_expenses', 0):,.0f} sum
-• Balance: {financial_summary.get('balance', 0):,.0f} sum
+• Income: ${financial_summary.get('total_income', 0):,.2f}
+• Expenses: ${financial_summary.get('total_expenses', 0):,.2f}
+• Balance: ${financial_summary.get('balance', 0):,.2f}
 
 🎯 **Achievements:** Coming soon!"""
 
@@ -1918,19 +1918,19 @@ Ushbu bot'ga screenshot yuboring va biz 24 soat ichida faollashtramiz!
         conn = get_db()
         if conn:
             session_id = start_focus_session(conn, user_id, duration=25)
-            text = """🎯 **Fokus Sessiyasi Boshlandi!**
+            text = """🎯 **Focus Session Started!**
 
-⏱️ 25 minut
+⏱️ 25 minutes
 
-💡 **Qoidalar:**
-• Telefon va ijtimoiy tarmoqlarni yoping
-• Faqat bitta vazifaga e'tibor bering
-• 25 minut tugagach 5 minut dam oling
+💡 **Rules:**
+• Close phone and social media
+• Focus on just one task
+• After 25 minutes, take a 5-minute break
 
-Muvaffaqiyat! 💪"""
+Good luck! 💪"""
 
             keyboard = [
-                [InlineKeyboardButton("✅ Tugatdim", callback_data=f"end_focus_{session_id}")],
+                [InlineKeyboardButton("✅ Completed", callback_data=f"end_focus_{session_id}")],
                 [InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")]
             ]
 
@@ -1943,20 +1943,20 @@ Muvaffaqiyat! 💪"""
         conn = get_db()
         if conn:
             complete_focus_session(conn, session_id)
-            text = """🎉 **Fokus Sessiyasi Tugadi!**
+            text = """🎉 **Focus Session Completed!**
 
-Ajoyib! Siz 25 minut to'liq fokusda ishladingiz!
+Awesome! You worked focused for 25 minutes!
 
-☕ **5 daqiqa dam oling:**
-• Cho'zilib oling
-• Suvdan iching
-• Ko'zlaringizni dam oldiring
+☕ **Take a 5-minute break:**
+• Stretch
+• Drink water
+• Rest your eyes
 
-Keyingi sessiyaga tayyormisiz?"""
+Ready for the next session?"""
 
             keyboard = [
-                [InlineKeyboardButton("🔁 Yana 25 min", callback_data="start_focus_25")],
-                [InlineKeyboardButton("📊 Hisobot", callback_data="productivity_report")],
+                [InlineKeyboardButton("🔁 Another 25 min", callback_data="start_focus_25")],
+                [InlineKeyboardButton("📊 Report", callback_data="productivity_report")],
                 [InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")]
             ]
 
@@ -1981,9 +1981,9 @@ Keyingi sessiyaga tayyormisiz?"""
         conn = get_db()
         if conn and amount > 0:
             add_expense(conn, user_id, amount, category)
-            await query.answer("✅ Xarajat saqlandi!", show_alert=True)
+            await query.answer("✅ Expense saved!", show_alert=True)
             await query.message.reply_text(
-                f"✅ Xarajat saqlandi: {amount:,.0f} so'm ({category})",
+                f"✅ Expense saved: ${amount:,.2f} ({category})",
                 reply_markup=get_main_menu_button(lang)
             )
             conn.close()
@@ -2329,23 +2329,23 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             context.user_data["waiting_for"] = "expense_category"
 
             keyboard = [
-                [InlineKeyboardButton("🍽️ Ovqat", callback_data="excat_food"),
+                [InlineKeyboardButton("🍽️ Food", callback_data="excat_food"),
                  InlineKeyboardButton("🚗 Transport", callback_data="excat_transport")],
-                [InlineKeyboardButton("🏠 Uy-joy", callback_data="excat_housing"),
-                 InlineKeyboardButton("💡 Kommunal", callback_data="excat_utilities")],
-                [InlineKeyboardButton("🏥 Sog'liq", callback_data="excat_healthcare"),
-                 InlineKeyboardButton("📚 Ta'lim", callback_data="excat_education")],
-                [InlineKeyboardButton("🎬 O'yin-kulgi", callback_data="excat_entertainment"),
-                 InlineKeyboardButton("🛍️ Xaridlar", callback_data="excat_shopping")],
-                [InlineKeyboardButton("📦 Boshqa", callback_data="excat_other")]
+                [InlineKeyboardButton("🏠 Housing", callback_data="excat_housing"),
+                 InlineKeyboardButton("💡 Utilities", callback_data="excat_utilities")],
+                [InlineKeyboardButton("🏥 Healthcare", callback_data="excat_healthcare"),
+                 InlineKeyboardButton("📚 Education", callback_data="excat_education")],
+                [InlineKeyboardButton("🎬 Entertainment", callback_data="excat_entertainment"),
+                 InlineKeyboardButton("🛍️ Shopping", callback_data="excat_shopping")],
+                [InlineKeyboardButton("📦 Other", callback_data="excat_other")]
             ]
 
             await update.message.reply_text(
-                f"💸 Summa: {amount:,.0f} so'm\n\n📂 Kategoriyani tanlang:",
+                f"💸 Amount: ${amount:,.2f}\n\n📂 Choose category:",
                 reply_markup=InlineKeyboardMarkup(keyboard)
             )
         except:
-            await update.message.reply_text("⚠️ Summa raqamda kiriting (masalan: 50000)")
+            await update.message.reply_text("⚠️ Enter amount as a number (e.g., 50000)")
         return
 
     if waiting_for == "income_amount":
@@ -2353,9 +2353,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             amount = float(user_message.replace(",", "").replace(" ", ""))
             conn = get_db()
             if conn:
-                add_income(conn, user_id, amount, "salary", "Daromad")
+                add_income(conn, user_id, amount, "salary", "Income")
                 await update.message.reply_text(
-                    f"✅ Daromad saqlandi: {amount:,.0f} so'm",
+                    f"✅ Income saved: ${amount:,.2f}",
                     reply_markup=get_main_menu_button(lang)
                 )
                 conn.close()

@@ -177,36 +177,36 @@ def get_monthly_summary(conn, user_id):
 
 # === AI FINANCIAL ADVICE ===
 
-async def get_financial_advice(user_id, conn, question, lang="uz"):
-    """AI moliyaviy maslahat"""
+async def get_financial_advice(user_id, conn, question, lang="en"):
+    """AI financial advice"""
     try:
         # Get user's financial data
         summary = get_monthly_summary(conn, user_id)
 
-        context = f"""Siz professional moliyaviy maslahatchi (Financial Coach) siz.
+        context = f"""You are a professional Financial Coach.
 
-Foydalanuvchi moliyaviy ma'lumotlari (bu oy):
-- Daromad: {summary['total_income']:,.0f} so'm
-- Xarajat: {summary['total_expenses']:,.0f} so'm
-- Balans: {summary['balance']:,.0f} so'm
+User's financial data (this month):
+- Income: ${summary['total_income']:,.2f}
+- Expenses: ${summary['total_expenses']:,.2f}
+- Balance: ${summary['balance']:,.2f}
 
-Xarajatlar bo'yicha:
-{chr(10).join([f"- {cat}: {amt:,.0f} so'm" for cat, amt in summary['expenses_by_category'].items()])}
+Expenses by category:
+{chr(10).join([f"- {cat}: ${amt:,.2f}" for cat, amt in summary['expenses_by_category'].items()])}
 
-Foydalanuvchi savoli: {question}
+User's question: {question}
 
-Quyidagi yo'nalishda javob bering:
-1. Vaziyatni tahlil qiling
-2. Aniq maslahatlar bering (raqamlar bilan)
-3. Harakatlar rejasini taklif qiling
-4. Motivatsiya qiling
+Please provide advice following these guidelines:
+1. Analyze the situation
+2. Give specific recommendations (with numbers)
+3. Suggest an action plan
+4. Provide motivation
 
-Javob o'zbek tilida, oddiy va tushunarli bo'lsin."""
+Answer should be clear and easy to understand."""
 
         response = client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[
-                {"role": "system", "content": "Siz professional moliyaviy maslahatchi siz. Oddiy va tushunarli tilda gaplashing."},
+                {"role": "system", "content": "You are a professional financial coach. Speak in clear and simple language."},
                 {"role": "user", "content": context}
             ],
             max_tokens=800,
@@ -217,34 +217,34 @@ Javob o'zbek tilida, oddiy va tushunarli bo'lsin."""
 
     except Exception as e:
         logger.error(f"Financial advice error: {e}")
-        return "⚠️ Xatolik yuz berdi. Iltimos qaytadan urinib ko'ring."
+        return "⚠️ An error occurred. Please try again."
 
 
-async def analyze_spending_habits(user_id, conn, lang="uz"):
-    """Xarajat odatlarini tahlil qilish"""
+async def analyze_spending_habits(user_id, conn, lang="en"):
+    """Analyze spending habits"""
     try:
         summary = get_monthly_summary(conn, user_id)
 
         if summary['total_expenses'] == 0:
-            return "📊 Hali xarajatlar kiritilmagan. /add_expense buyrug'i bilan xarajat qo'shing."
+            return "📊 No expenses recorded yet. Use /add_expense to add an expense."
 
-        prompt = f"""Moliyaviy tahlil:
+        prompt = f"""Financial Analysis:
 
-Bu oylik ma'lumotlar:
-- Daromad: {summary['total_income']:,.0f} so'm
-- Xarajat: {summary['total_expenses']:,.0f} so'm
-- Balans: {summary['balance']:,.0f} so'm
+This month's data:
+- Income: ${summary['total_income']:,.2f}
+- Expenses: ${summary['total_expenses']:,.2f}
+- Balance: ${summary['balance']:,.2f}
 
-Xarajatlar taqsimoti:
-{chr(10).join([f"- {cat}: {amt:,.0f} so'm ({amt/summary['total_expenses']*100:.1f}%)" for cat, amt in summary['expenses_by_category'].items()])}
+Expense breakdown:
+{chr(10).join([f"- {cat}: ${amt:,.2f} ({amt/summary['total_expenses']*100:.1f}%)" for cat, amt in summary['expenses_by_category'].items()])}
 
-Quyidagilarni tahlil qiling:
-1. Xarajatlar sog'lommi?
-2. Qaysi kategoriyada ko'p sarflanmoqda?
-3. Tejash imkoniyatlari
-4. 3 ta aniq maslahat
+Please analyze:
+1. Are the expenses healthy?
+2. Which category has the most spending?
+3. Saving opportunities
+4. 3 specific recommendations
 
-O'zbek tilida, emoji bilan, sodda qilib javob bering."""
+Answer with emojis in clear and simple language."""
 
         response = client.chat.completions.create(
             model="gpt-3.5-turbo",
