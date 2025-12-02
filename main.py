@@ -1181,40 +1181,17 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     if query.data == "meditate_breathing":
-        text = """🌬️ **4-7-8 Nafas Mashqi**
-
-1️⃣ Qulay o'tiring, ko'zingizni yuming
-2️⃣ 4 soniya - nafas oling
-3️⃣ 7 soniya - ushlab turing
-4️⃣ 8 soniya - sekin chiqaring
-5️⃣ 4-5 marta takrorlang
-
-💡 Asab tizimini tinchlantiradi."""
+        text = get_text(lang, "breathing")
         await safe_edit(query, text, reply_markup=get_back_and_menu("meditate", lang), parse_mode="Markdown")
         return
 
     if query.data == "meditate_calm":
-        text = """🧘 **5 Daqiqalik Tinchlanish**
-
-1️⃣ Qulay joyga o'tiring
-2️⃣ Ko'zingizni yuming
-3️⃣ Chuqur nafas oling
-4️⃣ Tanangizni bo'shating
-5️⃣ Faqat nafasga diqqat qiling
-
-🕐 5 daqiqa shu holatda qoling."""
+        text = get_text(lang, "calm")
         await safe_edit(query, text, reply_markup=get_back_and_menu("meditate", lang), parse_mode="Markdown")
         return
 
     if query.data == "meditate_sleep":
-        text = """😴 **Uyqu Meditatsiyasi**
-
-1️⃣ 3 marta chuqur nafas oling
-2️⃣ Oyoq barmoqlaridan boshlang
-3️⃣ Sekin yuqoriga ko'tariling
-4️⃣ Butun tana bo'sh va og'ir
-
-🌙 Yoqimli tushlar! 💫"""
+        text = get_text(lang, "sleep")
         await safe_edit(query, text, reply_markup=get_back_and_menu("meditate", lang), parse_mode="Markdown")
         return
 
@@ -1604,13 +1581,13 @@ Ushbu bot'ga screenshot yuboring va biz 24 soat ichida faollashtramiz!
 
     if query.data == "add_expense":
         context.user_data["waiting_for"] = "expense_amount"
-        text = "💸 **Xarajat qo'shish**\n\nXarajat summasini kiriting (masalan: 50000):"
+        text = get_text(lang, "add_expense")
         await safe_edit(query, text, reply_markup=get_main_menu_button(lang), parse_mode="Markdown")
         return
 
     if query.data == "add_income":
         context.user_data["waiting_for"] = "income_amount"
-        text = "💵 **Daromad qo'shish**\n\nDaromad summasini kiriting (masalan: 1000000):"
+        text = get_text(lang, "add_income")
         await safe_edit(query, text, reply_markup=get_main_menu_button(lang), parse_mode="Markdown")
         return
 
@@ -1749,11 +1726,7 @@ Ushbu bot'ga screenshot yuboring va biz 24 soat ichida faollashtramiz!
     # Add recurring expense
     if query.data == "add_recurring_expense_start":
         context.user_data["waiting_for"] = "recurring_expense_amount"
-        text = """🔄 **Doimiy Xarajat Qo'shish**
-
-Bu sizning har oy yoki har hafta to'laydigan xarajatlaringiz (uy-ijara, internet, elektr, va h.k.)
-
-Xarajat summasini kiriting:"""
+        text = get_text(lang, "recurring_expense")
         await safe_edit(query, text, reply_markup=get_main_menu_button(lang), parse_mode="Markdown")
         return
 
@@ -1793,12 +1766,7 @@ Xarajat summasini kiriting:"""
         return
 
     if query.data == "goals":
-        text = """🎯 **Maqsadlaringiz**
-
-Bu bo'lim tez orada ishga tushadi!
-
-Siz o'zingizning moliyaviy, jismoniy va shaxsiy maqsadlaringizni belgilay olasiz."""
-
+        text = get_text(lang, "your_goals")
         keyboard = [
             [InlineKeyboardButton("🔙 Orqaga", callback_data="my_profile")],
             [InlineKeyboardButton("🏠 Bosh menyu", callback_data="main_menu")]
@@ -1807,16 +1775,7 @@ Siz o'zingizning moliyaviy, jismoniy va shaxsiy maqsadlaringizni belgilay olasiz
         return
 
     if query.data == "achievements":
-        text = """🏆 **Yutuqlar**
-
-Bu bo'lim tez orada ishga tushadi!
-
-Siz turli vazifalarni bajarganingizda yutuqlarga ega bo'lasiz:
-• 🔥 7 kun ketma-ket foydalanish
-• 💪 50 ta vazifa bajarish
-• 💰 1 million so'm tejash
-• Va boshqalar!"""
-
+        text = get_text(lang, "achievements")
         keyboard = [
             [InlineKeyboardButton("🔙 Orqaga", callback_data="my_profile")],
             [InlineKeyboardButton("🏠 Bosh menyu", callback_data="main_menu")]
@@ -1825,12 +1784,7 @@ Siz turli vazifalarni bajarganingizda yutuqlarga ega bo'lasiz:
         return
 
     if query.data == "progress":
-        text = """📈 **Progress**
-
-Bu bo'lim tez orada ishga tushadi!
-
-Sizning haftalik va oylik progressingizni grafik ko'rinishida ko'rishingiz mumkin bo'ladi."""
-
+        text = get_text(lang, "progress")
         keyboard = [
             [InlineKeyboardButton("🔙 Orqaga", callback_data="my_profile")],
             [InlineKeyboardButton("🏠 Bosh menyu", callback_data="main_menu")]
@@ -1841,12 +1795,7 @@ Sizning haftalik va oylik progressingizni grafik ko'rinishida ko'rishingiz mumki
     # === SETTINGS SUBMENUS ===
 
     if query.data == "notifications":
-        text = """🔔 **Bildirishnomalar**
-
-Bu bo'lim tez orada ishga tushadi!
-
-Siz eslatmalar, maqsad yangiliklari va boshqa bildirishnomalarni sozlashingiz mumkin bo'ladi."""
-
+        text = get_text(lang, "notifications")
         keyboard = [
             [InlineKeyboardButton("🔙 Orqaga", callback_data="settings_menu")],
             [InlineKeyboardButton("🏠 Bosh menyu", callback_data="main_menu")]
@@ -1855,12 +1804,7 @@ Siz eslatmalar, maqsad yangiliklari va boshqa bildirishnomalarni sozlashingiz mu
         return
 
     if query.data == "reset_confirm":
-        text = """⚠️ **Tarikhni Tozalash**
-
-Bu barcha suhbat tarixini o'chiradi. Moliya va vazifa ma'lumotlari saqlanadi.
-
-Davom etasizmi?"""
-
+        text = get_text(lang, "reset_history")
         keyboard = [
             [InlineKeyboardButton("✅ Ha, tozalash", callback_data="reset_history_yes")],
             [InlineKeyboardButton("❌ Yo'q", callback_data="settings_menu")]
@@ -1878,27 +1822,12 @@ Davom etasizmi?"""
             cur.close()
             conn.close()
 
-        text = "✅ Tarix tozalandi! Suhbatni yangidan boshlashingiz mumkin."
+        text = get_text(lang, "history_cleared")
         await safe_edit(query, text, reply_markup=get_main_menu_button(lang), parse_mode="Markdown")
         return
 
     if query.data == "help":
-        text = """ℹ️ **Yordam**
-
-**MindMate - Sizning AI Yordamchingiz**
-
-📌 **Asosiy Bo'limlar:**
-
-💬 **AI Do'st** - Suhbatlashing, kundalik yozing
-💰 **Moliya** - Xarajat/daromad, hisobot, maslahat
-⚡ **Unumdorlik** - Vazifalar, fokus, kunlik reja
-🎨 **Ijod** - PDF, PPT, kod, rasm yaratish
-🧘 **Salomatlik** - Meditatsiya, fitness, sog'liq
-
-💎 **Premium** - Cheklovlarsiz foydalanish!
-
-❓ Savollaringiz bo'lsa, menga yozing!"""
-
+        text = get_text(lang, "help_text")
         keyboard = [
             [InlineKeyboardButton("🔙 Orqaga", callback_data="settings_menu")],
             [InlineKeyboardButton("🏠 Bosh menyu", callback_data="main_menu")]
@@ -1910,14 +1839,7 @@ Davom etasizmi?"""
 
     if query.data == "health_ai":
         context.user_data["mode"] = "health_ai"
-        text = """🏥 **Sog'liq AI**
-
-Men sizning sog'lig'ingiz haqida umumiy maslahatlar bera olaman.
-
-⚠️ **Muhim:** Men tibbiy diagnoz qo'ymayman va dori tavsiya qilmayman. Jiddiy muammolar bo'lsa, shifokorga murojaat qiling!
-
-Savolingizni yozing:"""
-
+        text = get_text(lang, "health_ai")
         await safe_edit(query, text, reply_markup=get_main_menu_button(lang), parse_mode="Markdown")
         return
 
@@ -1937,7 +1859,7 @@ Savolingizni yozing:"""
 
     if query.data == "add_task_start":
         context.user_data["waiting_for"] = "task_title"
-        text = "📝 **Vazifa qo'shish**\n\nVazifa nomini kiriting:"
+        text = get_text(lang, "add_task")
         await safe_edit(query, text, reply_markup=get_main_menu_button(lang), parse_mode="Markdown")
         return
 
@@ -1947,13 +1869,13 @@ Savolingizni yozing:"""
             tasks = get_user_tasks(conn, user_id, include_completed=False)
 
             if not tasks:
-                text = "📝 Hozircha vazifalar yo'q.\n\n/add_task bilan vazifa qo'shing!"
+                text = get_text(lang, "no_tasks")
                 keyboard = [
                     [InlineKeyboardButton("➕ Vazifa qo'shish", callback_data="add_task_start")],
                     [InlineKeyboardButton("🏠 Bosh menyu", callback_data="main_menu")]
                 ]
             else:
-                text = "📋 **Sizning Vazifalaringiz:**\n\n"
+                text = get_text(lang, "your_tasks") + "\n\n"
                 keyboard = []
 
                 for i, task in enumerate(tasks[:10], 1):
