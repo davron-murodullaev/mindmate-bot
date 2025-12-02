@@ -1008,36 +1008,22 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 break
 
         if name:
-            text = f"💬 **{name}**, men sizni tinglayman! Gapirishingiz mumkin."
+            text = get_text(lang, "chat_mode_name").format(name=name)
         else:
-            text = "💬 Salom! Men sizning AI do'stingizman. Ismingiz nima?"
+            text = get_text(lang, "chat_mode_noname")
         await safe_edit(query, text, reply_markup=get_main_menu_button(lang), parse_mode="Markdown")
         return
 
     if query.data == "journal_mode":
         context.user_data["waiting_for"] = "journal"
         context.user_data["mode"] = "journal_deep"  # Deep analysis mode
-        text = """📝 **Kundalik**
-
-Bugun qanday o'tdingiz? Hamma narsani yozib qo'ying - his-tuyg'ular, voqealar, fikrlar.
-
-Men diqqat bilan tinglab, tahlil qilaman va maslahat beraman.
-
-Bu yerda hamma narsa maxfiy! ❤️"""
+        text = get_text(lang, "journal_mode")
         await safe_edit(query, text, reply_markup=get_main_menu_button(lang), parse_mode="Markdown")
         return
 
     if query.data == "deep_chat":
         context.user_data["mode"] = "deep_talk"
-        text = """💭 **Chuqur Suhbat**
-
-Keling, muhim narsalar haqida gaplashamiz.
-
-Sizni nima tashvishga solmoqda?
-Nima haqida fikr yuritasiz?
-Qaysi muammoga yechim qidiryapsiz?
-
-Men sizni tinglayman va tushunaman."""
+        text = get_text(lang, "deep_chat")
         await safe_edit(query, text, reply_markup=get_main_menu_button(lang), parse_mode="Markdown")
         return
 
@@ -1673,7 +1659,7 @@ Ushbu bot'ga screenshot yuboring va biz 24 soat ichida faollashtramiz!
 
     if query.data == "financial_advice_start":
         context.user_data["waiting_for"] = "financial_question"
-        text = "💡 **AI Moliyaviy Maslahat**\n\nSavolingizni yozing (masalan: 'Qanday qilib pul tejash mumkin?'):"
+        text = get_text(lang, "financial_advice_prompt")
         await safe_edit(query, text, reply_markup=get_main_menu_button(lang), parse_mode="Markdown")
         return
 
