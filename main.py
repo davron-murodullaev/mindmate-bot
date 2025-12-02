@@ -42,6 +42,13 @@ from productivity_ai import (
     create_daily_plan, analyze_productivity, start_focus_session,
     complete_focus_session, get_productivity_texts
 )
+from enhanced_features import (
+    get_ai_friend_menu, get_health_menu, get_creative_tools_menu,
+    get_my_profile_menu, get_settings_menu, get_quick_expense_shortcuts,
+    get_expense_shortcuts_keyboard, get_referral_share_keyboard,
+    get_referral_text, get_investment_disclaimer, get_ai_friend_prompt,
+    get_menu_texts, add_recurring_expense
+)
 
 load_dotenv()
 logging.basicConfig(level=logging.INFO)
@@ -562,21 +569,16 @@ def get_back_and_menu(back_to="main_menu", lang="uz"):
     ]])
 
 def get_main_menu_keyboard(lang):
+    """Soddalashtirilgan bosh menyu - 4x2 grid"""
     keyboard = [
-        [InlineKeyboardButton(get_text(lang, "btn_chat"), callback_data="chat"),
-         InlineKeyboardButton(get_text(lang, "btn_healer"), callback_data="healer")],
-        [InlineKeyboardButton(get_text(lang, "btn_mood"), callback_data="mood"),
-         InlineKeyboardButton(get_text(lang, "btn_journal"), callback_data="journal")],
-        [InlineKeyboardButton("💰 Moliya", callback_data="financial_menu"),
-         InlineKeyboardButton("⚡ Productivity", callback_data="productivity_menu")],
-        [InlineKeyboardButton(get_text(lang, "btn_meditate"), callback_data="meditate"),
-         InlineKeyboardButton(get_text(lang, "btn_fitness"), callback_data="fitness")],
-        [InlineKeyboardButton("📄 PDF/PPT", callback_data="content_menu"),
-         InlineKeyboardButton("🤖 AI Tools", callback_data="ai_tools_menu")],
-        [InlineKeyboardButton(get_text(lang, "btn_reminders"), callback_data="reminders"),
-         InlineKeyboardButton(get_text(lang, "btn_stats"), callback_data="stats")],
+        [InlineKeyboardButton("💬 AI Do'st", callback_data="ai_friend"),
+         InlineKeyboardButton("💰 Moliya", callback_data="financial_menu")],
+        [InlineKeyboardButton("⚡ Unumdorlik", callback_data="productivity_menu"),
+         InlineKeyboardButton("🎨 Ijod", callback_data="creative_tools")],
+        [InlineKeyboardButton("🧘 Salomatlik", callback_data="health_menu"),
+         InlineKeyboardButton("📊 Men", callback_data="my_profile")],
         [InlineKeyboardButton("💎 Premium", callback_data="premium_menu"),
-         InlineKeyboardButton(get_text(lang, "btn_lang"), callback_data="lang")]
+         InlineKeyboardButton("⚙️ Sozlamalar", callback_data="settings_menu")]
     ]
     return InlineKeyboardMarkup(keyboard)
 
@@ -961,8 +963,15 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await safe_edit(query, get_text(new_lang, "lang_changed"), reply_markup=get_main_menu_button(lang))
         return
 
-    # Chat mode
-    if query.data == "chat":
+    # === NEW ENHANCED MENUS ===
+
+    # AI Friend (Chat + Journal + Deep Talk)
+    if query.data == "ai_friend":
+        texts = get_menu_texts(lang)
+        await safe_edit(query, texts.get("ai_friend", "💬 AI Do'st"), reply_markup=get_ai_friend_menu(lang), parse_mode="Markdown")
+        return
+
+    if query.data == "chat_mode":
         context.user_data["mode"] = "normal"
         memories = get_user_memories(user_id)
         name = None
@@ -970,12 +979,69 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if m["key"] == "name":
                 name = m["value"]
                 break
-        
+
         if name:
-            text = f"💬 **{name}**, men sizni tinglayman!"
+            text = f"💬 **{name}**, men sizni tinglayman! Gapirishingiz mumkin."
         else:
-            text = "💬 Men sizni tinglayman! Ismingiz nima?"
+            text = "💬 Salom! Men sizning AI do'stingizman. Ismingiz nima?"
         await safe_edit(query, text, reply_markup=get_main_menu_button(lang), parse_mode="Markdown")
+        return
+
+    if query.data == "journal_mode":
+        context.user_data["waiting_for"] = "journal"
+        context.user_data["mode"] = "journal_deep"  # Deep analysis mode
+        text = """📝 **Kundalik**
+
+Bugun qanday o'tdingiz? Hamma narsani yozib qo'ying - his-tuyg'ular, voqealar, fikrlar.
+
+Men diqqat bilan tinglab, tahlil qilaman va maslahat beraman.
+
+Bu yerda hamma narsa maxfiy! ❤️"""
+        await safe_edit(query, text, reply_markup=get_main_menu_button(lang), parse_mode="Markdown")
+        return
+
+    if query.data == "deep_chat":
+        context.user_data["mode"] = "deep_talk"
+        text = """💭 **Chuqur Suhbat**
+
+Keling, muhim narsalar haqida gaplashamiz.
+
+Sizni nima tashvishga solmoqda?
+Nima haqida fikr yuritasiz?
+Qaysi muammoga yechim qidiryapsiz?
+
+Men sizni tinglayman va tushunaman."""
+        await safe_edit(query, text, reply_markup=get_main_menu_button(lang), parse_mode="Markdown")
+        return
+
+    # Health Menu
+    if query.data == "health_menu":
+        texts = get_menu_texts(lang)
+        await safe_edit(query, texts.get("health", "🧘 Salomatlik"), reply_markup=get_health_menu(lang), parse_mode="Markdown")
+        return
+
+    # Creative Tools
+    if query.data == "creative_tools":
+        texts = get_menu_texts(lang)
+        await safe_edit(query, texts.get("creative", "🎨 Ijod"), reply_markup=get_creative_tools_menu(lang), parse_mode="Markdown")
+        return
+
+    # My Profile
+    if query.data == "my_profile":
+        stats = get_user_stats(user_id)
+        await safe_edit(query, "📊 **Mening Profilim**", reply_markup=get_my_profile_menu(stats, lang), parse_mode="Markdown")
+        return
+
+    # Settings
+    if query.data == "settings_menu":
+        await safe_edit(query, "⚙️ **Sozlamalar**", reply_markup=get_settings_menu(lang), parse_mode="Markdown")
+        return
+
+    # Chat mode (old - compatibility)
+    if query.data == "chat":
+        # Redirect to AI Friend
+        texts = get_menu_texts(lang)
+        await safe_edit(query, texts.get("ai_friend", "💬 AI Do'st"), reply_markup=get_ai_friend_menu(lang), parse_mode="Markdown")
         return
 
     # Healer mode
@@ -1350,21 +1416,52 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if query.data == "show_referral":
         conn = get_db()
         if conn:
-            texts = get_premium_texts(lang)
-            ref_code = get_referral_code(user_id)
             ref_count = get_referral_stats(conn, user_id)
 
-            ref_text = texts.get("referral_info", "").format(
-                code=ref_code,
-                count=ref_count
-            )
+            # Mock bonuses (real implementation DB'da)
+            bonuses = {
+                "ai_requests": ref_count * 5,
+                "pdf_bonus": ref_count * 2,
+                "premium_days": 0  # 10 referral = 7 days premium
+            }
+
+            ref_text = get_referral_text(user_id, ref_count, bonuses, lang)
+            keyboard = get_referral_share_keyboard(user_id, lang)
+
+            await safe_edit(query, ref_text, reply_markup=keyboard, parse_mode="Markdown")
+            conn.close()
+        return
+
+    if query.data.startswith("copy_ref_"):
+        ref_code = query.data.replace("copy_ref_", "")
+        bot_username = "MindMateAIBot"  # TODO: .env'dan olish
+        ref_link = f"https://t.me/{bot_username}?start={ref_code}"
+
+        await query.answer(f"✅ Link nusxalandi!\n\n{ref_link}", show_alert=True)
+        return
+
+    if query.data == "my_referral_bonuses":
+        conn = get_db()
+        if conn:
+            ref_count = get_referral_stats(conn, user_id)
+            text = f"""🎁 **Sizning Bonuslaringiz**
+
+👥 Taklif qilgan do'stlar: {ref_count}
+
+💰 **Olingan bonuslar:**
+• +{ref_count * 5} ta AI so'rov
+• +{ref_count * 2} ta PDF
+• +{ref_count // 10 * 7} kun Premium
+
+🎯 **Keyingi maqsad:**
+{10 - (ref_count % 10)} ta do'st taklif qiling → 7 kun Premium! 🎉"""
 
             keyboard = [
-                [InlineKeyboardButton("🔙 Orqaga", callback_data="premium_menu")],
+                [InlineKeyboardButton("📤 Yana ulashish", callback_data="show_referral")],
                 [InlineKeyboardButton("🏠 Bosh menyu", callback_data="main_menu")]
             ]
 
-            await safe_edit(query, ref_text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
+            await safe_edit(query, text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
             conn.close()
         return
 
