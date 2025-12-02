@@ -557,12 +557,12 @@ async def safe_edit(query, text, reply_markup=None, parse_mode=None):
 
 # === NAVIGATION BUTTONS ===
 
-def get_main_menu_button(lang="uz"):
+def get_main_menu_button(lang="en"):
     return InlineKeyboardMarkup([[
-        InlineKeyboardButton(get_text(lang, "btn_main_menu"), callback_data="main_menu")
+        InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")
     ]])
 
-def get_back_and_menu(back_to="main_menu", lang="uz"):
+def get_back_and_menu(back_to="main_menu", lang="en"):
     if back_to == "main_menu":
         return get_main_menu_button(lang)
     return InlineKeyboardMarkup([[
@@ -746,27 +746,27 @@ async def send_reminder_notification(app, user_id, reminder_type):
                  InlineKeyboardButton("😐 3", callback_data="mood_3")],
                 [InlineKeyboardButton("😔 2", callback_data="mood_2"),
                  InlineKeyboardButton("😢 1", callback_data="mood_1")],
-                [InlineKeyboardButton("🏠 Bosh menyu", callback_data="main_menu")]
+                [InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")]
             ]
             reply_markup = InlineKeyboardMarkup(keyboard)
         elif reminder_type == "meditate":
             text = get_reminder_text(lang, "meditate_notify")
             keyboard = [
                 [InlineKeyboardButton("🧘 Meditatsiya", callback_data="meditate")],
-                [InlineKeyboardButton("🏠 Bosh menyu", callback_data="main_menu")]
+                [InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")]
             ]
             reply_markup = InlineKeyboardMarkup(keyboard)
         elif reminder_type == "workout":
             text = get_reminder_text(lang, "workout_notify")
             keyboard = [
                 [InlineKeyboardButton("💪 Mashq", callback_data="fitness")],
-                [InlineKeyboardButton("🏠 Bosh menyu", callback_data="main_menu")]
+                [InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")]
             ]
             reply_markup = InlineKeyboardMarkup(keyboard)
         elif reminder_type == "water":
             text = get_reminder_text(lang, "water_notify")
             keyboard = [[InlineKeyboardButton("✅ Ichdim", callback_data="water_done")],
-                        [InlineKeyboardButton("🏠 Bosh menyu", callback_data="main_menu")]]
+                        [InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")]]
             reply_markup = InlineKeyboardMarkup(keyboard)
         else:
             return
@@ -841,7 +841,7 @@ async def mood_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("😐 Normal (3)", callback_data="mood_3"),
          InlineKeyboardButton("😔 Yomon (2)", callback_data="mood_2")],
         [InlineKeyboardButton("😢 Juda yomon (1)", callback_data="mood_1")],
-        [InlineKeyboardButton("🏠 Bosh menyu", callback_data="main_menu")]
+        [InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")]
     ]
     await update.message.reply_text(get_text(lang, "mood_ask"), reply_markup=InlineKeyboardMarkup(keyboard))
 
@@ -856,7 +856,7 @@ async def meditate_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("🌬️ Nafas (2 daq)", callback_data="meditate_breathing"),
          InlineKeyboardButton("🧘 Tinchlanish (5 daq)", callback_data="meditate_calm")],
         [InlineKeyboardButton("😴 Uyqu (10 daq)", callback_data="meditate_sleep")],
-        [InlineKeyboardButton("🏠 Bosh menyu", callback_data="main_menu")]
+        [InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")]
     ]
     await update.message.reply_text(get_text(lang, "meditate_ask"), reply_markup=InlineKeyboardMarkup(keyboard))
 
@@ -867,7 +867,7 @@ async def fitness_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton(btns["morning"], callback_data="workout_morning"),
          InlineKeyboardButton(btns["energy"], callback_data="workout_energy")],
         [InlineKeyboardButton(btns["relax"], callback_data="workout_relax")],
-        [InlineKeyboardButton("🏠 Bosh menyu", callback_data="main_menu")]
+        [InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")]
     ]
     await update.message.reply_text(btns["ask"], reply_markup=InlineKeyboardMarkup(keyboard))
 
@@ -916,17 +916,17 @@ async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             memory_info += f"• {m['key']}: {m['value']}\n"
     
     stats_text = f"""
-📊 **Sizning statistikangiz**
+📊 **Your Statistics**
 
-😊 Kayfiyat: {stats["mood_count"]}
-📝 Kundalik: {stats["journal_count"]}
-💪 Mashqlar: {workout_count}
-🌿 Shifokor: {healer_count}
-⏰ Eslatmalar: {reminder_count}
-{f"📈 O'rtacha: {mood_emoji} ({stats['avg_mood']:.1f}/5)" if stats["mood_count"] > 0 else ""}
+😊 Mood: {stats["mood_count"]}
+📝 Journal: {stats["journal_count"]}
+💪 Workouts: {workout_count}
+🌿 Healer: {healer_count}
+⏰ Reminders: {reminder_count}
+{f"📈 Average: {mood_emoji} ({stats['avg_mood']:.1f}/5)" if stats["mood_count"] > 0 else ""}
 
-🧠 **Bilganlarim:**
-{memory_info if memory_info else "Hali ma'lumot yo'q"}
+🧠 **What I Remember:**
+{memory_info if memory_info else "No data yet"}
     """
     await update.message.reply_text(stats_text, reply_markup=get_main_menu_button(lang), parse_mode="Markdown")
 
@@ -976,9 +976,9 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 break
 
         if name:
-            welcome = f"🏠 **Bosh Menyu**\n\n{name}, qanday yordam kerak?"
+            welcome = f"🏠 **Main Menu**\n\n{name}, how can I help you?"
         else:
-            welcome = "🏠 **Bosh Menyu**\n\nBo'limni tanlang:"
+            welcome = "🏠 **Main Menu**\n\nChoose a section:"
 
         await safe_edit(query, welcome, reply_markup=get_main_menu_keyboard(lang), parse_mode="Markdown")
         return
@@ -1043,12 +1043,12 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # My Profile
     if query.data == "my_profile":
         stats = get_user_stats(user_id)
-        await safe_edit(query, "📊 **Mening Profilim**", reply_markup=get_my_profile_menu(stats, lang), parse_mode="Markdown")
+        await safe_edit(query, "📊 **My Profile**", reply_markup=get_my_profile_menu(stats, lang), parse_mode="Markdown")
         return
 
     # Settings
     if query.data == "settings_menu":
-        await safe_edit(query, "⚙️ **Sozlamalar**", reply_markup=get_settings_menu(lang), parse_mode="Markdown")
+        await safe_edit(query, "⚙️ **Settings**", reply_markup=get_settings_menu(lang), parse_mode="Markdown")
         return
 
     # Chat mode (old - compatibility)
@@ -1105,7 +1105,7 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             keyboard.append([InlineKeyboardButton(f"❌ {emoji} {name} - {r['time']}", 
                            callback_data=f"rdel_{r['type']}")])
         keyboard.append([InlineKeyboardButton("🔙 Orqaga", callback_data="reminders"),
-                        InlineKeyboardButton("🏠 Bosh menyu", callback_data="main_menu")])
+                        InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")])
         
         await safe_edit(query, text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
         return
@@ -1143,7 +1143,7 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             [InlineKeyboardButton("😐 Normal (3)", callback_data="mood_3"),
              InlineKeyboardButton("😔 Yomon (2)", callback_data="mood_2")],
             [InlineKeyboardButton("😢 Juda yomon (1)", callback_data="mood_1")],
-            [InlineKeyboardButton("🏠 Bosh menyu", callback_data="main_menu")]
+            [InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")]
         ]
         await safe_edit(query, get_text(lang, "mood_ask"), reply_markup=InlineKeyboardMarkup(keyboard))
         return
@@ -1176,7 +1176,7 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             [InlineKeyboardButton("🌬️ Nafas (2 daq)", callback_data="meditate_breathing"),
              InlineKeyboardButton("🧘 Tinchlanish (5 daq)", callback_data="meditate_calm")],
             [InlineKeyboardButton("😴 Uyqu (10 daq)", callback_data="meditate_sleep")],
-            [InlineKeyboardButton("🏠 Bosh menyu", callback_data="main_menu")]
+            [InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")]
         ]
         await safe_edit(query, get_text(lang, "meditate_ask"), reply_markup=InlineKeyboardMarkup(keyboard))
         return
@@ -1203,7 +1203,7 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             [InlineKeyboardButton(btns["morning"], callback_data="workout_morning"),
              InlineKeyboardButton(btns["energy"], callback_data="workout_energy")],
             [InlineKeyboardButton(btns["relax"], callback_data="workout_relax")],
-            [InlineKeyboardButton("🏠 Bosh menyu", callback_data="main_menu")]
+            [InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")]
         ]
         await safe_edit(query, btns["ask"], reply_markup=InlineKeyboardMarkup(keyboard))
         return
@@ -1220,7 +1220,7 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         keyboard = [
             [InlineKeyboardButton("✅ Bajardim!", callback_data=f"workout_done_{workout_type}")],
             [InlineKeyboardButton("🔙 Orqaga", callback_data="fitness"),
-             InlineKeyboardButton("🏠 Bosh menyu", callback_data="main_menu")]
+             InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")]
         ]
         await safe_edit(query, text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
         return
@@ -1397,7 +1397,7 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 [InlineKeyboardButton("🌟 Premium ($4.99/oy)", callback_data="buy_premium")],
                 [InlineKeyboardButton("⭐ Pro ($14.99/oy)", callback_data="buy_pro")],
                 [InlineKeyboardButton("🎁 Referral", callback_data="show_referral")],
-                [InlineKeyboardButton("🏠 Bosh menyu", callback_data="main_menu")]
+                [InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")]
             ]
 
             await safe_edit(query, usage_text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
@@ -1435,21 +1435,21 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         conn = get_db()
         if conn:
             ref_count = get_referral_stats(conn, user_id)
-            text = f"""🎁 **Sizning Bonuslaringiz**
+            text = f"""🎁 **Your Bonuses**
 
-👥 Taklif qilgan do'stlar: {ref_count}
+👥 Friends invited: {ref_count}
 
-💰 **Olingan bonuslar:**
-• +{ref_count * 5} ta AI so'rov
-• +{ref_count * 2} ta PDF
-• +{ref_count // 10 * 7} kun Premium
+💰 **Bonuses earned:**
+• +{ref_count * 5} AI requests
+• +{ref_count * 2} PDFs
+• +{ref_count // 10 * 7} days Premium
 
-🎯 **Keyingi maqsad:**
-{10 - (ref_count % 10)} ta do'st taklif qiling → 7 kun Premium! 🎉"""
+🎯 **Next goal:**
+Invite {10 - (ref_count % 10)} more friends → 7 days Premium! 🎉"""
 
             keyboard = [
-                [InlineKeyboardButton("📤 Yana ulashish", callback_data="show_referral")],
-                [InlineKeyboardButton("🏠 Bosh menyu", callback_data="main_menu")]
+                [InlineKeyboardButton("📤 Share Again", callback_data="show_referral")],
+                [InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")]
             ]
 
             await safe_edit(query, text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
@@ -1464,25 +1464,25 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Telegram Stars pricing: 1 USD ≈ 50 Stars (adjust as needed)
         stars_price = int(price * 50)
 
-        text = f"""💎 **{tier_info["name"]} Obuna**
+        text = f"""💎 **{tier_info["name"]} Subscription**
 
-💵 Narx: ${price}/oy ({stars_price} ⭐ Telegram Stars)
+💵 Price: ${price}/month ({stars_price} ⭐ Telegram Stars)
 
-**Imkoniyatlar:**
+**Features:**
 """
         for feature in tier_info["features"]:
             text += f"✅ {feature}\n"
 
-        text += f"\n\n💳 **To'lov usullari:**\n\n"
-        text += f"1️⃣ **Telegram Stars** - To'g'ridan-to'g'ri telegram orqali\n"
-        text += f"2️⃣ **PayPal** - Xalqaro to'lov\n\n"
-        text += f"To'lov usulini tanlang:"
+        text += f"\n\n💳 **Payment methods:**\n\n"
+        text += f"1️⃣ **Telegram Stars** - Direct payment via Telegram\n"
+        text += f"2️⃣ **PayPal** - International payment\n\n"
+        text += f"Choose payment method:"
 
         keyboard = [
             [InlineKeyboardButton("⭐ Telegram Stars", callback_data=f"pay_stars_{tier}")],
             [InlineKeyboardButton("💳 PayPal", callback_data=f"pay_paypal_{tier}")],
             [InlineKeyboardButton("🔙 Orqaga", callback_data="premium_menu")],
-            [InlineKeyboardButton("🏠 Bosh menyu", callback_data="main_menu")]
+            [InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")]
         ]
 
         await safe_edit(query, text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
@@ -1545,7 +1545,7 @@ Ushbu bot'ga screenshot yuboring va biz 24 soat ichida faollashtramiz!
 
         keyboard = [
             [InlineKeyboardButton("🔙 Orqaga", callback_data=f"buy_{tier}")],
-            [InlineKeyboardButton("🏠 Bosh menyu", callback_data="main_menu")]
+            [InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")]
         ]
 
         await safe_edit(query, text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
@@ -1565,13 +1565,13 @@ Ushbu bot'ga screenshot yuboring va biz 24 soat ichida faollashtramiz!
             else:
                 # Standard menu
                 keyboard = [
-                    [InlineKeyboardButton("💸 Xarajat qo'shish", callback_data="add_expense"),
-                     InlineKeyboardButton("💵 Daromad qo'shish", callback_data="add_income")],
-                    [InlineKeyboardButton("📊 Oylik hisobot", callback_data="financial_report")],
-                    [InlineKeyboardButton("💡 AI Maslahat", callback_data="financial_advice_start")],
-                    [InlineKeyboardButton("📈 Investitsiya 💎", callback_data="investment_advice")],
-                    [InlineKeyboardButton("🔄 Doimiy xarajat", callback_data="add_recurring_expense_start")],
-                    [InlineKeyboardButton("🏠 Bosh menyu", callback_data="main_menu")]
+                    [InlineKeyboardButton("💸 Add Expense", callback_data="add_expense"),
+                     InlineKeyboardButton("💵 Add Income", callback_data="add_income")],
+                    [InlineKeyboardButton("📊 Monthly Report", callback_data="financial_report")],
+                    [InlineKeyboardButton("💡 AI Advice", callback_data="financial_advice_start")],
+                    [InlineKeyboardButton("📈 Investment 💎", callback_data="investment_advice")],
+                    [InlineKeyboardButton("🔄 Recurring Expense", callback_data="add_recurring_expense_start")],
+                    [InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")]
                 ]
                 text = get_text(lang, "financial_coach_menu")
                 keyboard_markup = InlineKeyboardMarkup(keyboard)
@@ -1603,23 +1603,23 @@ Ushbu bot'ga screenshot yuboring va biz 24 soat ichida faollashtramiz!
                 breakdown += f"• {cat}: {amt:,.0f} so'm ({percentage:.1f}%)\n"
 
             if not breakdown:
-                breakdown = "Hali xarajatlar yo'q"
+                breakdown = "No expenses yet"
 
-            report_text = f"""📊 **Oylik Moliyaviy Hisobot**
+            report_text = f"""📊 **Monthly Financial Report**
 
-💵 Daromad: {summary['total_income']:,.0f} so'm
-💸 Xarajat: {summary['total_expenses']:,.0f} so'm
-💰 Balans: {summary['balance']:,.0f} so'm
+💵 Income: {summary['total_income']:,.0f} sum
+💸 Expenses: {summary['total_expenses']:,.0f} sum
+💰 Balance: {summary['balance']:,.0f} sum
 
-📈 **Xarajatlar taqsimoti:**
+📈 **Expense breakdown:**
 {breakdown}
 
-💡 Tahlil uchun "AI Maslahat" tugmasini bosing."""
+💡 Click "AI Analysis" for detailed insights."""
 
             keyboard = [
-                [InlineKeyboardButton("💡 AI Tahlil", callback_data="analyze_spending")],
-                [InlineKeyboardButton("🔙 Orqaga", callback_data="financial_menu")],
-                [InlineKeyboardButton("🏠 Bosh menyu", callback_data="main_menu")]
+                [InlineKeyboardButton("💡 AI Analysis", callback_data="analyze_spending")],
+                [InlineKeyboardButton("🔙 Back", callback_data="financial_menu")],
+                [InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")]
             ]
 
             await safe_edit(query, report_text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
@@ -1654,14 +1654,14 @@ Ushbu bot'ga screenshot yuboring va biz 24 soat ichida faollashtramiz!
                 keyboard = [
                     [InlineKeyboardButton("✅ Bepul sinov (3ta)", callback_data="investment_disclaimer_free")],
                     [InlineKeyboardButton("💎 Premium xarid qilish", callback_data="buy_premium")],
-                    [InlineKeyboardButton("🔙 Orqaga", callback_data="financial_menu")]
+                    [InlineKeyboardButton("🔙 Back", callback_data="financial_menu")]
                 ]
             else:
                 # Show disclaimer only
                 text = get_investment_disclaimer()
                 keyboard = [
                     [InlineKeyboardButton("✅ Tushunarli, davom etamiz", callback_data="investment_disclaimer_accept")],
-                    [InlineKeyboardButton("🔙 Orqaga", callback_data="financial_menu")]
+                    [InlineKeyboardButton("🔙 Back", callback_data="financial_menu")]
                 ]
 
             await safe_edit(query, text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
@@ -1692,12 +1692,12 @@ Ushbu bot'ga screenshot yuboring va biz 24 soat ichida faollashtramiz!
                 text = "⚠️ Siz bu oyda 3 ta bepul sinov maslahatidan foydalandingiz.\n\n💎 Premium xarid qiling!"
                 keyboard = [
                     [InlineKeyboardButton("💎 Premium", callback_data="buy_premium")],
-                    [InlineKeyboardButton("🔙 Orqaga", callback_data="financial_menu")]
+                    [InlineKeyboardButton("🔙 Back", callback_data="financial_menu")]
                 ]
                 await safe_edit(query, text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
             else:
                 context.user_data["waiting_for"] = "investment_amount"
-                text = f"📈 **Investitsiya Maslahati** (Bepul: {3 - usage_count} qoldi)\n\nInvestitsiya qilmoqchi bo'lgan summangizni kiriting:"
+                text = f"📈 **Investment Advice** (Free: {3 - usage_count} remaining)\n\nEnter the amount you want to invest:"
                 await safe_edit(query, text, reply_markup=get_main_menu_button(lang), parse_mode="Markdown")
 
             conn.close()
@@ -1711,13 +1711,13 @@ Ushbu bot'ga screenshot yuboring va biz 24 soat ichida faollashtramiz!
 
         conn = get_db()
         if conn:
-            add_expense(conn, user_id, amount, category, f"Tez xarajat: {category}")
-            text = f"✅ **Xarajat qo'shildi!**\n\n🍽️ Kategoriya: {category.title()}\n💰 Summa: {amount:,.0f} so'm"
+            add_expense(conn, user_id, amount, category, f"Quick expense: {category}")
+            text = f"✅ **Expense Added!**\n\n🍽️ Category: {category.title()}\n💰 Amount: {amount:,.0f} sum"
 
             keyboard = [
-                [InlineKeyboardButton("📊 Hisobot", callback_data="financial_report")],
-                [InlineKeyboardButton("💰 Moliya", callback_data="financial_menu")],
-                [InlineKeyboardButton("🏠 Bosh menyu", callback_data="main_menu")]
+                [InlineKeyboardButton("📊 Report", callback_data="financial_report")],
+                [InlineKeyboardButton("💰 Finance", callback_data="financial_menu")],
+                [InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")]
             ]
 
             await safe_edit(query, text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
@@ -1742,24 +1742,24 @@ Ushbu bot'ga screenshot yuboring va biz 24 soat ichida faollashtramiz!
             completed_count = sum(1 for t in tasks_completed if t.get("completed"))
             financial_summary = get_monthly_summary(conn, user_id)
 
-            text = f"""📊 **Sizning Statistikangiz**
+            text = f"""📊 **Your Statistics**
 
-💎 **Obuna:** {subscription.get('tier', 'free').upper()}
+💎 **Subscription:** {subscription.get('tier', 'free').upper()}
 
-📝 **Vazifalar:**
-• Bajarilgan: {completed_count}
-• Jami: {len(tasks_completed)}
+📝 **Tasks:**
+• Completed: {completed_count}
+• Total: {len(tasks_completed)}
 
-💰 **Moliya (bu oy):**
-• Daromad: {financial_summary.get('total_income', 0):,.0f} so'm
-• Xarajat: {financial_summary.get('total_expenses', 0):,.0f} so'm
-• Balans: {financial_summary.get('balance', 0):,.0f} so'm
+💰 **Finance (this month):**
+• Income: {financial_summary.get('total_income', 0):,.0f} sum
+• Expenses: {financial_summary.get('total_expenses', 0):,.0f} sum
+• Balance: {financial_summary.get('balance', 0):,.0f} sum
 
-🎯 **Yutuqlar:** Coming soon!"""
+🎯 **Achievements:** Coming soon!"""
 
             keyboard = [
-                [InlineKeyboardButton("🔙 Orqaga", callback_data="my_profile")],
-                [InlineKeyboardButton("🏠 Bosh menyu", callback_data="main_menu")]
+                [InlineKeyboardButton("🔙 Back", callback_data="my_profile")],
+                [InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")]
             ]
 
             await safe_edit(query, text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
@@ -1770,7 +1770,7 @@ Ushbu bot'ga screenshot yuboring va biz 24 soat ichida faollashtramiz!
         text = get_text(lang, "your_goals")
         keyboard = [
             [InlineKeyboardButton("🔙 Orqaga", callback_data="my_profile")],
-            [InlineKeyboardButton("🏠 Bosh menyu", callback_data="main_menu")]
+            [InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")]
         ]
         await safe_edit(query, text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
         return
@@ -1779,7 +1779,7 @@ Ushbu bot'ga screenshot yuboring va biz 24 soat ichida faollashtramiz!
         text = get_text(lang, "achievements")
         keyboard = [
             [InlineKeyboardButton("🔙 Orqaga", callback_data="my_profile")],
-            [InlineKeyboardButton("🏠 Bosh menyu", callback_data="main_menu")]
+            [InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")]
         ]
         await safe_edit(query, text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
         return
@@ -1788,7 +1788,7 @@ Ushbu bot'ga screenshot yuboring va biz 24 soat ichida faollashtramiz!
         text = get_text(lang, "progress")
         keyboard = [
             [InlineKeyboardButton("🔙 Orqaga", callback_data="my_profile")],
-            [InlineKeyboardButton("🏠 Bosh menyu", callback_data="main_menu")]
+            [InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")]
         ]
         await safe_edit(query, text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
         return
@@ -1799,7 +1799,7 @@ Ushbu bot'ga screenshot yuboring va biz 24 soat ichida faollashtramiz!
         text = get_text(lang, "notifications")
         keyboard = [
             [InlineKeyboardButton("🔙 Orqaga", callback_data="settings_menu")],
-            [InlineKeyboardButton("🏠 Bosh menyu", callback_data="main_menu")]
+            [InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")]
         ]
         await safe_edit(query, text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
         return
@@ -1831,7 +1831,7 @@ Ushbu bot'ga screenshot yuboring va biz 24 soat ichida faollashtramiz!
         text = get_text(lang, "help_text")
         keyboard = [
             [InlineKeyboardButton("🔙 Orqaga", callback_data="settings_menu")],
-            [InlineKeyboardButton("🏠 Bosh menyu", callback_data="main_menu")]
+            [InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")]
         ]
         await safe_edit(query, text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
         return
@@ -1847,12 +1847,12 @@ Ushbu bot'ga screenshot yuboring va biz 24 soat ichida faollashtramiz!
     # === PRODUCTIVITY MENU ===
     if query.data == "productivity_menu":
         keyboard = [
-            [InlineKeyboardButton("📝 Vazifa qo'shish", callback_data="add_task_start"),
-             InlineKeyboardButton("📋 Vazifalarim", callback_data="view_tasks")],
-            [InlineKeyboardButton("📅 Kunlik reja", callback_data="create_daily_plan_start")],
-            [InlineKeyboardButton("🎯 Fokus sessiya", callback_data="start_focus_25")],
-            [InlineKeyboardButton("📊 Productivity hisobot", callback_data="productivity_report")],
-            [InlineKeyboardButton("🏠 Bosh menyu", callback_data="main_menu")]
+            [InlineKeyboardButton("📝 Add Task", callback_data="add_task_start"),
+             InlineKeyboardButton("📋 My Tasks", callback_data="view_tasks")],
+            [InlineKeyboardButton("📅 Daily Plan", callback_data="create_daily_plan_start")],
+            [InlineKeyboardButton("🎯 Focus Session", callback_data="start_focus_25")],
+            [InlineKeyboardButton("📊 Productivity Report", callback_data="productivity_report")],
+            [InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")]
         ]
         text = get_text(lang, "productivity_coach_menu")
         await safe_edit(query, text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
@@ -1872,8 +1872,8 @@ Ushbu bot'ga screenshot yuboring va biz 24 soat ichida faollashtramiz!
             if not tasks:
                 text = get_text(lang, "no_tasks")
                 keyboard = [
-                    [InlineKeyboardButton("➕ Vazifa qo'shish", callback_data="add_task_start")],
-                    [InlineKeyboardButton("🏠 Bosh menyu", callback_data="main_menu")]
+                    [InlineKeyboardButton("➕ Add Task", callback_data="add_task_start")],
+                    [InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")]
                 ]
             else:
                 text = get_text(lang, "your_tasks") + "\n\n"
@@ -1887,7 +1887,7 @@ Ushbu bot'ga screenshot yuboring va biz 24 soat ichida faollashtramiz!
                     ])
 
                 keyboard.append([InlineKeyboardButton("🔙 Orqaga", callback_data="productivity_menu")])
-                keyboard.append([InlineKeyboardButton("🏠 Bosh menyu", callback_data="main_menu")])
+                keyboard.append([InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")])
 
             await safe_edit(query, text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
             conn.close()
@@ -1899,7 +1899,7 @@ Ushbu bot'ga screenshot yuboring va biz 24 soat ichida faollashtramiz!
         if conn:
             success = complete_task(conn, task_id)
             if success:
-                await query.answer("🎉 Vazifa bajarildi! Tabriklaymiz!", show_alert=True)
+                await query.answer("🎉 Task completed! Congratulations!", show_alert=True)
             conn.close()
         # Refresh task list
         await button_callback(update, context)  # Recursively call to refresh
@@ -1908,9 +1908,9 @@ Ushbu bot'ga screenshot yuboring va biz 24 soat ichida faollashtramiz!
     if query.data == "create_daily_plan_start":
         conn = get_db()
         if conn:
-            await query.message.reply_text("📅 Bugun uchun reja yaratyapman...")
+            await query.message.reply_text("📅 Creating your plan for today...")
             plan = await create_daily_plan(user_id, conn, work_hours=8, lang=lang)
-            await query.message.reply_text(f"📅 **Kunlik Reja:**\n\n{plan}", parse_mode="Markdown")
+            await query.message.reply_text(f"📅 **Daily Plan:**\n\n{plan}", parse_mode="Markdown")
             conn.close()
         return
 
@@ -1931,7 +1931,7 @@ Muvaffaqiyat! 💪"""
 
             keyboard = [
                 [InlineKeyboardButton("✅ Tugatdim", callback_data=f"end_focus_{session_id}")],
-                [InlineKeyboardButton("🏠 Bosh menyu", callback_data="main_menu")]
+                [InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")]
             ]
 
             await safe_edit(query, text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
@@ -1957,7 +1957,7 @@ Keyingi sessiyaga tayyormisiz?"""
             keyboard = [
                 [InlineKeyboardButton("🔁 Yana 25 min", callback_data="start_focus_25")],
                 [InlineKeyboardButton("📊 Hisobot", callback_data="productivity_report")],
-                [InlineKeyboardButton("🏠 Bosh menyu", callback_data="main_menu")]
+                [InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")]
             ]
 
             await safe_edit(query, text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
