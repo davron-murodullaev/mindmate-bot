@@ -1173,9 +1173,9 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Meditate
     if query.data == "meditate":
         keyboard = [
-            [InlineKeyboardButton("🌬️ Nafas (2 daq)", callback_data="meditate_breathing"),
-             InlineKeyboardButton("🧘 Tinchlanish (5 daq)", callback_data="meditate_calm")],
-            [InlineKeyboardButton("😴 Uyqu (10 daq)", callback_data="meditate_sleep")],
+            [InlineKeyboardButton("🌬️ Breathing (2 min)", callback_data="meditate_breathing"),
+             InlineKeyboardButton("🧘 Calm (5 min)", callback_data="meditate_calm")],
+            [InlineKeyboardButton("😴 Sleep (10 min)", callback_data="meditate_sleep")],
             [InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")]
         ]
         await safe_edit(query, get_text(lang, "meditate_ask"), reply_markup=InlineKeyboardMarkup(keyboard))
