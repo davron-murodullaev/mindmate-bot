@@ -1466,23 +1466,94 @@ Men sizni tinglayman va tushunaman."""
         return
 
     if query.data in ["buy_premium", "buy_pro"]:
-        # TODO: Implement Telegram Stars payment
         tier = "premium" if query.data == "buy_premium" else "pro"
-        price = SUBSCRIPTION_TIERS[tier]["price"]
+        tier_info = SUBSCRIPTION_TIERS[tier]
+        price = tier_info["price"]
 
-        text = f"""💎 **{SUBSCRIPTION_TIERS[tier]["name"]} Obuna**
+        # Telegram Stars pricing: 1 USD ≈ 50 Stars (adjust as needed)
+        stars_price = int(price * 50)
 
-💵 Narx: ${price}/oy
+        text = f"""💎 **{tier_info["name"]} Obuna**
+
+💵 Narx: ${price}/oy ({stars_price} ⭐ Telegram Stars)
 
 **Imkoniyatlar:**
 """
-        for feature in SUBSCRIPTION_TIERS[tier]["features"]:
+        for feature in tier_info["features"]:
             text += f"✅ {feature}\n"
 
-        text += "\n⚠️ **To'lov tizimi hozircha ishlamayapti.**\nTez orada ishga tushadi! 🚀"
+        text += f"\n\n💳 **To'lov usullari:**\n\n"
+        text += f"1️⃣ **Telegram Stars** - To'g'ridan-to'g'ri telegram orqali\n"
+        text += f"2️⃣ **PayPal** - Xalqaro to'lov\n\n"
+        text += f"To'lov usulini tanlang:"
 
         keyboard = [
+            [InlineKeyboardButton("⭐ Telegram Stars", callback_data=f"pay_stars_{tier}")],
+            [InlineKeyboardButton("💳 PayPal", callback_data=f"pay_paypal_{tier}")],
             [InlineKeyboardButton("🔙 Orqaga", callback_data="premium_menu")],
+            [InlineKeyboardButton("🏠 Bosh menyu", callback_data="main_menu")]
+        ]
+
+        await safe_edit(query, text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
+        return
+
+    # Telegram Stars payment
+    if query.data.startswith("pay_stars_"):
+        tier = query.data.replace("pay_stars_", "")
+        tier_info = SUBSCRIPTION_TIERS[tier]
+        price = tier_info["price"]
+        stars_price = int(price * 50)
+
+        try:
+            # Send invoice for Telegram Stars
+            await query.message.reply_invoice(
+                title=f"{tier_info['name']} Obuna",
+                description=f"MindMate {tier_info['name']} obunasi - 1 oy",
+                payload=f"mindmate_{tier}_subscription_{user_id}",
+                provider_token="",  # Empty for Telegram Stars
+                currency="XTR",  # Telegram Stars currency code
+                prices=[{"label": f"{tier_info['name']} - 1 oy", "amount": stars_price}],
+                start_parameter=f"subscribe_{tier}",
+                reply_markup=None
+            )
+
+            await query.answer("✅ To'lov oynasi yuborildi!")
+
+        except Exception as e:
+            logger.error(f"Telegram Stars to'lov xatosi: {e}")
+            text = f"⚠️ **Xatolik yuz berdi!**\n\n{str(e)}\n\nIltimos, keyinroq qayta urinib ko'ring yoki PayPal orqali to'lang."
+            keyboard = [
+                [InlineKeyboardButton("💳 PayPal", callback_data=f"pay_paypal_{tier}")],
+                [InlineKeyboardButton("🔙 Orqaga", callback_data="premium_menu")]
+            ]
+            await safe_edit(query, text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
+
+        return
+
+    # PayPal payment (placeholder)
+    if query.data.startswith("pay_paypal_"):
+        tier = query.data.replace("pay_paypal_", "")
+        tier_info = SUBSCRIPTION_TIERS[tier]
+        price = tier_info["price"]
+
+        text = f"""💳 **PayPal To'lov**
+
+💎 Obuna: {tier_info['name']}
+💵 Narx: ${price}/oy
+
+📧 **To'lov qilish uchun:**
+
+1. PayPal: [your-paypal-email@example.com]
+2. Summa: ${price} USD
+3. Note: "MindMate {tier} - User ID: {user_id}"
+
+✅ **To'lovdan keyin:**
+Ushbu bot'ga screenshot yuboring va biz 24 soat ichida faollashtramiz!
+
+⚠️ PayPal integratsiya tez orada avtomatik bo'ladi."""
+
+        keyboard = [
+            [InlineKeyboardButton("🔙 Orqaga", callback_data=f"buy_{tier}")],
             [InlineKeyboardButton("🏠 Bosh menyu", callback_data="main_menu")]
         ]
 
@@ -1491,16 +1562,31 @@ Men sizni tinglayman va tushunaman."""
 
     # === FINANCIAL MENU ===
     if query.data == "financial_menu":
-        keyboard = [
-            [InlineKeyboardButton("💸 Xarajat qo'shish", callback_data="add_expense"),
-             InlineKeyboardButton("💵 Daromad qo'shish", callback_data="add_income")],
-            [InlineKeyboardButton("📊 Oylik hisobot", callback_data="financial_report")],
-            [InlineKeyboardButton("💡 AI Maslahat", callback_data="financial_advice_start")],
-            [InlineKeyboardButton("📈 Investitsiya", callback_data="investment_advice")],
-            [InlineKeyboardButton("🏠 Bosh menyu", callback_data="main_menu")]
-        ]
-        text = "💰 **Moliyaviy Coach**\n\nQaysi xizmat kerak?"
-        await safe_edit(query, text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
+        conn = get_db()
+        if conn:
+            # Check for quick expense shortcuts
+            shortcuts = get_quick_expense_shortcuts(user_id, conn)
+
+            if shortcuts:
+                # Show quick shortcuts + main menu
+                text = "💰 **Moliyaviy Coach**\n\n⚡ **Tez xarajatlar:**"
+                keyboard_markup = get_expense_shortcuts_keyboard(shortcuts)
+            else:
+                # Standard menu
+                keyboard = [
+                    [InlineKeyboardButton("💸 Xarajat qo'shish", callback_data="add_expense"),
+                     InlineKeyboardButton("💵 Daromad qo'shish", callback_data="add_income")],
+                    [InlineKeyboardButton("📊 Oylik hisobot", callback_data="financial_report")],
+                    [InlineKeyboardButton("💡 AI Maslahat", callback_data="financial_advice_start")],
+                    [InlineKeyboardButton("📈 Investitsiya 💎", callback_data="investment_advice")],
+                    [InlineKeyboardButton("🔄 Doimiy xarajat", callback_data="add_recurring_expense_start")],
+                    [InlineKeyboardButton("🏠 Bosh menyu", callback_data="main_menu")]
+                ]
+                text = "💰 **Moliyaviy Coach**\n\nQaysi xizmat kerak?"
+                keyboard_markup = InlineKeyboardMarkup(keyboard)
+
+            await safe_edit(query, text, reply_markup=keyboard_markup, parse_mode="Markdown")
+            conn.close()
         return
 
     if query.data == "add_expense":
@@ -1565,8 +1651,260 @@ Men sizni tinglayman va tushunaman."""
         return
 
     if query.data == "investment_advice":
+        # Check if user is premium
+        conn = get_db()
+        if conn:
+            subscription = get_user_subscription(conn, user_id)
+            tier = subscription.get("tier", "free")
+
+            if tier == "free":
+                # Show disclaimer and premium requirement
+                text = get_investment_disclaimer() + "\n\n💎 **Investitsiya maslahati Premium va Pro foydalanuvchilar uchun!**\n\n3 ta bepul sinov maslahati mavjud."
+                keyboard = [
+                    [InlineKeyboardButton("✅ Bepul sinov (3ta)", callback_data="investment_disclaimer_free")],
+                    [InlineKeyboardButton("💎 Premium xarid qilish", callback_data="buy_premium")],
+                    [InlineKeyboardButton("🔙 Orqaga", callback_data="financial_menu")]
+                ]
+            else:
+                # Show disclaimer only
+                text = get_investment_disclaimer()
+                keyboard = [
+                    [InlineKeyboardButton("✅ Tushunarli, davom etamiz", callback_data="investment_disclaimer_accept")],
+                    [InlineKeyboardButton("🔙 Orqaga", callback_data="financial_menu")]
+                ]
+
+            await safe_edit(query, text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
+            conn.close()
+        return
+
+    if query.data == "investment_disclaimer_accept":
         context.user_data["waiting_for"] = "investment_amount"
-        text = "📈 **Investitsiya Maslahati**\n\nInvestitsiya qilmoqchi bo'lgan summangizni kiriting:"
+        text = "📈 **Investitsiya Maslahati**\n\nInvestitsiya qilmoqchi bo'lgan summangizni kiriting (masalan: 5000000):"
+        await safe_edit(query, text, reply_markup=get_main_menu_button(lang), parse_mode="Markdown")
+        return
+
+    if query.data == "investment_disclaimer_free":
+        # Free tier - check usage limit
+        conn = get_db()
+        if conn:
+            # Check investment advice usage
+            cur = conn.cursor()
+            cur.execute("""
+                SELECT COUNT(*) FROM usage_stats
+                WHERE user_id = %s AND feature = 'investment_advice'
+                AND used_at >= DATE_TRUNC('month', CURRENT_DATE)
+            """, (user_id,))
+            usage_count = cur.fetchone()[0]
+            cur.close()
+
+            if usage_count >= 3:
+                text = "⚠️ Siz bu oyda 3 ta bepul sinov maslahatidan foydalandingiz.\n\n💎 Premium xarid qiling!"
+                keyboard = [
+                    [InlineKeyboardButton("💎 Premium", callback_data="buy_premium")],
+                    [InlineKeyboardButton("🔙 Orqaga", callback_data="financial_menu")]
+                ]
+                await safe_edit(query, text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
+            else:
+                context.user_data["waiting_for"] = "investment_amount"
+                text = f"📈 **Investitsiya Maslahati** (Bepul: {3 - usage_count} qoldi)\n\nInvestitsiya qilmoqchi bo'lgan summangizni kiriting:"
+                await safe_edit(query, text, reply_markup=get_main_menu_button(lang), parse_mode="Markdown")
+
+            conn.close()
+        return
+
+    # Quick expense shortcuts - one-tap adding
+    if query.data.startswith("quick_exp_"):
+        parts = query.data.split("_")
+        category = parts[2]
+        amount = float(parts[3])
+
+        conn = get_db()
+        if conn:
+            add_expense(conn, user_id, amount, category, f"Tez xarajat: {category}")
+            text = f"✅ **Xarajat qo'shildi!**\n\n🍽️ Kategoriya: {category.title()}\n💰 Summa: {amount:,.0f} so'm"
+
+            keyboard = [
+                [InlineKeyboardButton("📊 Hisobot", callback_data="financial_report")],
+                [InlineKeyboardButton("💰 Moliya", callback_data="financial_menu")],
+                [InlineKeyboardButton("🏠 Bosh menyu", callback_data="main_menu")]
+            ]
+
+            await safe_edit(query, text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
+            conn.close()
+        return
+
+    # Add recurring expense
+    if query.data == "add_recurring_expense_start":
+        context.user_data["waiting_for"] = "recurring_expense_amount"
+        text = """🔄 **Doimiy Xarajat Qo'shish**
+
+Bu sizning har oy yoki har hafta to'laydigan xarajatlaringiz (uy-ijara, internet, elektr, va h.k.)
+
+Xarajat summasini kiriting:"""
+        await safe_edit(query, text, reply_markup=get_main_menu_button(lang), parse_mode="Markdown")
+        return
+
+    # === MY PROFILE SUBMENUS ===
+
+    if query.data == "stats":
+        conn = get_db()
+        if conn:
+            # Get comprehensive stats
+            subscription = get_user_subscription(conn, user_id)
+            tasks_completed = get_user_tasks(conn, user_id, include_completed=True)
+            completed_count = sum(1 for t in tasks_completed if t.get("completed"))
+            financial_summary = get_monthly_summary(conn, user_id)
+
+            text = f"""📊 **Sizning Statistikangiz**
+
+💎 **Obuna:** {subscription.get('tier', 'free').upper()}
+
+📝 **Vazifalar:**
+• Bajarilgan: {completed_count}
+• Jami: {len(tasks_completed)}
+
+💰 **Moliya (bu oy):**
+• Daromad: {financial_summary.get('total_income', 0):,.0f} so'm
+• Xarajat: {financial_summary.get('total_expenses', 0):,.0f} so'm
+• Balans: {financial_summary.get('balance', 0):,.0f} so'm
+
+🎯 **Yutuqlar:** Coming soon!"""
+
+            keyboard = [
+                [InlineKeyboardButton("🔙 Orqaga", callback_data="my_profile")],
+                [InlineKeyboardButton("🏠 Bosh menyu", callback_data="main_menu")]
+            ]
+
+            await safe_edit(query, text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
+            conn.close()
+        return
+
+    if query.data == "goals":
+        text = """🎯 **Maqsadlaringiz**
+
+Bu bo'lim tez orada ishga tushadi!
+
+Siz o'zingizning moliyaviy, jismoniy va shaxsiy maqsadlaringizni belgilay olasiz."""
+
+        keyboard = [
+            [InlineKeyboardButton("🔙 Orqaga", callback_data="my_profile")],
+            [InlineKeyboardButton("🏠 Bosh menyu", callback_data="main_menu")]
+        ]
+        await safe_edit(query, text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
+        return
+
+    if query.data == "achievements":
+        text = """🏆 **Yutuqlar**
+
+Bu bo'lim tez orada ishga tushadi!
+
+Siz turli vazifalarni bajarganingizda yutuqlarga ega bo'lasiz:
+• 🔥 7 kun ketma-ket foydalanish
+• 💪 50 ta vazifa bajarish
+• 💰 1 million so'm tejash
+• Va boshqalar!"""
+
+        keyboard = [
+            [InlineKeyboardButton("🔙 Orqaga", callback_data="my_profile")],
+            [InlineKeyboardButton("🏠 Bosh menyu", callback_data="main_menu")]
+        ]
+        await safe_edit(query, text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
+        return
+
+    if query.data == "progress":
+        text = """📈 **Progress**
+
+Bu bo'lim tez orada ishga tushadi!
+
+Sizning haftalik va oylik progressingizni grafik ko'rinishida ko'rishingiz mumkin bo'ladi."""
+
+        keyboard = [
+            [InlineKeyboardButton("🔙 Orqaga", callback_data="my_profile")],
+            [InlineKeyboardButton("🏠 Bosh menyu", callback_data="main_menu")]
+        ]
+        await safe_edit(query, text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
+        return
+
+    # === SETTINGS SUBMENUS ===
+
+    if query.data == "notifications":
+        text = """🔔 **Bildirishnomalar**
+
+Bu bo'lim tez orada ishga tushadi!
+
+Siz eslatmalar, maqsad yangiliklari va boshqa bildirishnomalarni sozlashingiz mumkin bo'ladi."""
+
+        keyboard = [
+            [InlineKeyboardButton("🔙 Orqaga", callback_data="settings_menu")],
+            [InlineKeyboardButton("🏠 Bosh menyu", callback_data="main_menu")]
+        ]
+        await safe_edit(query, text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
+        return
+
+    if query.data == "reset_confirm":
+        text = """⚠️ **Tarikhni Tozalash**
+
+Bu barcha suhbat tarixini o'chiradi. Moliya va vazifa ma'lumotlari saqlanadi.
+
+Davom etasizmi?"""
+
+        keyboard = [
+            [InlineKeyboardButton("✅ Ha, tozalash", callback_data="reset_history_yes")],
+            [InlineKeyboardButton("❌ Yo'q", callback_data="settings_menu")]
+        ]
+        await safe_edit(query, text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
+        return
+
+    if query.data == "reset_history_yes":
+        # Delete chat history but keep other data
+        conn = get_db()
+        if conn:
+            cur = conn.cursor()
+            cur.execute("DELETE FROM memories WHERE user_id = %s AND key IN ('recent_messages', 'conversation_context')", (user_id,))
+            conn.commit()
+            cur.close()
+            conn.close()
+
+        text = "✅ Tarix tozalandi! Suhbatni yangidan boshlashingiz mumkin."
+        await safe_edit(query, text, reply_markup=get_main_menu_button(lang), parse_mode="Markdown")
+        return
+
+    if query.data == "help":
+        text = """ℹ️ **Yordam**
+
+**MindMate - Sizning AI Yordamchingiz**
+
+📌 **Asosiy Bo'limlar:**
+
+💬 **AI Do'st** - Suhbatlashing, kundalik yozing
+💰 **Moliya** - Xarajat/daromad, hisobot, maslahat
+⚡ **Unumdorlik** - Vazifalar, fokus, kunlik reja
+🎨 **Ijod** - PDF, PPT, kod, rasm yaratish
+🧘 **Salomatlik** - Meditatsiya, fitness, sog'liq
+
+💎 **Premium** - Cheklovlarsiz foydalanish!
+
+❓ Savollaringiz bo'lsa, menga yozing!"""
+
+        keyboard = [
+            [InlineKeyboardButton("🔙 Orqaga", callback_data="settings_menu")],
+            [InlineKeyboardButton("🏠 Bosh menyu", callback_data="main_menu")]
+        ]
+        await safe_edit(query, text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
+        return
+
+    # === HEALTH MENU SUBMENUS ===
+
+    if query.data == "health_ai":
+        context.user_data["mode"] = "health_ai"
+        text = """🏥 **Sog'liq AI**
+
+Men sizning sog'lig'ingiz haqida umumiy maslahatlar bera olaman.
+
+⚠️ **Muhim:** Men tibbiy diagnoz qo'ymayman va dori tavsiya qilmayman. Jiddiy muammolar bo'lsa, shifokorga murojaat qiling!
+
+Savolingizni yozing:"""
+
         await safe_edit(query, text, reply_markup=get_main_menu_button(lang), parse_mode="Markdown")
         return
 

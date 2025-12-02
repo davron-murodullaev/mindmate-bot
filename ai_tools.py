@@ -12,6 +12,18 @@ logger = logging.getLogger(__name__)
 # OpenAI client
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
+# Claude API client for code generation
+try:
+    from anthropic import Anthropic
+    claude_client = Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
+    CLAUDE_AVAILABLE = True
+except ImportError:
+    CLAUDE_AVAILABLE = False
+    logger.warning("Anthropic library not installed. Code generation will use OpenAI.")
+except Exception as e:
+    CLAUDE_AVAILABLE = False
+    logger.warning(f"Claude API not available: {e}")
+
 
 # === IMAGE GENERATION ===
 
@@ -100,7 +112,7 @@ async def translate_text(text, target_lang, source_lang="auto"):
 
 async def generate_code(description, language="python"):
     """
-    Kod yaratish
+    Kod yaratish - Claude API orqali (agar mavjud bo'lsa)
 
     Args:
         description: Kod tavsifi
@@ -113,10 +125,36 @@ async def generate_code(description, language="python"):
         prompt = f"""Write {language} code for the following task:
 {description}
 
-Provide clean, well-commented code with explanations."""
+Provide clean, well-commented, production-ready code with:
+1. Proper error handling
+2. Type hints (if applicable)
+3. Clear variable names
+4. Brief explanation of the approach
+5. Example usage"""
 
+        # Use Claude API if available (better for code generation)
+        if CLAUDE_AVAILABLE:
+            try:
+                response = claude_client.messages.create(
+                    model="claude-3-5-sonnet-20241022",  # Latest Claude model
+                    max_tokens=2048,
+                    temperature=0.3,  # Lower temperature for more precise code
+                    messages=[{
+                        "role": "user",
+                        "content": prompt
+                    }]
+                )
+
+                code_output = response.content[0].text
+                return f"🤖 **Generated with Claude AI (Premium Code Generation)**\n\n{code_output}"
+
+            except Exception as claude_error:
+                logger.warning(f"Claude API failed, falling back to OpenAI: {claude_error}")
+                # Fall through to OpenAI
+
+        # Fallback to OpenAI
         response = client.chat.completions.create(
-            model="gpt-3.5-turbo",
+            model="gpt-4o-mini",  # Use GPT-4 mini for better code quality
             messages=[{"role": "user", "content": prompt}],
             max_tokens=1500,
             temperature=0.5
