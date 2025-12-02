@@ -471,10 +471,10 @@ def save_reminder(user_id, reminder_type, reminder_time):
     if conn is None:
         return False
     cur = conn.cursor()
-    # Avvalgi eslatmani o'chirish (bir turdagi faqat bitta)
+    # Delete previous reminder (only one per type)
     cur.execute('DELETE FROM reminders WHERE user_id = %s AND reminder_type = %s', 
                 (user_id, reminder_type))
-    # Yangi eslatma qo'shish
+    # Add new reminder
     cur.execute('''
         INSERT INTO reminders (user_id, reminder_type, reminder_time)
         VALUES (%s, %s, %s)

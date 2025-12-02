@@ -89,7 +89,7 @@ def get_quick_expense_shortcuts(user_id, conn):
     """
     cur = conn.cursor()
 
-    # So'nggi 30 kundagi eng ko'p takrorlangan xarajatlar
+    # Most frequently repeated expenses in the last 30 days
     cur.execute('''
         SELECT category, ROUND(AVG(amount), 0) as avg_amount, COUNT(*) as frequency
         FROM expenses
@@ -222,15 +222,15 @@ def get_referral_share_keyboard(user_id, lang="uz"):
     from premium import get_referral_code
     ref_code = get_referral_code(user_id)
 
-    # Bot username - .env'dan olish kerak
-    bot_username = "MindMateAIBot"  # TODO: .env'ga qo'shish
+    # Bot username - should be obtained from .env
+    bot_username = "MindMateAIBot"  # TODO: Add to .env
     ref_link = f"https://t.me/{bot_username}?start={ref_code}"
 
     keyboard = [
-        [IKB("📤 Do'stga yuborish", switch_inline_query=f"MindMate botini sinab ko'ring! {ref_link}")],
-        [IKB("📋 Link nusxalash", callback_data=f"copy_ref_{ref_code}")],
-        [IKB("🎁 Bonuslarim", callback_data="my_referral_bonuses")],
-        [IKB("🔙 Orqaga", callback_data="premium_menu")]
+        [IKB("📤 Forward to Friend", switch_inline_query=f"Try MindMate bot! {ref_link}")],
+        [IKB("📋 Copy Link", callback_data=f"copy_ref_{ref_code}")],
+        [IKB("🎁 My Bonuses", callback_data="my_referral_bonuses")],
+        [IKB("🔙 Back", callback_data="premium_menu")]
     ]
 
     return InlineKeyboardMarkup(keyboard)
