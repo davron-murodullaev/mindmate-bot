@@ -1,6 +1,6 @@
 """
 Productivity & Time Management AI
-Vaqt boshqaruvi, vazifalar, fokus, unumdorlik
+Time management, tasks, focus, productivity
 """
 
 import logging
@@ -14,16 +14,16 @@ client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 # === TASK PRIORITIES ===
 
 PRIORITY_LEVELS = {
-    "urgent": {"name": "🔴 Shoshilinch", "value": 4},
-    "high": {"name": "🟠 Yuqori", "value": 3},
-    "medium": {"name": "🟡 O'rta", "value": 2},
-    "low": {"name": "🟢 Past", "value": 1}
+    "urgent": {"name": "🔴 Urgent", "value": 4},
+    "high": {"name": "🟠 High", "value": 3},
+    "medium": {"name": "🟡 Medium", "value": 2},
+    "low": {"name": "🟢 Low", "value": 1}
 }
 
 # === DATABASE ===
 
 def init_productivity_tables(conn):
-    """Productivity jadvallar"""
+    """Productivity tables"""
     cur = conn.cursor()
 
     # Tasks
@@ -88,7 +88,7 @@ def init_productivity_tables(conn):
 # === TASK MANAGEMENT ===
 
 def add_task(conn, user_id, title, description="", priority="medium", category="general", due_date=None, estimated_minutes=None):
-    """Vazifa qo'shish"""
+    """Add task"""
     cur = conn.cursor()
     cur.execute('''
         INSERT INTO tasks (user_id, title, description, priority, category, due_date, estimated_minutes)
@@ -102,7 +102,7 @@ def add_task(conn, user_id, title, description="", priority="medium", category="
 
 
 def complete_task(conn, task_id):
-    """Vazifani bajarish"""
+    """Complete task"""
     cur = conn.cursor()
     cur.execute('''
         UPDATE tasks SET completed = TRUE, completed_at = NOW()
@@ -122,7 +122,7 @@ def complete_task(conn, task_id):
 
 
 def get_user_tasks(conn, user_id, include_completed=False):
-    """Foydalanuvchi vazifalari"""
+    """User tasks"""
     cur = conn.cursor()
 
     if include_completed:
@@ -155,7 +155,7 @@ def get_user_tasks(conn, user_id, include_completed=False):
 
 
 def update_daily_metrics(conn, user_id, tasks_completed=0, focus_minutes=0, distractions=0):
-    """Kunlik metrikalarni yangilash"""
+    """Update daily metrics"""
     cur = conn.cursor()
     cur.execute('''
         INSERT INTO productivity_metrics (user_id, date, tasks_completed, focus_minutes, distractions)
@@ -172,26 +172,26 @@ def update_daily_metrics(conn, user_id, tasks_completed=0, focus_minutes=0, dist
 # === AI PRODUCTIVITY COACH ===
 
 async def prioritize_tasks_ai(tasks, user_context=""):
-    """AI orqali vazifalarni ustuvorlik bo'yicha tartiblash"""
+    """Prioritize tasks using AI"""
     try:
         tasks_text = "\n".join([f"- {t['title']}" for t in tasks])
 
-        prompt = f"""Quyidagi vazifalarni Eisenhower Matrix (muhim/shoshilinch) bo'yicha tartiblang:
+        prompt = f"""Prioritize the following tasks using the Eisenhower Matrix (important/urgent):
 
-Vazifalar:
+Tasks:
 {tasks_text}
 
-Kontekst: {user_context}
+Context: {user_context}
 
-Har bir vazifa uchun:
-1. Ustuvorlik (urgent/high/medium/low)
-2. Qisqa izoh (nega shunday?)
-3. Tavsiya (qachon va qanday bajarish)
+For each task provide:
+1. Priority (urgent/high/medium/low)
+2. Brief explanation (why?)
+3. Recommendation (when and how to complete)
 
-Javob JSON formatda:
+Answer in JSON format:
 ```json
 [
-  {{"task": "vazifa nomi", "priority": "urgent", "reason": "sabab", "advice": "maslahat"}},
+  {{"task": "task name", "priority": "urgent", "reason": "reason", "advice": "recommendation"}},
   ...
 ]
 ```"""
@@ -210,36 +210,36 @@ Javob JSON formatda:
         return None
 
 
-async def create_daily_plan(user_id, conn, work_hours=8, lang="uz"):
-    """Kunlik reja yaratish"""
+async def create_daily_plan(user_id, conn, work_hours=8, lang="en"):
+    """Create daily plan"""
     try:
         tasks = get_user_tasks(conn, user_id, include_completed=False)
 
         if not tasks:
-            return "📝 Hozircha vazifalar yo'q. /add_task buyrug'i bilan vazifa qo'shing."
+            return "📝 No tasks yet. Add a task with /add_task command."
 
         tasks_text = "\n".join([
-            f"- {t['title']} (Ustuvorlik: {t['priority']})"
+            f"- {t['title']} (Priority: {t['priority']})"
             for t in tasks
         ])
 
-        prompt = f"""Bugun uchun optimal kunlik reja yarating.
+        prompt = f"""Create an optimal daily plan for today.
 
-Ish vaqti: {work_hours} soat
+Work hours: {work_hours} hours
 
-Vazifalar:
+Tasks:
 {tasks_text}
 
-Pomodoro texnikasi (25 min ish + 5 min tanaffus) asosida reja tuzing.
-Har bir vazifa uchun vaqt ajrating.
-Kun davomida taqsimlang.
+Create a plan based on Pomodoro technique (25 min work + 5 min break).
+Allocate time for each task.
+Distribute throughout the day.
 
 Format:
-08:00-08:25 - Vazifa 1
-08:25-08:30 - Tanaffus
+08:00-08:25 - Task 1
+08:25-08:30 - Break
 ...
 
-O'zbek tilida, emoji bilan."""
+Use emojis."""
 
         response = client.chat.completions.create(
             model="gpt-3.5-turbo",
@@ -252,11 +252,11 @@ O'zbek tilida, emoji bilan."""
 
     except Exception as e:
         logger.error(f"Daily plan error: {e}")
-        return "⚠️ Reja yaratishda xatolik."
+        return "⚠️ Error creating plan."
 
 
-async def analyze_productivity(user_id, conn, days=7, lang="uz"):
-    """Unumdorlikni tahlil qilish"""
+async def analyze_productivity(user_id, conn, days=7, lang="en"):
+    """Analyze productivity"""
     try:
         cur = conn.cursor()
 
@@ -272,26 +272,26 @@ async def analyze_productivity(user_id, conn, days=7, lang="uz"):
         cur.close()
 
         if not data:
-            return "📊 Hali ma'lumot yo'q. Vazifalarni bajaring va natijalarni ko'ring!"
+            return "📊 No data yet. Complete tasks and see your results!"
 
         # Format data for AI
         stats_text = "\n".join([
-            f"{row[0]}: {row[1]} vazifa, {row[2]} min fokus, {row[3]} chalg'itish"
+            f"{row[0]}: {row[1]} tasks, {row[2]} min focus, {row[3]} distractions"
             for row in data
         ])
 
-        prompt = f"""So'nggi {days} kunlik unumdorlik tahlili:
+        prompt = f"""Productivity analysis for the last {days} days:
 
 {stats_text}
 
-Quyidagilarni tahlil qiling:
-1. Trend (o'sib/kamayibmi?)
-2. Eng produktiv kunlar
-3. Muammolar (agar bor bo'lsa)
-4. 3 ta aniq tavsiya yaxshilash uchun
-5. Maqsad (keyingi hafta uchun)
+Analyze the following:
+1. Trend (increasing/decreasing?)
+2. Most productive days
+3. Problems (if any)
+4. 3 specific recommendations for improvement
+5. Goal (for next week)
 
-O'zbek tilida, emoji va grafiklar bilan."""
+Use emojis and charts."""
 
         response = client.chat.completions.create(
             model="gpt-3.5-turbo",
@@ -304,13 +304,13 @@ O'zbek tilida, emoji va grafiklar bilan."""
 
     except Exception as e:
         logger.error(f"Productivity analysis error: {e}")
-        return "⚠️ Tahlil qilishda xatolik."
+        return "⚠️ Error analyzing productivity."
 
 
 # === POMODORO TIMER ===
 
 def start_focus_session(conn, user_id, task_id=None, duration=25):
-    """Fokus sessiyasini boshlash"""
+    """Start focus session"""
     cur = conn.cursor()
     cur.execute('''
         INSERT INTO focus_sessions (user_id, task_id, duration_minutes)
@@ -324,7 +324,7 @@ def start_focus_session(conn, user_id, task_id=None, duration=25):
 
 
 def complete_focus_session(conn, session_id):
-    """Fokus sessiyasini yakunlash"""
+    """Complete focus session"""
     cur = conn.cursor()
     cur.execute('''
         UPDATE focus_sessions SET completed = TRUE
@@ -346,26 +346,24 @@ def complete_focus_session(conn, session_id):
 # === TIME BLOCKING ===
 
 async def create_time_blocks(events, available_hours=8):
-    """Time blocking - vaqtni bloklash"""
+    """Time blocking"""
     try:
         events_text = "\n".join([f"- {e}" for e in events])
 
-        prompt = f"""Time blocking texnikasi bilan kun rejasi yarating.
+        prompt = f"""Create a daily schedule using time blocking technique.
 
-Mavjud vaqt: {available_hours} soat
+Available time: {available_hours} hours
 
-Vazifalar/uchrashuvlar:
+Tasks/meetings:
 {events_text}
 
-Deep work (chuqur ish) uchun 2-3 soatlik bloklar ajrating.
-Hozirgi kun uchun optimal jadval tuzing.
+Allocate 2-3 hour blocks for deep work.
+Create an optimal schedule for today.
 
 Format:
-08:00-10:00 🔴 Deep Work: Muhim vazifa
-10:00-10:15 ☕ Tanaffus
-...
-
-O'zbek tilida."""
+08:00-10:00 🔴 Deep Work: Important task
+10:00-10:15 ☕ Break
+..."""
 
         response = client.chat.completions.create(
             model="gpt-3.5-turbo",
@@ -378,13 +376,13 @@ O'zbek tilida."""
 
     except Exception as e:
         logger.error(f"Time blocking error: {e}")
-        return "⚠️ Jadval yaratishda xatolik."
+        return "⚠️ Error creating schedule."
 
 
 # === DISTRACTION MANAGEMENT ===
 
 async def analyze_distractions(user_id, conn):
-    """Chalg'itishlarni tahlil qilish"""
+    """Analyze distractions"""
     cur = conn.cursor()
 
     # Get recent distraction count
@@ -397,18 +395,18 @@ async def analyze_distractions(user_id, conn):
     cur.close()
 
     if total == 0:
-        return "✅ Ajoyib! Haftada chalg'itishlar bo'lmagan."
+        return "✅ Excellent! No distractions this week."
 
-    prompt = f"""Foydalanuvchi so'nggi haftada {total} marta chalg'itilgan.
+    prompt = f"""The user has been distracted {total} times in the last week.
 
-Quyidagilarni taklif qiling:
-1. Umumiy chalg'itishlar (ijtimoiy tarmoq, telefon, etc.)
-2. Har biri uchun yechim
-3. Fokusni oshirish texnikalari
-4. App/vositalar (blokerlar, timer)
-5. Environment sozlash (ish joyi)
+Recommend the following:
+1. Common distractions (social media, phone, etc.)
+2. Solutions for each
+3. Techniques to increase focus
+4. Apps/tools (blockers, timers)
+5. Environment setup (workspace)
 
-O'zbek tilida, amaliy maslahatlar."""
+Provide practical advice."""
 
     try:
         response = client.chat.completions.create(
@@ -419,25 +417,25 @@ O'zbek tilida, amaliy maslahatlar."""
         )
         return response.choices[0].message.content
     except:
-        return "⚠️ Tahlil qilishda xatolik."
+        return "⚠️ Error analyzing distractions."
 
 
 # === LANGUAGE TEXTS ===
 
-def get_productivity_texts(lang="uz"):
-    """Productivity matnlar"""
+def get_productivity_texts(lang="en"):
+    """Productivity texts"""
     return {
-        "uz": {
+        "en": {
             "menu": """⚡ **Productivity Coach**
 
-Nima yordam kerak?""",
-            "add_task_prompt": "📝 Vazifa nomini kiriting:",
-            "task_added": "✅ Vazifa qo'shildi: {title}",
-            "task_completed": "🎉 Vazifa bajarildi! Tabriklaymiz!",
-            "no_tasks": "📝 Hozircha vazifalar yo'q.",
-            "focus_start": "🎯 Fokus sessiyasi boshlandi!\n⏱️ {duration} minut\n\n💡 Telefon va ijtimoiy tarmoqlarni yoping.",
-            "focus_end": "🎉 Fokus sessiyasi tugadi!\n\n☕ 5 daqiqa dam oling.",
-            "daily_plan": "📅 **Bugungi Reja**\n\n{plan}",
-            "productivity_report": "📊 **Unumdorlik Hisoboti**\n\n{report}"
+How can I help you?""",
+            "add_task_prompt": "📝 Enter task name:",
+            "task_added": "✅ Task added: {title}",
+            "task_completed": "🎉 Task completed! Congratulations!",
+            "no_tasks": "📝 No tasks yet.",
+            "focus_start": "🎯 Focus session started!\n⏱️ {duration} minutes\n\n💡 Close phone and social media.",
+            "focus_end": "🎉 Focus session complete!\n\n☕ Take a 5 minute break.",
+            "daily_plan": "📅 **Today's Plan**\n\n{plan}",
+            "productivity_report": "📊 **Productivity Report**\n\n{report}"
         }
     }.get(lang, {})

@@ -1,6 +1,6 @@
 """
 Financial AI Coach
-Moliyaviy savodsizlikni hal qilish - xarajatlar, jamg'arish, investitsiya
+Solving financial literacy - expenses, savings, investment
 """
 
 import logging
@@ -43,7 +43,7 @@ EXPENSE_CATEGORIES = {
 # === DATABASE ===
 
 def init_financial_tables(conn):
-    """Moliyaviy jadvallar"""
+    """Financial tables"""
     cur = conn.cursor()
 
     # Expenses
@@ -107,8 +107,8 @@ def init_financial_tables(conn):
 
 # === EXPENSE TRACKING ===
 
-def add_expense(conn, user_id, amount, category, description="", currency="UZS"):
-    """Xarajat qo'shish"""
+def add_expense(conn, user_id, amount, category, description="", currency="USD"):
+    """Add expense"""
     cur = conn.cursor()
     cur.execute('''
         INSERT INTO expenses (user_id, amount, category, description, currency)
@@ -121,8 +121,8 @@ def add_expense(conn, user_id, amount, category, description="", currency="UZS")
     return expense_id
 
 
-def add_income(conn, user_id, amount, source, description="", currency="UZS"):
-    """Daromad qo'shish"""
+def add_income(conn, user_id, amount, source, description="", currency="USD"):
+    """Add income"""
     cur = conn.cursor()
     cur.execute('''
         INSERT INTO income (user_id, amount, source, description, currency)
@@ -136,7 +136,7 @@ def add_income(conn, user_id, amount, source, description="", currency="UZS"):
 
 
 def get_monthly_summary(conn, user_id):
-    """Oylik moliyaviy xulosа"""
+    """Monthly financial summary"""
     cur = conn.cursor()
 
     # Total expenses this month
@@ -257,21 +257,21 @@ Answer with emojis in clear and simple language."""
 
     except Exception as e:
         logger.error(f"Spending analysis error: {e}")
-        return "⚠️ Tahlil qilishda xatolik."
+        return "⚠️ Error analyzing spending."
 
 
-async def create_budget_plan(user_id, conn, monthly_income, lang="uz"):
-    """Byudjet rejasi yaratish"""
+async def create_budget_plan(user_id, conn, monthly_income, lang="en"):
+    """Create budget plan"""
     try:
-        prompt = f"""Oylik daromad: {monthly_income:,.0f} so'm
+        prompt = f"""Monthly income: ${monthly_income:,.2f}
 
-50/30/20 qoidasi asosida byudjet rejasi yarating:
-- 50% - zarur xarajatlar (uy, ovqat, transport)
-- 30% - ixtiyoriy (o'yin-kulgi, xaridlar)
-- 20% - jamg'arma va investitsiya
+Create a budget plan based on the 50/30/20 rule:
+- 50% - essential expenses (housing, food, transport)
+- 30% - discretionary (entertainment, shopping)
+- 20% - savings and investment
 
-Har bir kategoriya uchun aniq summalar va maslahatlar bering.
-O'zbek tilida, emoji va jadval formatida."""
+Provide specific amounts and advice for each category.
+Use emojis and table format."""
 
         response = client.chat.completions.create(
             model="gpt-3.5-turbo",
@@ -284,33 +284,33 @@ O'zbek tilida, emoji va jadval formatida."""
 
     except Exception as e:
         logger.error(f"Budget plan error: {e}")
-        return "⚠️ Byudjet yaratishda xatolik."
+        return "⚠️ Error creating budget."
 
 
 # === INVESTMENT ADVICE ===
 
-async def get_investment_advice(amount, risk_level, duration, lang="uz"):
-    """Investitsiya maslahati"""
+async def get_investment_advice(amount, risk_level, duration, lang="en"):
+    """Investment advice"""
     try:
-        prompt = f"""Investitsiya parametrlari:
-- Summa: {amount:,.0f} so'm
-- Risk darajasi: {risk_level}
-- Muddat: {duration}
+        prompt = f"""Investment parameters:
+- Amount: ${amount:,.2f}
+- Risk level: {risk_level}
+- Duration: {duration}
 
-O'zbekiston sharoitida quyidagilarni taklif qiling:
-1. Bank depozitlari
-2. Ko'chmas mulk
-3. Biznes
-4. Kriptovalyuta (agar risk yuqori bo'lsa)
-5. Diversifikatsiya strategiyasi
+Recommend the following investment options:
+1. Bank deposits
+2. Real estate
+3. Business investment
+4. Cryptocurrency (if high risk)
+5. Diversification strategy
 
-Har bir variant uchun:
-- Kutilgan foyda
-- Xavf darajasi
-- Minimal summa
-- Maslahatlar
+For each option provide:
+- Expected return
+- Risk level
+- Minimum amount
+- Recommendations
 
-O'zbek tilida, oddiy va tushunarli."""
+Answer in clear and simple language."""
 
         response = client.chat.completions.create(
             model="gpt-3.5-turbo",
@@ -323,13 +323,13 @@ O'zbek tilida, oddiy va tushunarli."""
 
     except Exception as e:
         logger.error(f"Investment advice error: {e}")
-        return "⚠️ Maslahat olishda xatolik."
+        return "⚠️ Error getting advice."
 
 
 # === SMART ALERTS ===
 
 def check_budget_alerts(conn, user_id):
-    """Byudjet ogohlantirishlari"""
+    """Budget alerts"""
     cur = conn.cursor()
 
     alerts = []
@@ -365,25 +365,25 @@ def check_budget_alerts(conn, user_id):
 
 # === LANGUAGE TEXTS ===
 
-def get_financial_texts(lang="uz"):
-    """Moliyaviy matnlar"""
+def get_financial_texts(lang="en"):
+    """Financial texts"""
     return {
-        "uz": {
-            "menu": """💰 **Moliyaviy Coach**
+        "en": {
+            "menu": """💰 **Financial Coach**
 
-Nima yordam kerak?""",
-            "add_expense_prompt": "💸 Xarajat summasini kiriting (masalan: 50000):",
-            "add_income_prompt": "💵 Daromad summasini kiriting:",
-            "category_select": "📂 Kategoriyani tanlang:",
-            "expense_added": "✅ Xarajat saqlandi: {amount:,.0f} so'm ({category})",
-            "income_added": "✅ Daromad saqlandi: {amount:,.0f} so'm",
-            "monthly_report": """📊 **Oylik Hisobot**
+How can I help you?""",
+            "add_expense_prompt": "💸 Enter expense amount (e.g., 50.00):",
+            "add_income_prompt": "💵 Enter income amount:",
+            "category_select": "📂 Select category:",
+            "expense_added": "✅ Expense saved: ${amount:,.2f} ({category})",
+            "income_added": "✅ Income saved: ${amount:,.2f}",
+            "monthly_report": """📊 **Monthly Report**
 
-💵 Daromad: {income:,.0f} so'm
-💸 Xarajat: {expenses:,.0f} so'm
-💰 Balans: {balance:,.0f} so'm
+💵 Income: ${income:,.2f}
+💸 Expenses: ${expenses:,.2f}
+💰 Balance: ${balance:,.2f}
 
-📈 Xarajatlar:
+📈 Expenses:
 {breakdown}
 
 {advice}"""

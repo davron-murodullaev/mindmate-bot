@@ -614,22 +614,22 @@ def get_main_menu_keyboard(lang):
 async def extract_and_save_memories(user_id, user_message, ai_response, lang):
     try:
         extraction_prompt = f"""
-Quyidagi suhbatdan foydalanuvchi haqida muhim ma'lumotlarni ajrat.
-Faqat JSON formatida javob ber, boshqa hech narsa yozma.
+Extract important information about the user from the following conversation.
+Answer ONLY in JSON format, nothing else.
 
-Foydalanuvchi xabari: {user_message}
-AI javobi: {ai_response}
+User message: {user_message}
+AI response: {ai_response}
 
 JSON format:
 {{
-    "name": "ism (agar aytilgan bo'lsa, bo'lmasa null)",
-    "problem": "asosiy muammo (agar aytilgan bo'lsa)",
-    "mood": "kayfiyat holati (yaxshi/yomon/neytral)",
-    "interests": "qiziqishlari (agar aytilgan bo'lsa)",
-    "important_fact": "muhim fakt (agar bor bo'lsa)"
+    "name": "name (if mentioned, otherwise null)",
+    "problem": "main problem (if mentioned)",
+    "mood": "mood state (good/bad/neutral)",
+    "interests": "interests (if mentioned)",
+    "important_fact": "important fact (if any)"
 }}
 
-Agar ma'lumot bo'lmasa, null yoz. Faqat JSON, boshqa hech narsa!"""
+If no information, write null. Only JSON, nothing else!"""
         
         response = client.chat.completions.create(
             model="gpt-3.5-turbo",
@@ -675,16 +675,16 @@ async def get_ai_response(user_id: int, message: str, mode: str = "normal") -> s
     mood_history = get_mood_history(user_id, limit=5)
     mood_text = ""
     if mood_history:
-        mood_text = "\n📊 KAYFIYAT TARIXI:\n"
+        mood_text = "\n📊 MOOD HISTORY:\n"
         for m in mood_history:
             mood_text += f"- {m['date'].strftime('%d.%m')}: {m['score']}/5\n"
-    
+
     if mode == "healer":
         base_prompt = get_healer_prompt(lang)
     else:
         base_prompt = get_master_prompt(lang, memories_text, "")
-    
-    unknown_text = "noma'lum"
+
+    unknown_text = "unknown"
     full_name_display = profile.get('full_name') or profile.get('username') or unknown_text
 
     full_context = f"""{base_prompt}
@@ -692,14 +692,14 @@ async def get_ai_response(user_id: int, message: str, mode: str = "normal") -> s
 {memories_text}
 {mood_text}
 
-📝 MUHIM ESLATMALAR:
-- Foydalanuvchi ismi: {full_name_display}
-- Bot bilan: {profile.get('member_since', 'yangi')}dan beri
+📝 IMPORTANT NOTES:
+- User name: {full_name_display}
+- With bot since: {profile.get('member_since', 'new')}
 
-Har bir javobda:
-1. Oldingi ma'lumotlardan foydalaning
-2. Shaxsiylashtirilgan javob bering
-3. Samimiy va foydali bo'ling"""
+In each response:
+1. Use previous information
+2. Give personalized answers
+3. Be sincere and helpful"""
     
     messages = [{"role": "system", "content": full_context}]
     

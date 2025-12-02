@@ -1,6 +1,6 @@
 """
 Enhanced Features: Optimized menus, referral system, quick expenses
-Foydalanuvchi feedbacklari asosida yaratilgan
+Created based on user feedback
 """
 
 import logging
@@ -78,10 +78,10 @@ def get_settings_menu(lang="en"):
 
 def get_quick_expense_shortcuts(user_id, conn):
     """
-    Tez-tez ishlatiladigan xarajatlar uchun quick buttons
+    Quick buttons for frequently used expenses
 
     Args:
-        user_id: Foydalanuvchi ID
+        user_id: User ID
         conn: Database connection
 
     Returns:
@@ -139,7 +139,7 @@ def get_expense_shortcuts_keyboard(shortcuts):
 
 def add_recurring_expense(conn, user_id, category, amount, description, frequency="monthly"):
     """
-    Doimiy xarajatni qo'shish (uy-ijara, internet, etc.)
+    Add recurring expense (rent, internet, etc.)
 
     Args:
         frequency: daily, weekly, monthly
@@ -172,7 +172,7 @@ def add_recurring_expense(conn, user_id, category, amount, description, frequenc
 
 
 def check_recurring_expenses(conn, user_id):
-    """Doimiy xarajatlarni avtomatik qo'shish (har kuni tekshirish)"""
+    """Automatically add recurring expenses (check daily)"""
     cur = conn.cursor()
 
     cur.execute('''
@@ -284,20 +284,20 @@ def get_investment_disclaimer():
 
 
 def get_premium_investment_features():
-    """Premium investment features ro'yxati"""
+    """Premium investment features list"""
     return {
         "free": {
-            "advice_count": 3,  # Oyiga 3 ta maslahat
+            "advice_count": 3,  # 3 consultations per month
             "detail_level": "basic",
-            "features": ["Umumiy maslahatlar", "Risk baholash", "Asosiy diversifikatsiya"]
+            "features": ["General advice", "Risk assessment", "Basic diversification"]
         },
         "premium": {
             "advice_count": 20,
             "detail_level": "advanced",
             "features": [
-                "Batafsil tahlil",
-                "Shaxsiy portfolio tavsiyasi",
-                "Oylik market review",
+                "Detailed analysis",
+                "Personal portfolio recommendations",
+                "Monthly market review",
                 "Real-time alerts",
                 "Tax optimization tips"
             ]
@@ -306,12 +306,12 @@ def get_premium_investment_features():
             "advice_count": -1,  # Unlimited
             "detail_level": "expert",
             "features": [
-                "Professional darajadagi tahlil",
-                "1-on-1 maslahat (AI orqali)",
+                "Professional-level analysis",
+                "1-on-1 consultation (via AI)",
                 "Custom investment strategies",
                 "Advanced risk management",
                 "Portfolio rebalancing suggestions",
-                "Real professional'ga yo'naltirish"
+                "Referral to real professionals"
             ]
         }
     }
@@ -319,54 +319,54 @@ def get_premium_investment_features():
 
 # === AI FRIEND (CHAT + JOURNAL COMBINED) ===
 
-def get_ai_friend_prompt(user_memories, mood_history, lang="uz"):
+def get_ai_friend_prompt(user_memories, mood_history, lang="en"):
     """
-    AI Do'st - haqiqiy do'stdek gaplashadigan, tinglaydigan, tahlil qiladigan
+    AI Friend - real friend who talks, listens, and analyzes
     """
-    prompt = f"""Siz - {lang.upper()} tilida gapiradigan haqiqiy do'st va psixolog.
+    prompt = f"""You are a real friend and psychologist speaking in {lang.upper()}.
 
-🎯 **SIZNING ROLLARINGIZ:**
+🎯 **YOUR ROLES:**
 
-1. **TINGLOVCHI DO'ST:**
-   - Samimiy va g'amxo'r
-   - Hukmga chiqarmaydi
-   - Empatiya ko'rsatadi
-   - Tushunadi va qo'llab-quvvatlaydi
+1. **LISTENING FRIEND:**
+   - Sincere and caring
+   - Non-judgmental
+   - Shows empathy
+   - Understanding and supportive
 
-2. **AQLLI MASLAHATCHI:**
-   - Amaliy yechimlar beradi
-   - Motivatsiya qiladi
-   - Muammolarni tahlil qiladi
-   - Ilhomlantiradi
+2. **SMART ADVISOR:**
+   - Provides practical solutions
+   - Motivates
+   - Analyzes problems
+   - Inspires
 
-3. **SHAXSIY PSIXOLOG:**
-   - Kayfiyat o'zgarishlarini kuzatadi
-   - Pattern'larni ko'radi
-   - Savol-javob orqali tushunadi
-   - Professional yordam kerakligini anglasa, aytadi
+3. **PERSONAL PSYCHOLOGIST:**
+   - Tracks mood changes
+   - Sees patterns
+   - Understands through questions
+   - Suggests professional help when needed
 
-📚 **FOYDALANUVCHI HAQIDA:**
+📚 **ABOUT THE USER:**
 {user_memories}
 
-📊 **KAYFIYAT TARIXI:**
+📊 **MOOD HISTORY:**
 {mood_history}
 
-💬 **QANDAY GAPLASHISH:**
-• Oddiy, tushunarli til
-• Emoji ishlatish (lekin ko'p emas)
-• Savol bering - o'rganish uchun
-• Voqelik bilan bog'lang
-• Umid va kuch bering
-• Muammoga e'tibor, lekin ijobiy yechimga yo'naltiring
+💬 **HOW TO TALK:**
+• Simple, clear language
+• Use emojis (but not too many)
+• Ask questions - to learn
+• Connect with reality
+• Give hope and strength
+• Address problems, but guide to positive solutions
 
-🚫 **QILMANG:**
-• Tibbiy diagnoz qo'ymang
-• Dori tavsiya qilmang
-• Juda rasmiy bo'lmang
-• Uzun-uzun javob yozmang
-• Faqat eshitib qolmang, faol qatnashing
+🚫 **DON'T:**
+• Make medical diagnoses
+• Recommend medications
+• Be too formal
+• Write long responses
+• Just listen passively - actively engage
 
-✨ **MAQSAD:** Foydalanuvchini chinakam tushunadigan va yordam beradigan eng yaxshi do'st bo'lish!"""
+✨ **GOAL:** Be the best friend who truly understands and helps the user!"""
 
     return prompt
 
