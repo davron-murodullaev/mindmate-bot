@@ -1238,14 +1238,14 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             mood_emoji = "❓"
 
         stats_text = f"""
-📊 **Statistika**
+📊 **Statistics**
 
-😊 Kayfiyat: {stats["mood_count"]}
-📝 Kundalik: {stats["journal_count"]}
-💪 Mashqlar: {workout_count}
-🌿 Shifokor: {healer_count}
-⏰ Eslatmalar: {reminder_count}
-{f"📈 O'rtacha: {mood_emoji} ({stats['avg_mood']:.1f}/5)" if stats["mood_count"] > 0 else ""}
+😊 Mood: {stats["mood_count"]}
+📝 Journal: {stats["journal_count"]}
+💪 Workouts: {workout_count}
+🌿 Healer: {healer_count}
+⏰ Reminders: {reminder_count}
+{f"📈 Average: {mood_emoji} ({stats['avg_mood']:.1f}/5)" if stats["mood_count"] > 0 else ""}
         """
         await safe_edit(query, stats_text, reply_markup=get_main_menu_button(lang), parse_mode="Markdown")
         return
@@ -1394,8 +1394,8 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
 
             keyboard = [
-                [InlineKeyboardButton("🌟 Premium ($4.99/oy)", callback_data="buy_premium")],
-                [InlineKeyboardButton("⭐ Pro ($14.99/oy)", callback_data="buy_pro")],
+                [InlineKeyboardButton("🌟 Premium ($4.99/M)", callback_data="buy_premium")],
+                [InlineKeyboardButton("⭐ Pro ($14.99/M)", callback_data="buy_pro")],
                 [InlineKeyboardButton("🎁 Referral", callback_data="show_referral")],
                 [InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")]
             ]
@@ -1527,24 +1527,24 @@ Invite {10 - (ref_count % 10)} more friends → 7 days Premium! 🎉"""
         tier_info = SUBSCRIPTION_TIERS[tier]
         price = tier_info["price"]
 
-        text = f"""💳 **PayPal To'lov**
+        text = f"""💳 **PayPal Payment**
 
-💎 Obuna: {tier_info['name']}
-💵 Narx: ${price}/oy
+💎 Subscription: {tier_info['name']}
+💵 Price: ${price}/M
 
-📧 **To'lov qilish uchun:**
+📧 **To pay:**
 
 1. PayPal: [your-paypal-email@example.com]
-2. Summa: ${price} USD
+2. Amount: ${price} USD
 3. Note: "MindMate {tier} - User ID: {user_id}"
 
-✅ **To'lovdan keyin:**
-Ushbu bot'ga screenshot yuboring va biz 24 soat ichida faollashtramiz!
+✅ **After payment:**
+Send screenshot to this bot and we'll activate within 24 hours!
 
-⚠️ PayPal integratsiya tez orada avtomatik bo'ladi."""
+⚠️ PayPal integration will be automatic soon."""
 
         keyboard = [
-            [InlineKeyboardButton("🔙 Orqaga", callback_data=f"buy_{tier}")],
+            [InlineKeyboardButton("🔙 Back", callback_data=f"buy_{tier}")],
             [InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")]
         ]
 
@@ -1650,17 +1650,17 @@ Ushbu bot'ga screenshot yuboring va biz 24 soat ichida faollashtramiz!
 
             if tier == "free":
                 # Show disclaimer and premium requirement
-                text = get_investment_disclaimer() + "\n\n💎 **Investitsiya maslahati Premium va Pro foydalanuvchilar uchun!**\n\n3 ta bepul sinov maslahati mavjud."
+                text = get_investment_disclaimer() + "\n\n💎 **Investment advice is for Premium and Pro users!**\n\n3 free trial consultations available."
                 keyboard = [
-                    [InlineKeyboardButton("✅ Bepul sinov (3ta)", callback_data="investment_disclaimer_free")],
-                    [InlineKeyboardButton("💎 Premium xarid qilish", callback_data="buy_premium")],
+                    [InlineKeyboardButton("✅ Free Trial (3x)", callback_data="investment_disclaimer_free")],
+                    [InlineKeyboardButton("💎 Buy Premium", callback_data="buy_premium")],
                     [InlineKeyboardButton("🔙 Back", callback_data="financial_menu")]
                 ]
             else:
                 # Show disclaimer only
                 text = get_investment_disclaimer()
                 keyboard = [
-                    [InlineKeyboardButton("✅ Tushunarli, davom etamiz", callback_data="investment_disclaimer_accept")],
+                    [InlineKeyboardButton("✅ Understood, Continue", callback_data="investment_disclaimer_accept")],
                     [InlineKeyboardButton("🔙 Back", callback_data="financial_menu")]
                 ]
 
@@ -1967,9 +1967,9 @@ Ready for the next session?"""
     if query.data == "productivity_report":
         conn = get_db()
         if conn:
-            await query.message.reply_text("📊 Unumdorlikni tahlil qilyapman...")
+            await query.message.reply_text("📊 Analyzing productivity...")
             report = await analyze_productivity(user_id, conn, days=7, lang=lang)
-            await query.message.reply_text(f"📊 **Unumdorlik Hisoboti:**\n\n{report}", parse_mode="Markdown")
+            await query.message.reply_text(f"📊 **Productivity Report:**\n\n{report}", parse_mode="Markdown")
             conn.close()
         return
 

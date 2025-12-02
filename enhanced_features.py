@@ -236,29 +236,29 @@ def get_referral_share_keyboard(user_id, lang="uz"):
     return InlineKeyboardMarkup(keyboard)
 
 
-def get_referral_text(user_id, ref_count, bonuses, lang="uz"):
-    """Referral matn"""
+def get_referral_text(user_id, ref_count, bonuses, lang="en"):
+    """Referral text"""
     from premium import get_referral_code
     ref_code = get_referral_code(user_id)
 
-    text = f"""🎁 **Do'stlaringizni taklif qiling!**
+    text = f"""🎁 **Invite Your Friends!**
 
-👥 Siz {ref_count} ta do'st taklif qildingiz
+👥 You've invited {ref_count} friends
 
-🎉 **Sizning bonuslaringiz:**
-• +{bonuses['ai_requests']} ta AI so'rov
-• +{bonuses['pdf_bonus']} ta PDF
-• +{bonuses['premium_days']} kun Premium
+🎉 **Your bonuses:**
+• +{bonuses['ai_requests']} AI requests
+• +{bonuses['pdf_bonus']} PDFs
+• +{bonuses['premium_days']} days Premium
 
-💰 **Har bir do'st uchun:**
-• Siz: +5 AI so'rov, +2 PDF
-• Do'stingiz: +3 AI so'rov, +1 PDF
+💰 **For each friend:**
+• You: +5 AI requests, +2 PDFs
+• Your friend: +3 AI requests, +1 PDF
 
-📱 **Qanday ulashish:**
-1. "📤 Do'stga yuborish" - telegram'da to'g'ridan-to'g'ri
-2. "📋 Link nusxalash" - istalgan joyga joylashtirish
+📱 **How to share:**
+1. "📤 Forward to Friend" - directly in Telegram
+2. "📋 Copy Link" - share anywhere
 
-🔗 Sizning referal kodingiz: `{ref_code}`"""
+🔗 Your referral code: `{ref_code}`"""
 
     return text
 
@@ -266,21 +266,21 @@ def get_referral_text(user_id, ref_count, bonuses, lang="uz"):
 # === INVESTMENT IMPROVEMENTS ===
 
 def get_investment_disclaimer():
-    """Investment ogohlantirishi"""
-    return """⚠️ **MUHIM OGOHLANTIRISH:**
+    """Investment disclaimer"""
+    return """⚠️ **IMPORTANT WARNING:**
 
-📌 **Ushbu maslahatlar faqat ma'lumot uchun!**
+📌 **This advice is for informational purposes only!**
 
-• Professional moliyaviy maslahatchi bilan maslahatlashing
-• O'z tadqiqotingizni o'tkazing
-• Faqat yo'qotishga tayyor pulni investitsiya qiling
-• Yuqori foyda = yuqori xavf
-• Diversifikatsiya qiling (bir joyga hammasi yo'q)
-• Uzoq muddatli strategiya tuzing
+• Consult with a professional financial advisor
+• Do your own research
+• Only invest money you can afford to lose
+• High return = High risk
+• Diversify (don't put all eggs in one basket)
+• Create a long-term strategy
 
-💡 **Eslatma:** Bu AI maslahat, professional maslahatchi emas!
+💡 **Note:** This is AI advice, not a professional advisor!
 
-✅ Davom etasizmi?"""
+✅ Continue?"""
 
 
 def get_premium_investment_features():
