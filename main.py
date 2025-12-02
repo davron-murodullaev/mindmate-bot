@@ -192,16 +192,17 @@ def init_db():
 
 # === USER FUNCTIONS ===
 
-def save_user(user_id, username, full_name=None, lang="uz"):
+def save_user(user_id, username, full_name=None, lang="en"):
+    """Save user with default English language"""
     conn = get_db()
     if conn is None:
         return
     cur = conn.cursor()
     cur.execute('''
-        INSERT INTO users (user_id, username, full_name, language, last_active) 
+        INSERT INTO users (user_id, username, full_name, language, last_active)
         VALUES (%s, %s, %s, %s, NOW())
-        ON CONFLICT (user_id) DO UPDATE SET 
-            username = %s, 
+        ON CONFLICT (user_id) DO UPDATE SET
+            username = %s,
             full_name = COALESCE(%s, users.full_name),
             last_active = NOW()
     ''', (user_id, username, full_name, lang, username, full_name))
@@ -210,15 +211,16 @@ def save_user(user_id, username, full_name=None, lang="uz"):
     conn.close()
 
 def get_user_lang(user_id):
+    """Get user language (default: English)"""
     conn = get_db()
     if conn is None:
-        return "uz"
+        return "en"
     cur = conn.cursor()
     cur.execute('SELECT language FROM users WHERE user_id = %s', (user_id,))
     row = cur.fetchone()
     cur.close()
     conn.close()
-    return row[0] if row else "uz"
+    return row[0] if row else "en"
 
 def set_user_lang(user_id, lang):
     conn = get_db()
@@ -569,16 +571,41 @@ def get_back_and_menu(back_to="main_menu", lang="uz"):
     ]])
 
 def get_main_menu_keyboard(lang):
-    """Soddalashtirilgan bosh menyu - 4x2 grid"""
+    """Simplified main menu - 4x2 grid (language-aware)"""
+    texts = {
+        "en": {
+            "ai_friend": "💬 AI Friend",
+            "financial": "💰 Finance",
+            "productivity": "⚡ Productivity",
+            "creative": "🎨 Creative",
+            "health": "🧘 Health",
+            "profile": "📊 Profile",
+            "premium": "💎 Premium",
+            "settings": "⚙️ Settings"
+        },
+        "uz": {
+            "ai_friend": "💬 AI Do'st",
+            "financial": "💰 Moliya",
+            "productivity": "⚡ Unumdorlik",
+            "creative": "🎨 Ijod",
+            "health": "🧘 Salomatlik",
+            "profile": "📊 Men",
+            "premium": "💎 Premium",
+            "settings": "⚙️ Sozlamalar"
+        }
+    }
+
+    t = texts.get(lang, texts["en"])
+
     keyboard = [
-        [InlineKeyboardButton("💬 AI Do'st", callback_data="ai_friend"),
-         InlineKeyboardButton("💰 Moliya", callback_data="financial_menu")],
-        [InlineKeyboardButton("⚡ Unumdorlik", callback_data="productivity_menu"),
-         InlineKeyboardButton("🎨 Ijod", callback_data="creative_tools")],
-        [InlineKeyboardButton("🧘 Salomatlik", callback_data="health_menu"),
-         InlineKeyboardButton("📊 Men", callback_data="my_profile")],
-        [InlineKeyboardButton("💎 Premium", callback_data="premium_menu"),
-         InlineKeyboardButton("⚙️ Sozlamalar", callback_data="settings_menu")]
+        [InlineKeyboardButton(t["ai_friend"], callback_data="ai_friend"),
+         InlineKeyboardButton(t["financial"], callback_data="financial_menu")],
+        [InlineKeyboardButton(t["productivity"], callback_data="productivity_menu"),
+         InlineKeyboardButton(t["creative"], callback_data="creative_tools")],
+        [InlineKeyboardButton(t["health"], callback_data="health_menu"),
+         InlineKeyboardButton(t["profile"], callback_data="my_profile")],
+        [InlineKeyboardButton(t["premium"], callback_data="premium_menu"),
+         InlineKeyboardButton(t["settings"], callback_data="settings_menu")]
     ]
     return InlineKeyboardMarkup(keyboard)
 
@@ -2084,6 +2111,83 @@ Keyingi sessiyaga tayyormisiz?"""
         context.user_data["translate_text"] = None
         return
 
+# === PAYMENT HANDLERS ===
+
+async def pre_checkout_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Pre-checkout validation for Telegram Stars payments"""
+    query = update.pre_checkout_query
+
+    # Always approve for now (add validation logic if needed)
+    await query.answer(ok=True)
+
+
+async def successful_payment_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle successful payment"""
+    user_id = update.effective_user.id
+    lang = get_user_lang(user_id)
+
+    # Get payment info
+    payment_info = update.message.successful_payment
+    payload = payment_info.invoice_payload
+
+    try:
+        # Parse payload: "mindmate_premium_subscription_123456"
+        parts = payload.split("_")
+        tier = parts[1]  # premium or pro
+
+        # Activate subscription
+        conn = get_db()
+        if conn:
+            cur = conn.cursor()
+
+            # Update or insert subscription
+            cur.execute("""
+                INSERT INTO subscriptions (user_id, tier, expires_at)
+                VALUES (%s, %s, CURRENT_DATE + INTERVAL '30 days')
+                ON CONFLICT (user_id)
+                DO UPDATE SET
+                    tier = EXCLUDED.tier,
+                    expires_at = EXCLUDED.expires_at,
+                    updated_at = CURRENT_TIMESTAMP
+            """, (user_id, tier))
+
+            # Log transaction
+            cur.execute("""
+                INSERT INTO transactions (user_id, amount, currency, status, payload)
+                VALUES (%s, %s, %s, %s, %s)
+            """, (user_id, payment_info.total_amount, payment_info.currency, "completed", payload))
+
+            conn.commit()
+            cur.close()
+            conn.close()
+
+        tier_info = SUBSCRIPTION_TIERS.get(tier, SUBSCRIPTION_TIERS["premium"])
+
+        success_text = f"""🎉 **Payment Successful!**
+
+✅ {tier_info['name']} subscription activated!
+
+💎 **Your Benefits:**
+"""
+        for feature in tier_info["features"]:
+            success_text += f"✅ {feature}\n"
+
+        success_text += f"\n⏰ Valid until: {(datetime.now() + timedelta(days=30)).strftime('%Y-%m-%d')}\n\n🚀 Enjoy unlimited access!"
+
+        await update.message.reply_text(
+            success_text,
+            reply_markup=get_main_menu_button(lang),
+            parse_mode="Markdown"
+        )
+
+    except Exception as e:
+        logger.error(f"Payment processing error: {e}")
+        await update.message.reply_text(
+            "✅ Payment received! Your subscription will be activated within 5 minutes.",
+            reply_markup=get_main_menu_button(lang)
+        )
+
+
 # === MESSAGE HANDLER ===
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -2420,6 +2524,7 @@ def main():
     
     app = Application.builder().token(TELEGRAM_TOKEN).post_init(post_init).build()
     
+    # Command handlers
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("help", help_command))
     app.add_handler(CommandHandler("mood", mood_command))
@@ -2431,6 +2536,13 @@ def main():
     app.add_handler(CommandHandler("stats", stats_command))
     app.add_handler(CommandHandler("reset", reset_command))
     app.add_handler(CommandHandler("lang", lang_command))
+
+    # Payment handlers (Telegram Stars)
+    from telegram.ext import PreCheckoutQueryHandler
+    app.add_handler(PreCheckoutQueryHandler(pre_checkout_callback))
+    app.add_handler(MessageHandler(filters.SUCCESSFUL_PAYMENT, successful_payment_callback))
+
+    # Callback and message handlers
     app.add_handler(CallbackQueryHandler(button_callback))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
     

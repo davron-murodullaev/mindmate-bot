@@ -10,67 +10,109 @@ logger = logging.getLogger(__name__)
 
 # === OPTIMIZED MENUS ===
 
-def get_ai_friend_menu(lang="uz"):
-    """AI Do'st - Chat + Journal + Healer birlashgan"""
+def get_ai_friend_menu(lang="en"):
+    """AI Friend - Chat + Journal + Healer combined (multilingual)"""
+    texts = {
+        "en": {
+            "chat": "💬 Chat",
+            "journal": "📝 Journal",
+            "healer": "🌿 Natural Healer",
+            "mood": "😊 Mood",
+            "deep": "💭 Deep Talk",
+            "home": "🏠 Home"
+        },
+        "uz": {
+            "chat": "💬 Suhbatlashish",
+            "journal": "📝 Kundalik",
+            "healer": "🌿 Tabiiy Shifokor",
+            "mood": "😊 Kayfiyat",
+            "deep": "💭 Fikr almashish",
+            "home": "🏠 Bosh menyu"
+        }
+    }
+    t = texts.get(lang, texts["en"])
+
     keyboard = [
-        [IKB("💬 Suhbatlashish", callback_data="chat_mode"),
-         IKB("📝 Kundalik", callback_data="journal_mode")],
-        [IKB("🌿 Tabiiy Shifokor", callback_data="healer")],
-        [IKB("😊 Kayfiyat", callback_data="mood"),
-         IKB("💭 Fikr almashish", callback_data="deep_chat")],
-        [IKB("🏠 Bosh menyu", callback_data="main_menu")]
+        [IKB(t["chat"], callback_data="chat_mode"),
+         IKB(t["journal"], callback_data="journal_mode")],
+        [IKB(t["healer"], callback_data="healer")],
+        [IKB(t["mood"], callback_data="mood"),
+         IKB(t["deep"], callback_data="deep_chat")],
+        [IKB(t["home"], callback_data="main_menu")]
     ]
     return InlineKeyboardMarkup(keyboard)
 
 
-def get_health_menu(lang="uz"):
-    """Salomatlik - Meditation + Fitness + Health"""
+def get_health_menu(lang="en"):
+    """Health - Meditation + Fitness + Health (multilingual)"""
+    texts = {
+        "en": {"med": "🧘 Meditation", "fit": "💪 Fitness", "health": "🏥 Health AI", "remind": "⏰ Reminders", "home": "🏠 Home"},
+        "uz": {"med": "🧘 Meditatsiya", "fit": "💪 Fitness", "health": "🏥 Sog'liq AI", "remind": "⏰ Eslatmalar", "home": "🏠 Bosh menyu"}
+    }
+    t = texts.get(lang, texts["en"])
     keyboard = [
-        [IKB("🧘 Meditatsiya", callback_data="meditate"),
-         IKB("💪 Fitness", callback_data="fitness")],
-        [IKB("🏥 Sog'liq AI", callback_data="health_ai"),
-         IKB("⏰ Eslatmalar", callback_data="reminders")],
-        [IKB("🏠 Bosh menyu", callback_data="main_menu")]
+        [IKB(t["med"], callback_data="meditate"),
+         IKB(t["fit"], callback_data="fitness")],
+        [IKB(t["health"], callback_data="health_ai"),
+         IKB(t["remind"], callback_data="reminders")],
+        [IKB(t["home"], callback_data="main_menu")]
     ]
     return InlineKeyboardMarkup(keyboard)
 
 
-def get_creative_tools_menu(lang="uz"):
-    """Ijod vositalari - PDF, PPT, AI tools"""
+def get_creative_tools_menu(lang="en"):
+    """Creative tools - PDF, PPT, AI tools (multilingual)"""
+    texts = {
+        "en": {"pdf": "📄 Create PDF", "ppt": "📊 Presentation", "img": "🎨 Generate Image", "code": "👨‍💻 Write Code",
+               "translate": "🌐 Translate", "study": "📚 Study", "travel": "✈️ Travel", "recipe": "🍳 Recipe", "home": "🏠 Home"},
+        "uz": {"pdf": "📄 PDF yaratish", "ppt": "📊 Prezentatsiya", "img": "🎨 Rasm yaratish", "code": "👨‍💻 Kod yozish",
+               "translate": "🌐 Tarjima", "study": "📚 O'quv", "travel": "✈️ Sayohat", "recipe": "🍳 Retsept", "home": "🏠 Bosh menyu"}
+    }
+    t = texts.get(lang, texts["en"])
     keyboard = [
-        [IKB("📄 PDF yaratish", callback_data="create_pdf"),
-         IKB("📊 Prezentatsiya", callback_data="create_ppt")],
-        [IKB("🎨 Rasm yaratish", callback_data="ai_image"),
-         IKB("👨‍💻 Kod yozish", callback_data="ai_code")],
-        [IKB("🌐 Tarjima", callback_data="ai_translate"),
-         IKB("📚 O'quv", callback_data="ai_study")],
-        [IKB("✈️ Sayohat", callback_data="ai_travel"),
-         IKB("🍳 Retsept", callback_data="ai_recipe")],
-        [IKB("🏠 Bosh menyu", callback_data="main_menu")]
+        [IKB(t["pdf"], callback_data="create_pdf"),
+         IKB(t["ppt"], callback_data="create_ppt")],
+        [IKB(t["img"], callback_data="ai_image"),
+         IKB(t["code"], callback_data="ai_code")],
+        [IKB(t["translate"], callback_data="ai_translate"),
+         IKB(t["study"], callback_data="ai_study")],
+        [IKB(t["travel"], callback_data="ai_travel"),
+         IKB(t["recipe"], callback_data="ai_recipe")],
+        [IKB(t["home"], callback_data="main_menu")]
     ]
     return InlineKeyboardMarkup(keyboard)
 
 
-def get_my_profile_menu(user_stats, lang="uz"):
-    """Mening profilim - Stats + Settings"""
+def get_my_profile_menu(user_stats, lang="en"):
+    """My Profile - Stats + Settings (multilingual)"""
+    texts = {
+        "en": {"stats": "📊 Statistics", "goals": "🎯 Goals", "achievements": "🏆 Achievements", "progress": "📈 Progress", "home": "🏠 Home"},
+        "uz": {"stats": "📊 Statistika", "goals": "🎯 Maqsadlar", "achievements": "🏆 Yutuqlar", "progress": "📈 Progress", "home": "🏠 Bosh menyu"}
+    }
+    t = texts.get(lang, texts["en"])
     keyboard = [
-        [IKB("📊 Statistika", callback_data="stats"),
-         IKB("🎯 Maqsadlar", callback_data="goals")],
-        [IKB("🏆 Yutuqlar", callback_data="achievements"),
-         IKB("📈 Progress", callback_data="progress")],
-        [IKB("🏠 Bosh menyu", callback_data="main_menu")]
+        [IKB(t["stats"], callback_data="stats"),
+         IKB(t["goals"], callback_data="goals")],
+        [IKB(t["achievements"], callback_data="achievements"),
+         IKB(t["progress"], callback_data="progress")],
+        [IKB(t["home"], callback_data="main_menu")]
     ]
     return InlineKeyboardMarkup(keyboard)
 
 
-def get_settings_menu(lang="uz"):
-    """Sozlamalar"""
+def get_settings_menu(lang="en"):
+    """Settings (multilingual)"""
+    texts = {
+        "en": {"lang": "🌍 Language", "notif": "🔔 Notifications", "reset": "🔄 Clear History", "help": "ℹ️ Help", "home": "🏠 Home"},
+        "uz": {"lang": "🌍 Til", "notif": "🔔 Bildirishnomalar", "reset": "🔄 Tarikhni tozalash", "help": "ℹ️ Yordam", "home": "🏠 Bosh menyu"}
+    }
+    t = texts.get(lang, texts["en"])
     keyboard = [
-        [IKB("🌍 Til", callback_data="lang"),
-         IKB("🔔 Bildirishnomalar", callback_data="notifications")],
-        [IKB("🔄 Tarikhni tozalash", callback_data="reset_confirm"),
-         IKB("ℹ️ Yordam", callback_data="help")],
-        [IKB("🏠 Bosh menyu", callback_data="main_menu")]
+        [IKB(t["lang"], callback_data="lang"),
+         IKB(t["notif"], callback_data="notifications")],
+        [IKB(t["reset"], callback_data="reset_confirm"),
+         IKB(t["help"], callback_data="help")],
+        [IKB(t["home"], callback_data="main_menu")]
     ]
     return InlineKeyboardMarkup(keyboard)
 
@@ -374,9 +416,33 @@ def get_ai_friend_prompt(user_memories, mood_history, lang="uz"):
 
 # === TEXTS ===
 
-def get_menu_texts(lang="uz"):
-    """Yangilangan menu matnlari"""
-    return {
+def get_menu_texts(lang="en"):
+    """Updated menu texts (multilingual)"""
+    texts = {
+        "en": {
+            "ai_friend": """💬 **AI Friend**
+
+I'm your personal AI friend.
+Chat, journal, get advice.
+
+Everything is private and secure! ❤️""",
+            "health": """🧘 **Health**
+
+Everything for your mental and physical health:
+• Meditation
+• Fitness
+• Health advice""",
+            "creative": """🎨 **Creative Tools**
+
+Create with AI:
+• PDFs and Presentations
+• Images
+• Code
+• And more!""",
+            "profile": """📊 **My Profile**
+
+Your results and achievements."""
+        },
         "uz": {
             "ai_friend": """💬 **AI Do'st**
 
@@ -401,4 +467,5 @@ AI yordamida yarating:
 
 Sizning natijalaringiz va yutuqlaringiz."""
         }
-    }.get(lang, {})
+    }
+    return texts.get(lang, texts["en"])
