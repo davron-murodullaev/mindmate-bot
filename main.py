@@ -883,9 +883,10 @@ async def healer_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             break
     
     if name:
-        text = f"🌿 **Assalomu alaykum, {name}!**\n\nDardingizni ayting, yordam beraman. ❤️"
+        greeting = get_text(lang, "healer_greeting_name").format(name=name)
+        text = greeting
     else:
-        text = "🌿 **Tabiiy Shifokor**\n\nDardingizni ayting, yordam beraman. ❤️"
+        text = get_text(lang, "healer_text")
     
     await update.message.reply_text(text, reply_markup=get_main_menu_button(lang), parse_mode="Markdown")
 
@@ -1070,11 +1071,11 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 recent_problem = m["value"]
         
         if name and recent_problem:
-            text = f"🌿 **{name}**, oxirgi safar **{recent_problem}** haqida gaplashgan edik. Qanday bo'ldi?"
+            text = get_text(lang, "healer_remember_problem").format(name=name, problem=recent_problem)
         elif name:
-            text = f"🌿 **{name}**, tabiiy shifokoringiz sizni tinglaydi."
+            text = get_text(lang, "healer_listening_name").format(name=name)
         else:
-            text = "🌿 **Tabiiy Shifokor** sizni tinglaydi. Dardingizni ayting. ❤️"
+            text = get_text(lang, "healer_text")
         await safe_edit(query, text, reply_markup=get_main_menu_button(lang), parse_mode="Markdown")
         return
 
@@ -1272,95 +1273,95 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # === CONTENT MENU (PDF/PPT) ===
     if query.data == "content_menu":
         keyboard = [
-            [InlineKeyboardButton("📄 PDF yaratish", callback_data="create_pdf"),
-             InlineKeyboardButton("📊 Prezentatsiya", callback_data="create_ppt")],
-            [InlineKeyboardButton("📋 Rezyume/CV", callback_data="create_resume")],
-            [InlineKeyboardButton("🏠 Bosh menyu", callback_data="main_menu")]
+            [InlineKeyboardButton(f"📄 {get_text(lang, 'btn_create_pdf')}", callback_data="create_pdf"),
+             InlineKeyboardButton(f"📊 {get_text(lang, 'btn_create_ppt')}", callback_data="create_ppt")],
+            [InlineKeyboardButton(f"📋 {get_text(lang, 'btn_create_resume')}", callback_data="create_resume")],
+            [InlineKeyboardButton(f"🏠 {get_text(lang, 'btn_main_menu')}", callback_data="main_menu")]
         ]
-        text = "📄 **Hujjat Yaratish**\n\nQanday hujjat kerak?"
+        text = get_text(lang, "create_document")
         await safe_edit(query, text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
         return
 
     if query.data == "create_pdf":
         context.user_data["waiting_for"] = "pdf_title"
-        text = "📄 **PDF Yaratish**\n\n📝 Sarlavhani kiriting:"
+        text = get_text(lang, "create_pdf_title")
         await safe_edit(query, text, reply_markup=get_main_menu_button(lang), parse_mode="Markdown")
         return
 
     if query.data == "create_ppt":
         context.user_data["waiting_for"] = "ppt_title"
-        text = "📊 **Prezentatsiya Yaratish**\n\n📝 Prezentatsiya sarlavhasini kiriting:"
+        text = get_text(lang, "create_presentation_title")
         await safe_edit(query, text, reply_markup=get_main_menu_button(lang), parse_mode="Markdown")
         return
 
     if query.data == "create_resume":
         context.user_data["waiting_for"] = "resume_name"
-        text = "📋 **Rezyume Yaratish**\n\n👤 Ism-familiyangizni kiriting:"
+        text = get_text(lang, "create_resume_name")
         await safe_edit(query, text, reply_markup=get_main_menu_button(lang), parse_mode="Markdown")
         return
 
     # === AI TOOLS MENU ===
     if query.data == "ai_tools_menu":
         keyboard = [
-            [InlineKeyboardButton("🎨 Rasm yaratish", callback_data="ai_image"),
-             InlineKeyboardButton("🌐 Tarjima", callback_data="ai_translate")],
-            [InlineKeyboardButton("👨‍💻 Kod yozish", callback_data="ai_code"),
-             InlineKeyboardButton("🍳 Retsept", callback_data="ai_recipe")],
-            [InlineKeyboardButton("✈️ Sayohat", callback_data="ai_travel"),
-             InlineKeyboardButton("📚 O'quv", callback_data="ai_study")],
-            [InlineKeyboardButton("💼 Biznes g'oya", callback_data="ai_business"),
-             InlineKeyboardButton("✉️ Email", callback_data="ai_email")],
-            [InlineKeyboardButton("🏠 Bosh menyu", callback_data="main_menu")]
+            [InlineKeyboardButton(f"🎨 {get_text(lang, 'btn_create_image')}", callback_data="ai_image"),
+             InlineKeyboardButton(f"🌐 {get_text(lang, 'btn_translate')}", callback_data="ai_translate")],
+            [InlineKeyboardButton(f"👨‍💻 {get_text(lang, 'btn_code')}", callback_data="ai_code"),
+             InlineKeyboardButton(f"🍳 {get_text(lang, 'btn_recipe')}", callback_data="ai_recipe")],
+            [InlineKeyboardButton(f"✈️ {get_text(lang, 'btn_travel')}", callback_data="ai_travel"),
+             InlineKeyboardButton(f"📚 {get_text(lang, 'btn_study')}", callback_data="ai_study")],
+            [InlineKeyboardButton(f"💼 {get_text(lang, 'btn_business')}", callback_data="ai_business"),
+             InlineKeyboardButton(f"✉️ {get_text(lang, 'btn_email')}", callback_data="ai_email")],
+            [InlineKeyboardButton(f"🏠 {get_text(lang, 'btn_main_menu')}", callback_data="main_menu")]
         ]
-        text = "🤖 **AI Yordamchilar**\n\nQaysi vositadan foydalanmoqchisiz?"
+        text = get_text(lang, "ai_tools_menu")
         await safe_edit(query, text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
         return
 
     if query.data == "ai_image":
         context.user_data["waiting_for"] = "image_prompt"
-        text = "🎨 **Rasm Yaratish**\n\nQanday rasm yaratishni xohlaysiz? Batafsil tasvirlang:"
+        text = get_text(lang, "create_image_prompt")
         await safe_edit(query, text, reply_markup=get_main_menu_button(lang), parse_mode="Markdown")
         return
 
     if query.data == "ai_translate":
         context.user_data["waiting_for"] = "translate_text"
-        text = "🌐 **Tarjima**\n\nTarjima qilmoqchi bo'lgan matnni yuboring:"
+        text = get_text(lang, "translate_prompt")
         await safe_edit(query, text, reply_markup=get_main_menu_button(lang), parse_mode="Markdown")
         return
 
     if query.data == "ai_code":
         context.user_data["waiting_for"] = "code_description"
-        text = "👨‍💻 **Kod Yozish**\n\nQanday kod kerak? Batafsil yozing:"
+        text = get_text(lang, "write_code_prompt")
         await safe_edit(query, text, reply_markup=get_main_menu_button(lang), parse_mode="Markdown")
         return
 
     if query.data == "ai_recipe":
         context.user_data["waiting_for"] = "recipe_name"
-        text = "🍳 **Retsept Topish**\n\nQaysi taom retseptini qidiryapsiz?"
+        text = get_text(lang, "find_recipe_prompt")
         await safe_edit(query, text, reply_markup=get_main_menu_button(lang), parse_mode="Markdown")
         return
 
     if query.data == "ai_travel":
         context.user_data["waiting_for"] = "travel_destination"
-        text = "✈️ **Sayohat Rejasi**\n\nQayerga sayohat qilmoqchisiz?"
+        text = get_text(lang, "travel_plan_prompt")
         await safe_edit(query, text, reply_markup=get_main_menu_button(lang), parse_mode="Markdown")
         return
 
     if query.data == "ai_study":
         context.user_data["waiting_for"] = "study_topic"
-        text = "📚 **O'quv Materiali**\n\nQaysi mavzuni o'rganmoqchisiz?"
+        text = get_text(lang, "study_material_prompt")
         await safe_edit(query, text, reply_markup=get_main_menu_button(lang), parse_mode="Markdown")
         return
 
     if query.data == "ai_business":
         context.user_data["waiting_for"] = "business_industry"
-        text = "💼 **Biznes G'oyasi**\n\nQaysi sohada biznes g'oyasi kerak? (yoki 'ixtiyoriy' deb yozing)"
+        text = get_text(lang, "business_idea_prompt")
         await safe_edit(query, text, reply_markup=get_main_menu_button(lang), parse_mode="Markdown")
         return
 
     if query.data == "ai_email":
         context.user_data["waiting_for"] = "email_purpose"
-        text = "✉️ **Email Yozish**\n\nEmail maqsadi nima? (masalan: 'ishga ariza', 'shikoyat', 'so'rov')"
+        text = get_text(lang, "write_email_prompt")
         await safe_edit(query, text, reply_markup=get_main_menu_button(lang), parse_mode="Markdown")
         return
 
@@ -1559,7 +1560,7 @@ Ushbu bot'ga screenshot yuboring va biz 24 soat ichida faollashtramiz!
 
             if shortcuts:
                 # Show quick shortcuts + main menu
-                text = "💰 **Moliyaviy Coach**\n\n⚡ **Tez xarajatlar:**"
+                text = get_text(lang, "financial_coach_quick")
                 keyboard_markup = get_expense_shortcuts_keyboard(shortcuts)
             else:
                 # Standard menu
@@ -1572,7 +1573,7 @@ Ushbu bot'ga screenshot yuboring va biz 24 soat ichida faollashtramiz!
                     [InlineKeyboardButton("🔄 Doimiy xarajat", callback_data="add_recurring_expense_start")],
                     [InlineKeyboardButton("🏠 Bosh menyu", callback_data="main_menu")]
                 ]
-                text = "💰 **Moliyaviy Coach**\n\nQaysi xizmat kerak?"
+                text = get_text(lang, "financial_coach_menu")
                 keyboard_markup = InlineKeyboardMarkup(keyboard)
 
             await safe_edit(query, text, reply_markup=keyboard_markup, parse_mode="Markdown")
@@ -1669,7 +1670,7 @@ Ushbu bot'ga screenshot yuboring va biz 24 soat ichida faollashtramiz!
 
     if query.data == "investment_disclaimer_accept":
         context.user_data["waiting_for"] = "investment_amount"
-        text = "📈 **Investitsiya Maslahati**\n\nInvestitsiya qilmoqchi bo'lgan summangizni kiriting (masalan: 5000000):"
+        text = get_text(lang, "investment_advice_amount")
         await safe_edit(query, text, reply_markup=get_main_menu_button(lang), parse_mode="Markdown")
         return
 
@@ -1853,7 +1854,7 @@ Ushbu bot'ga screenshot yuboring va biz 24 soat ichida faollashtramiz!
             [InlineKeyboardButton("📊 Productivity hisobot", callback_data="productivity_report")],
             [InlineKeyboardButton("🏠 Bosh menyu", callback_data="main_menu")]
         ]
-        text = "⚡ **Productivity Coach**\n\nQaysi xizmat kerak?"
+        text = get_text(lang, "productivity_coach_menu")
         await safe_edit(query, text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
         return
 

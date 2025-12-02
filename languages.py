@@ -100,7 +100,48 @@ Quyidagi tugmalardan birini tanlang yoki shunchaki xabar yozing!
         "image_prompt": "🎨 **Rasm Yaratish**\n\nQanday rasm kerakligini ta'riflang:",
         "code_prompt": "👨‍💻 **Kod Yozish**\n\nQanday kod kerakligini ta'riflang:",
         "translate_prompt": "🌐 **Tarjima**\n\nTarjima qilish uchun matn kiriting:",
-        "error_occurred": "⚠️ Xatolik yuz berdi. Qaytadan urinib ko'ring."
+        "error_occurred": "⚠️ Xatolik yuz berdi. Qaytadan urinib ko'ring.",
+
+        # Qo'shimcha menyular va promptlar
+        "healer_text": "🌿 **Tabiiy Shifokor**\n\nDardingizni ayting, yordam beraman. ❤️",
+        "create_document": "📄 **Hujjat Yaratish**\n\nQanday hujjat kerak?",
+        "create_presentation_title": "📊 **Prezentatsiya Yaratish**\n\n📝 Prezentatsiya sarlavhasini kiriting:",
+        "create_resume_name": "📋 **Rezyume Yaratish**\n\n👤 Ism-familiyangizni kiriting:",
+        "find_recipe_prompt": "🍳 **Retsept Topish**\n\nQaysi taom retseptini qidiryapsiz?",
+        "travel_plan_prompt": "✈️ **Sayohat Rejasi**\n\nQayerga sayohat qilmoqchisiz?",
+        "business_idea_prompt": "💼 **Biznes G'oyasi**\n\nQaysi sohada biznes g'oyasi kerak? (yoki 'ixtiyoriy' deb yozing)",
+        "write_email_prompt": "✉️ **Email Yozish**\n\nEmail maqsadi nima? (masalan: 'ishga ariza', 'shikoyat', 'so'rov')",
+        "financial_coach_menu": "💰 **Moliyaviy Coach**\n\nQaysi xizmat kerak?",
+        "financial_coach_quick": "💰 **Moliyaviy Coach**\n\n⚡ **Tez xarajatlar:**",
+        "productivity_coach_menu": "⚡ **Productivity Coach**\n\nQaysi xizmat kerak?",
+        "investment_advice_amount": "📈 **Investitsiya Maslahati**\n\nInvestitsiya qilmoqchi bo'lgan summangizni kiriting (masalan: 5000000):",
+
+        # Shifokor variantlari
+        "healer_greeting_name": "🌿 **Assalomu alaykum, {name}!**\n\nDardingizni ayting, yordam beraman. ❤️",
+        "healer_remember_problem": "🌿 **{name}**, oxirgi safar **{problem}** haqida gaplashgan edik. Qanday bo'ldi?",
+        "healer_listening_name": "🌿 **{name}**, tabiiy shifokoringiz sizni tinglaydi.",
+
+        # Hujjat yaratish
+        "create_pdf_title": "📄 **PDF Yaratish**\n\n📝 Sarlavhani kiriting:",
+
+        # AI vositalari
+        "ai_tools_menu": "🤖 **AI Yordamchilar**\n\nQaysi vositadan foydalanmoqchisiz?",
+        "create_image_prompt": "🎨 **Rasm Yaratish**\n\nQanday rasm yaratishni xohlaysiz? Batafsil tasvirlang:",
+        "write_code_prompt": "👨‍💻 **Kod Yozish**\n\nQanday kod kerak? Batafsil yozing:",
+        "study_material_prompt": "📚 **O'quv Materiali**\n\nQaysi mavzuni o'rganmoqchisiz?",
+
+        # Tugma yozuvlari
+        "btn_create_pdf": "PDF",
+        "btn_create_ppt": "Prezentatsiya",
+        "btn_create_resume": "Rezyume/CV",
+        "btn_create_image": "Yaratish",
+        "btn_translate": "Tarjima",
+        "btn_code": "Kod yozish",
+        "btn_recipe": "Retsept",
+        "btn_travel": "Sayohat",
+        "btn_study": "O'quv",
+        "btn_business": "Biznes g'oya",
+        "btn_email": "Email"
     },
     
     # ============ RUS TILI ============
@@ -245,7 +286,48 @@ Choose a button below or just send me a message!
         "image_prompt": "🎨 **Generate Image**\n\nDescribe the image you want:",
         "code_prompt": "👨‍💻 **Write Code**\n\nDescribe what code you need:",
         "translate_prompt": "🌐 **Translate**\n\nEnter text to translate:",
-        "error_occurred": "⚠️ An error occurred. Please try again."
+        "error_occurred": "⚠️ An error occurred. Please try again.",
+
+        # Additional menus and prompts
+        "healer_text": "🌿 **Natural Healer**\n\nTell me what troubles you. I'm here to help. ❤️",
+        "create_document": "📄 **Create Document**\n\nWhat kind of document do you need?",
+        "create_presentation_title": "📊 **Create Presentation**\n\n📝 Enter presentation title:",
+        "create_resume_name": "📋 **Create Resume**\n\n👤 Enter your full name:",
+        "find_recipe_prompt": "🍳 **Find Recipe**\n\nWhat dish recipe are you looking for?",
+        "travel_plan_prompt": "✈️ **Travel Plan**\n\nWhere do you want to travel?",
+        "business_idea_prompt": "💼 **Business Idea**\n\nWhat industry do you need a business idea for? (or type 'any')",
+        "write_email_prompt": "✉️ **Write Email**\n\nWhat's the purpose of the email? (e.g., 'job application', 'complaint', 'request')",
+        "financial_coach_menu": "💰 **Financial Coach**\n\nWhat service do you need?",
+        "financial_coach_quick": "💰 **Financial Coach**\n\n⚡ **Quick Expenses:**",
+        "productivity_coach_menu": "⚡ **Productivity Coach**\n\nWhat service do you need?",
+        "investment_advice_amount": "📈 **Investment Advice**\n\nEnter the amount you want to invest (e.g., 5000000):",
+
+        # Healer variations
+        "healer_greeting_name": "🌿 **Hello, {name}!**\n\nTell me what troubles you. I'm here to help. ❤️",
+        "healer_remember_problem": "🌿 **{name}**, last time we talked about **{problem}**. How did it go?",
+        "healer_listening_name": "🌿 **{name}**, your natural healer is listening.",
+
+        # Document creation
+        "create_pdf_title": "📄 **Create PDF**\n\n📝 Enter title:",
+
+        # AI tools
+        "ai_tools_menu": "🤖 **AI Tools**\n\nWhich tool would you like to use?",
+        "create_image_prompt": "🎨 **Generate Image**\n\nWhat kind of image do you want to create? Describe in detail:",
+        "write_code_prompt": "👨‍💻 **Write Code**\n\nWhat code do you need? Describe in detail:",
+        "study_material_prompt": "📚 **Study Material**\n\nWhat topic would you like to learn about?",
+
+        # Button labels
+        "btn_create_pdf": "PDF",
+        "btn_create_ppt": "Presentation",
+        "btn_create_resume": "Resume/CV",
+        "btn_create_image": "Generate",
+        "btn_translate": "Translate",
+        "btn_code": "Write Code",
+        "btn_recipe": "Recipe",
+        "btn_travel": "Travel",
+        "btn_study": "Study",
+        "btn_business": "Business Idea",
+        "btn_email": "Email"
     },
     
     # ============ TURK TILI ============
