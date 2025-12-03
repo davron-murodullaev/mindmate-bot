@@ -80,7 +80,7 @@ def init_db():
             user_id BIGINT PRIMARY KEY,
             username TEXT,
             full_name TEXT,
-            language TEXT DEFAULT 'uz',
+            language TEXT DEFAULT 'en',
             profile_data JSONB DEFAULT '{}',
             timezone TEXT DEFAULT 'Asia/Tashkent',
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
