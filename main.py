@@ -583,6 +583,16 @@ def get_main_menu_keyboard(lang):
             "premium": "💎 Premium",
             "settings": "⚙️ Settings"
         },
+        "ru": {
+            "ai_friend": "💬 AI Друг",
+            "financial": "💰 Финансы",
+            "productivity": "⚡ Продуктивность",
+            "creative": "🎨 Творчество",
+            "health": "🧘 Здоровье",
+            "profile": "📊 Профиль",
+            "premium": "💎 Premium",
+            "settings": "⚙️ Настройки"
+        },
         "uz": {
             "ai_friend": "💬 AI Do'st",
             "financial": "💰 Moliya",
