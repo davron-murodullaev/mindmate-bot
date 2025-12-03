@@ -3,28 +3,46 @@ import logging
 import psycopg2
 import json
 import asyncio
-from datetime import datetime, time, timedelta
+from datetime import datetime
 from dotenv import load_dotenv
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, filters, ContextTypes
 from openai import OpenAI
-from languages import get_text, get_mood_response, TRANSLATIONS
-from fitness import get_workout_text, get_workout_buttons, get_workout_done, get_workout_stats_label
-from healer import get_healer_prompt, get_healer_buttons
+from languages import get_text
+from fitness import get_workout_text, get_workout_buttons, get_workout_done
+from healer import get_healer_prompt
 from ai_brain import get_master_prompt
 from reminders import (
     get_reminder_text, get_reminder_menu_keyboard, get_time_keyboard,
-    get_mood_keyboard_for_reminder, format_reminder_list, 
-    get_reminder_type_name, get_reminder_emoji
+    format_reminder_list, get_reminder_type_name, get_reminder_emoji
 )
 
 load_dotenv()
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# === CONFIGURATION ===
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 DATABASE_URL = os.getenv("DATABASE_URL")
+
+# AI Configuration
+OPENAI_MODEL = "gpt-3.5-turbo"
+AI_MAX_TOKENS = 600
+AI_TEMPERATURE = 0.8
+MEMORY_EXTRACTION_TOKENS = 200
+MEMORY_EXTRACTION_TEMPERATURE = 0.3
+
+# Data Limits
+CONVERSATION_HISTORY_LIMIT = 30
+IMPORTANT_CONVERSATIONS_LIMIT = 10
+MEMORY_LIMIT = 50
+MOOD_HISTORY_LIMIT = 7
+MAX_JOURNAL_LENGTH = 10000
+MAX_MESSAGE_LENGTH = 4000
+
+# Reminder System
+REMINDER_CHECK_INTERVAL = 60  # seconds
 
 client = OpenAI(api_key=OPENAI_API_KEY)
 
@@ -302,13 +320,13 @@ def save_memory(user_id, memory_type, key, value, importance=1):
     cur.close()
     conn.close()
 
-def get_user_memories(user_id, limit=50):
+def get_user_memories(user_id, limit=MEMORY_LIMIT):
     """
     Foydalanuvchi xotiralarini olish (muhimlik bo'yicha tartiblangan).
 
     Args:
         user_id: Telegram foydalanuvchi ID
-        limit: Maksimal xotiralar soni (default: 50)
+        limit: Maksimal xotiralar soni (default: MEMORY_LIMIT)
 
     Returns:
         list: Xotiralar ro'yxati (dict format)
@@ -370,13 +388,13 @@ def save_conversation(user_id, role, content, mode="normal", importance=1):
     cur.close()
     conn.close()
 
-def get_conversations(user_id, limit=30):
+def get_conversations(user_id, limit=CONVERSATION_HISTORY_LIMIT):
     """
     Foydalanuvchi suhbat tarixini olish.
 
     Args:
         user_id: Telegram foydalanuvchi ID
-        limit: Maksimal xabarlar soni (default: 30)
+        limit: Maksimal xabarlar soni (default: CONVERSATION_HISTORY_LIMIT)
 
     Returns:
         list: Suhbat xabarlari ro'yxati
@@ -394,13 +412,13 @@ def get_conversations(user_id, limit=30):
     conn.close()
     return [{"role": r[0], "content": r[1], "mode": r[2]} for r in reversed(rows)]
 
-def get_important_conversations(user_id, limit=10):
+def get_important_conversations(user_id, limit=IMPORTANT_CONVERSATIONS_LIMIT):
     """
     Muhim suhbatlarni olish (importance >= 2).
 
     Args:
         user_id: Telegram foydalanuvchi ID
-        limit: Maksimal xabarlar soni (default: 10)
+        limit: Maksimal xabarlar soni (default: IMPORTANT_CONVERSATIONS_LIMIT)
 
     Returns:
         list: Muhim suhbatlar ro'yxati
@@ -467,14 +485,14 @@ def save_journal(user_id, text):
 
     Args:
         user_id: Telegram foydalanuvchi ID
-        text: Kundalik matni (max 10000 belgi)
+        text: Kundalik matni (max MAX_JOURNAL_LENGTH belgi)
     """
     conn = get_db()
     if conn is None:
         return
     # Input validation: limit text length
-    if len(text) > 10000:
-        text = text[:10000]
+    if len(text) > MAX_JOURNAL_LENGTH:
+        text = text[:MAX_JOURNAL_LENGTH]
     cur = conn.cursor()
     cur.execute('INSERT INTO journals (user_id, text) VALUES (%s, %s)', (user_id, text))
     conn.commit()
@@ -507,13 +525,13 @@ def get_user_stats(user_id):
         "journal_count": journal_count or 0
     }
 
-def get_mood_history(user_id, limit=7):
+def get_mood_history(user_id, limit=MOOD_HISTORY_LIMIT):
     """
     Foydalanuvchi kayfiyat tarixini olish.
 
     Args:
         user_id: Telegram foydalanuvchi ID
-        limit: Maksimal yozuvlar soni (default: 7)
+        limit: Maksimal yozuvlar soni (default: MOOD_HISTORY_LIMIT)
 
     Returns:
         list: Kayfiyat tarixi (score, note, date)
@@ -782,10 +800,10 @@ JSON format:
 Agar ma'lumot bo'lmasa, null yoz. Faqat JSON, boshqa hech narsa!"""
         
         response = client.chat.completions.create(
-            model="gpt-3.5-turbo",
+            model=OPENAI_MODEL,
             messages=[{"role": "user", "content": extraction_prompt}],
-            max_tokens=200,
-            temperature=0.3
+            max_tokens=MEMORY_EXTRACTION_TOKENS,
+            temperature=MEMORY_EXTRACTION_TEMPERATURE
         )
         
         result = response.choices[0].message.content.strip()
@@ -860,10 +878,10 @@ Har bir javobda:
     
     try:
         response = client.chat.completions.create(
-            model="gpt-3.5-turbo",
+            model=OPENAI_MODEL,
             messages=messages,
-            max_tokens=600,
-            temperature=0.8
+            max_tokens=AI_MAX_TOKENS,
+            temperature=AI_TEMPERATURE
         )
         ai_message = response.choices[0].message.content
         
@@ -932,12 +950,12 @@ async def check_and_send_reminders(app):
             
             for reminder in reminders:
                 await send_reminder_notification(app, reminder["user_id"], reminder["type"])
-            
+
             # Keyingi daqiqagacha kutish
-            await asyncio.sleep(60)
+            await asyncio.sleep(REMINDER_CHECK_INTERVAL)
         except Exception as e:
             logger.error(f"Reminder check error: {e}")
-            await asyncio.sleep(60)
+            await asyncio.sleep(REMINDER_CHECK_INTERVAL)
 
 # === COMMANDS ===
 
@@ -1519,9 +1537,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     lang = get_user_lang(user_id)
 
     # Input validation: check message length
-    if not user_message or len(user_message) > 4000:
+    if not user_message or len(user_message) > MAX_MESSAGE_LENGTH:
         await update.message.reply_text(
-            get_text(lang, "error") if len(user_message) > 4000 else "⚠️ Xabar bo'sh bo'lishi mumkin emas.",
+            get_text(lang, "error") if len(user_message) > MAX_MESSAGE_LENGTH else "⚠️ Xabar bo'sh bo'lishi mumkin emas.",
             reply_markup=get_main_menu_button(lang)
         )
         return
