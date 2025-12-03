@@ -44,7 +44,7 @@ from productivity_ai import (
 )
 from enhanced_features import (
     get_ai_friend_menu, get_health_menu, get_creative_tools_menu,
-    get_my_profile_menu, get_settings_menu, get_quick_expense_shortcuts,
+    get_my_profile_menu, get_quick_expense_shortcuts,
     get_expense_shortcuts_keyboard, get_referral_share_keyboard,
     get_referral_text, get_investment_disclaimer, get_ai_friend_prompt,
     get_menu_texts, add_recurring_expense
