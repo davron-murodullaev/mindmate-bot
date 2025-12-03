@@ -619,6 +619,43 @@ def get_main_menu_keyboard(lang):
     ]
     return InlineKeyboardMarkup(keyboard)
 
+def get_settings_menu(lang="en"):
+    """Settings menu with language options"""
+    texts = {
+        "en": {
+            "language": "🌍 Change Language",
+            "notifications": "🔔 Notifications",
+            "reset": "🔄 Reset Chat History",
+            "help": "❓ Help",
+            "back": "🔙 Main Menu"
+        },
+        "ru": {
+            "language": "🌍 Изменить язык",
+            "notifications": "🔔 Уведомления",
+            "reset": "🔄 Сбросить историю",
+            "help": "❓ Помощь",
+            "back": "🔙 Главное меню"
+        },
+        "uz": {
+            "language": "🌍 Tilni o'zgartirish",
+            "notifications": "🔔 Bildirishnomalar",
+            "reset": "🔄 Tarixni tozalash",
+            "help": "❓ Yordam",
+            "back": "🔙 Bosh menyu"
+        }
+    }
+
+    t = texts.get(lang, texts["en"])
+
+    keyboard = [
+        [InlineKeyboardButton(t["language"], callback_data="lang")],
+        [InlineKeyboardButton(t["notifications"], callback_data="notifications")],
+        [InlineKeyboardButton(t["reset"], callback_data="reset_history")],
+        [InlineKeyboardButton(t["help"], callback_data="help")],
+        [InlineKeyboardButton(t["back"], callback_data="main_menu")]
+    ]
+    return InlineKeyboardMarkup(keyboard)
+
 # === AI BRAIN (JARVIS) ===
 
 async def extract_and_save_memories(user_id, user_message, ai_response, lang):
