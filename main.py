@@ -19,22 +19,90 @@ from reminders import (
 )
 
 load_dotenv()
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
 logger = logging.getLogger(__name__)
 
-TELEGRAM_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-DATABASE_URL = os.getenv("DATABASE_URL")
+# === STARTUP HEALTH CHECK ===
 
-client = OpenAI(api_key=OPENAI_API_KEY)
+def check_environment():
+    """Startup health check for required environment variables"""
+    missing = []
+
+    telegram_token = os.getenv("TELEGRAM_BOT_TOKEN")
+    openai_key = os.getenv("OPENAI_API_KEY")
+    database_url = os.getenv("DATABASE_URL")
+
+    if not telegram_token:
+        missing.append("TELEGRAM_BOT_TOKEN")
+    if not openai_key:
+        missing.append("OPENAI_API_KEY")
+    if not database_url:
+        missing.append("DATABASE_URL")
+
+    if missing:
+        logger.error("=" * 60)
+        logger.error("❌ STARTUP FAILED: Missing required environment variables")
+        logger.error("=" * 60)
+        for var in missing:
+            logger.error(f"   ❌ {var} not found")
+        logger.error("")
+        logger.error("📝 Solution:")
+        logger.error("   1. Create a .env file in the project root")
+        logger.error("   2. Copy .env.example as template")
+        logger.error("   3. Fill in your credentials:")
+        logger.error("      - TELEGRAM_BOT_TOKEN (from @BotFather)")
+        logger.error("      - OPENAI_API_KEY (from OpenAI platform)")
+        logger.error("      - DATABASE_URL (PostgreSQL connection string)")
+        logger.error("=" * 60)
+        return None, None, None
+
+    logger.info("✅ All environment variables found")
+    return telegram_token, openai_key, database_url
+
+TELEGRAM_TOKEN, OPENAI_API_KEY, DATABASE_URL = check_environment()
+
+# Initialize OpenAI client only if API key exists
+client = OpenAI(api_key=OPENAI_API_KEY) if OPENAI_API_KEY else None
 
 # === DATABASE ===
 
+# Global flag to track database availability
+_db_error_logged = False
+
 def get_db():
+    """Get database connection with error handling"""
+    global _db_error_logged
+
+    if not DATABASE_URL:
+        if not _db_error_logged:
+            logger.error("❌ DATABASE_URL not configured")
+            _db_error_logged = True
+        return None
+
     try:
         return psycopg2.connect(DATABASE_URL, sslmode="require")
+    except psycopg2.OperationalError as e:
+        if not _db_error_logged:
+            logger.error("=" * 60)
+            logger.error("❌ DATABASE CONNECTION FAILED")
+            logger.error("=" * 60)
+            logger.error(f"Error: {e}")
+            logger.error("")
+            logger.error("📝 Possible solutions:")
+            logger.error("   1. Check DATABASE_URL is correct")
+            logger.error("   2. Ensure PostgreSQL server is running")
+            logger.error("   3. Verify network connection")
+            logger.error("   4. Check database credentials")
+            logger.error("=" * 60)
+            _db_error_logged = True
+        return None
     except Exception as e:
-        logger.error(f"DB xato: {e}")
+        if not _db_error_logged:
+            logger.error(f"❌ Unexpected database error: {e}")
+            _db_error_logged = True
         return None
 
 def init_db():
@@ -596,26 +664,36 @@ Agar ma'lumot bo'lmasa, null yoz. Faqat JSON, boshqa hech narsa!"""
 
 async def get_ai_response(user_id: int, message: str, mode: str = "normal") -> str:
     lang = get_user_lang(user_id)
-    
+
+    # Check if OpenAI client is available
+    if client is None:
+        logger.error("❌ OpenAI client not initialized - OPENAI_API_KEY missing")
+        error_messages = {
+            'uz': "⚠️ Botning AI xizmati hozircha ishlamayapti. Iltimos, keyinroq urinib ko'ring.",
+            'ru': "⚠️ AI-сервис бота временно недоступен. Попробуйте позже.",
+            'en': "⚠️ Bot's AI service is temporarily unavailable. Please try again later."
+        }
+        return error_messages.get(lang, error_messages['uz'])
+
     profile = get_user_profile(user_id)
     memories = get_user_memories(user_id)
     memories_text = format_memories_for_ai(memories)
-    
+
     conversations = get_conversations(user_id, limit=20)
     important_convs = get_important_conversations(user_id, limit=5)
-    
+
     mood_history = get_mood_history(user_id, limit=5)
     mood_text = ""
     if mood_history:
         mood_text = "\n📊 KAYFIYAT TARIXI:\n"
         for m in mood_history:
             mood_text += f"- {m['date'].strftime('%d.%m')}: {m['score']}/5\n"
-    
+
     if mode == "healer":
         base_prompt = get_healer_prompt(lang)
     else:
         base_prompt = get_master_prompt(lang, memories_text, "")
-    
+
     full_context = f"""{base_prompt}
 
 {memories_text}
@@ -629,17 +707,17 @@ Har bir javobda:
 1. Oldingi ma'lumotlardan foydalaning
 2. Shaxsiylashtirilgan javob bering
 3. Samimiy va foydali bo'ling"""
-    
+
     messages = [{"role": "system", "content": full_context}]
-    
+
     for conv in important_convs:
         messages.append(conv)
-    
+
     for conv in conversations[-10:]:
         messages.append({"role": conv["role"], "content": conv["content"]})
-    
+
     messages.append({"role": "user", "content": message})
-    
+
     try:
         response = client.chat.completions.create(
             model="gpt-3.5-turbo",
@@ -648,17 +726,22 @@ Har bir javobda:
             temperature=0.8
         )
         ai_message = response.choices[0].message.content
-        
+
         importance = 2 if mode == "healer" else 1
         save_conversation(user_id, "user", message, mode, importance)
         save_conversation(user_id, "assistant", ai_message, mode, importance)
-        
+
         await extract_and_save_memories(user_id, message, ai_message, lang)
-        
+
         return ai_message
     except Exception as e:
-        logger.error(f"OpenAI xatosi: {e}")
-        return get_text(lang, "error")
+        logger.error(f"❌ OpenAI API error: {e}")
+        error_messages = {
+            'uz': "⚠️ Xatolik yuz berdi. Iltimos, qaytadan urinib ko'ring.",
+            'ru': "⚠️ Произошла ошибка. Пожалуйста, попробуйте снова.",
+            'en': "⚠️ An error occurred. Please try again."
+        }
+        return error_messages.get(lang, error_messages['uz'])
 
 # === REMINDER SCHEDULER ===
 
