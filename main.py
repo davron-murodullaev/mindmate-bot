@@ -31,6 +31,12 @@ client = OpenAI(api_key=OPENAI_API_KEY)
 # === DATABASE ===
 
 def get_db():
+    """
+    Ma'lumotlar bazasiga ulanish yaratish.
+
+    Returns:
+        connection: PostgreSQL ulanish obyekti yoki None (xato bo'lsa)
+    """
     try:
         return psycopg2.connect(DATABASE_URL, sslmode="require")
     except Exception as e:
@@ -38,6 +44,12 @@ def get_db():
         return None
 
 def init_db():
+    """
+    Ma'lumotlar bazasi jadvallarini yaratish (agar mavjud bo'lmasa).
+
+    Yaratilgan jadvallar: users, moods, journals, conversations, workouts,
+    healer_sessions, user_memories, reminders va ularning indexlari.
+    """
     conn = get_db()
     if conn is None:
         return
@@ -152,6 +164,15 @@ def init_db():
 # === USER FUNCTIONS ===
 
 def save_user(user_id, username, full_name=None, lang="uz"):
+    """
+    Foydalanuvchi ma'lumotlarini saqlash yoki yangilash.
+
+    Args:
+        user_id: Telegram foydalanuvchi ID
+        username: Foydalanuvchi nomi
+        full_name: To'liq ism (optional)
+        lang: Til kodi (default: "uz")
+    """
     conn = get_db()
     if conn is None:
         return
@@ -169,6 +190,15 @@ def save_user(user_id, username, full_name=None, lang="uz"):
     conn.close()
 
 def get_user_lang(user_id):
+    """
+    Foydalanuvchi tilini olish.
+
+    Args:
+        user_id: Telegram foydalanuvchi ID
+
+    Returns:
+        str: Til kodi (default: "uz")
+    """
     conn = get_db()
     if conn is None:
         return "uz"
@@ -180,6 +210,13 @@ def get_user_lang(user_id):
     return row[0] if row else "uz"
 
 def set_user_lang(user_id, lang):
+    """
+    Foydalanuvchi tilini o'zgartirish.
+
+    Args:
+        user_id: Telegram foydalanuvchi ID
+        lang: Yangi til kodi
+    """
     conn = get_db()
     if conn is None:
         return
@@ -190,6 +227,15 @@ def set_user_lang(user_id, lang):
     conn.close()
 
 def get_user_profile(user_id):
+    """
+    Foydalanuvchi profilini olish.
+
+    Args:
+        user_id: Telegram foydalanuvchi ID
+
+    Returns:
+        dict: Profil ma'lumotlari (username, full_name, profile_data, member_since)
+    """
     conn = get_db()
     if conn is None:
         return {}
@@ -208,6 +254,14 @@ def get_user_profile(user_id):
     return {}
 
 def update_user_profile(user_id, key, value):
+    """
+    Foydalanuvchi profil ma'lumotlarini yangilash (JSONB formatda).
+
+    Args:
+        user_id: Telegram foydalanuvchi ID
+        key: Yangilanadigan kalit
+        value: Yangi qiymat
+    """
     conn = get_db()
     if conn is None:
         return
@@ -222,6 +276,16 @@ def update_user_profile(user_id, key, value):
 # === MEMORY FUNCTIONS (JARVIS) ===
 
 def save_memory(user_id, memory_type, key, value, importance=1):
+    """
+    Foydalanuvchi haqida eslatma saqlash (JARVIS xotirasi).
+
+    Args:
+        user_id: Telegram foydalanuvchi ID
+        memory_type: Xotira turi (masalan: "personal", "health", "mood")
+        key: Xotira kaliti
+        value: Xotira qiymati
+        importance: Muhimlik darajasi (1-3, default: 1)
+    """
     conn = get_db()
     if conn is None:
         return
@@ -239,13 +303,23 @@ def save_memory(user_id, memory_type, key, value, importance=1):
     conn.close()
 
 def get_user_memories(user_id, limit=50):
+    """
+    Foydalanuvchi xotiralarini olish (muhimlik bo'yicha tartiblangan).
+
+    Args:
+        user_id: Telegram foydalanuvchi ID
+        limit: Maksimal xotiralar soni (default: 50)
+
+    Returns:
+        list: Xotiralar ro'yxati (dict format)
+    """
     conn = get_db()
     if conn is None:
         return []
     cur = conn.cursor()
     cur.execute('''
-        SELECT memory_type, memory_key, memory_value, importance 
-        FROM user_memories WHERE user_id = %s 
+        SELECT memory_type, memory_key, memory_value, importance
+        FROM user_memories WHERE user_id = %s
         ORDER BY importance DESC, updated_at DESC LIMIT %s
     ''', (user_id, limit))
     rows = cur.fetchall()
@@ -254,9 +328,18 @@ def get_user_memories(user_id, limit=50):
     return [{"type": r[0], "key": r[1], "value": r[2], "importance": r[3]} for r in rows]
 
 def format_memories_for_ai(memories):
+    """
+    Xotiralarni AI uchun matn formatiga o'tkazish.
+
+    Args:
+        memories: Xotiralar ro'yxati
+
+    Returns:
+        str: Formatlangan matn
+    """
     if not memories:
         return "Yangi foydalanuvchi - hali ma'lumot yo'q"
-    
+
     text = "📋 FOYDALANUVCHI HAQIDA BILGANLARIM:\n"
     for m in memories:
         text += f"- {m['key']}: {m['value']}\n"
@@ -265,12 +348,22 @@ def format_memories_for_ai(memories):
 # === CONVERSATION FUNCTIONS ===
 
 def save_conversation(user_id, role, content, mode="normal", importance=1):
+    """
+    Suhbat xabarini saqlash.
+
+    Args:
+        user_id: Telegram foydalanuvchi ID
+        role: Xabar roli ("user" yoki "assistant")
+        content: Xabar matni
+        mode: Suhbat rejimi ("normal", "healer", va h.k.)
+        importance: Muhimlik darajasi (1-3, default: 1)
+    """
     conn = get_db()
     if conn is None:
         return
     cur = conn.cursor()
     cur.execute('''
-        INSERT INTO conversations (user_id, role, content, mode, importance) 
+        INSERT INTO conversations (user_id, role, content, mode, importance)
         VALUES (%s, %s, %s, %s, %s)
     ''', (user_id, role, content, mode, importance))
     conn.commit()
@@ -278,12 +371,22 @@ def save_conversation(user_id, role, content, mode="normal", importance=1):
     conn.close()
 
 def get_conversations(user_id, limit=30):
+    """
+    Foydalanuvchi suhbat tarixini olish.
+
+    Args:
+        user_id: Telegram foydalanuvchi ID
+        limit: Maksimal xabarlar soni (default: 30)
+
+    Returns:
+        list: Suhbat xabarlari ro'yxati
+    """
     conn = get_db()
     if conn is None:
         return []
     cur = conn.cursor()
     cur.execute('''
-        SELECT role, content, mode FROM conversations 
+        SELECT role, content, mode FROM conversations
         WHERE user_id = %s ORDER BY created_at DESC LIMIT %s
     ''', (user_id, limit))
     rows = cur.fetchall()
@@ -292,13 +395,23 @@ def get_conversations(user_id, limit=30):
     return [{"role": r[0], "content": r[1], "mode": r[2]} for r in reversed(rows)]
 
 def get_important_conversations(user_id, limit=10):
+    """
+    Muhim suhbatlarni olish (importance >= 2).
+
+    Args:
+        user_id: Telegram foydalanuvchi ID
+        limit: Maksimal xabarlar soni (default: 10)
+
+    Returns:
+        list: Muhim suhbatlar ro'yxati
+    """
     conn = get_db()
     if conn is None:
         return []
     cur = conn.cursor()
     cur.execute('''
-        SELECT role, content FROM conversations 
-        WHERE user_id = %s AND importance >= 2 
+        SELECT role, content FROM conversations
+        WHERE user_id = %s AND importance >= 2
         ORDER BY created_at DESC LIMIT %s
     ''', (user_id, limit))
     rows = cur.fetchall()
@@ -307,6 +420,15 @@ def get_important_conversations(user_id, limit=10):
     return [{"role": r[0], "content": r[1]} for r in reversed(rows)]
 
 def clear_conversations(user_id):
+    """
+    Suhbat tarixini tozalash (faqat muhim bo'lmaganlarni).
+
+    Args:
+        user_id: Telegram foydalanuvchi ID
+
+    Note:
+        Muhim suhbatlar (importance >= 2) saqlanadi
+    """
     conn = get_db()
     if conn is None:
         return
@@ -319,11 +441,20 @@ def clear_conversations(user_id):
 # === MOOD & JOURNAL ===
 
 def save_mood(user_id, score, note=None, context=None):
+    """
+    Foydalanuvchi kayfiyatini saqlash.
+
+    Args:
+        user_id: Telegram foydalanuvchi ID
+        score: Kayfiyat balli (1-5)
+        note: Qo'shimcha izoh (optional)
+        context: Kontekst ma'lumoti (optional)
+    """
     conn = get_db()
     if conn is None:
         return
     cur = conn.cursor()
-    cur.execute('INSERT INTO moods (user_id, score, note, context) VALUES (%s, %s, %s, %s)', 
+    cur.execute('INSERT INTO moods (user_id, score, note, context) VALUES (%s, %s, %s, %s)',
                 (user_id, score, note, context))
     conn.commit()
     cur.close()
@@ -331,6 +462,13 @@ def save_mood(user_id, score, note=None, context=None):
     save_memory(user_id, "mood", "last_mood", f"{score}/5", importance=1)
 
 def save_journal(user_id, text):
+    """
+    Kundalik yozuvini saqlash.
+
+    Args:
+        user_id: Telegram foydalanuvchi ID
+        text: Kundalik matni (max 10000 belgi)
+    """
     conn = get_db()
     if conn is None:
         return
@@ -344,6 +482,15 @@ def save_journal(user_id, text):
     conn.close()
 
 def get_user_stats(user_id):
+    """
+    Foydalanuvchi statistikasini olish.
+
+    Args:
+        user_id: Telegram foydalanuvchi ID
+
+    Returns:
+        dict: Statistika (mood_count, avg_mood, journal_count)
+    """
     conn = get_db()
     if conn is None:
         return {"mood_count": 0, "avg_mood": 0, "journal_count": 0}
@@ -361,12 +508,22 @@ def get_user_stats(user_id):
     }
 
 def get_mood_history(user_id, limit=7):
+    """
+    Foydalanuvchi kayfiyat tarixini olish.
+
+    Args:
+        user_id: Telegram foydalanuvchi ID
+        limit: Maksimal yozuvlar soni (default: 7)
+
+    Returns:
+        list: Kayfiyat tarixi (score, note, date)
+    """
     conn = get_db()
     if conn is None:
         return []
     cur = conn.cursor()
     cur.execute('''
-        SELECT score, note, created_at FROM moods 
+        SELECT score, note, created_at FROM moods
         WHERE user_id = %s ORDER BY created_at DESC LIMIT %s
     ''', (user_id, limit))
     rows = cur.fetchall()
@@ -377,6 +534,13 @@ def get_mood_history(user_id, limit=7):
 # === WORKOUT & HEALER ===
 
 def save_workout(user_id, workout_type):
+    """
+    Mashq seansini saqlash.
+
+    Args:
+        user_id: Telegram foydalanuvchi ID
+        workout_type: Mashq turi ("morning", "energy", "relax")
+    """
     conn = get_db()
     if conn is None:
         return
@@ -387,6 +551,15 @@ def save_workout(user_id, workout_type):
     conn.close()
 
 def get_workout_count(user_id):
+    """
+    Mashqlar sonini olish.
+
+    Args:
+        user_id: Telegram foydalanuvchi ID
+
+    Returns:
+        int: Mashqlar soni
+    """
     conn = get_db()
     if conn is None:
         return 0
@@ -398,11 +571,19 @@ def get_workout_count(user_id):
     return count or 0
 
 def save_healer_session(user_id, problem_type, notes=None):
+    """
+    Shifokor seans ma'lumotlarini saqlash.
+
+    Args:
+        user_id: Telegram foydalanuvchi ID
+        problem_type: Muammo turi
+        notes: Qo'shimcha izohlar (optional)
+    """
     conn = get_db()
     if conn is None:
         return
     cur = conn.cursor()
-    cur.execute('INSERT INTO healer_sessions (user_id, problem_type, notes) VALUES (%s, %s, %s)', 
+    cur.execute('INSERT INTO healer_sessions (user_id, problem_type, notes) VALUES (%s, %s, %s)',
                 (user_id, problem_type, notes))
     conn.commit()
     cur.close()
@@ -410,6 +591,15 @@ def save_healer_session(user_id, problem_type, notes=None):
     save_memory(user_id, "health", "recent_problem", problem_type, importance=2)
 
 def get_healer_count(user_id):
+    """
+    Shifokor seanslar sonini olish.
+
+    Args:
+        user_id: Telegram foydalanuvchi ID
+
+    Returns:
+        int: Seanslar soni
+    """
     conn = get_db()
     if conn is None:
         return 0
@@ -515,11 +705,30 @@ async def safe_edit(query, text, reply_markup=None, parse_mode=None):
 # === NAVIGATION BUTTONS ===
 
 def get_main_menu_button(lang="uz"):
+    """
+    Bosh menyu tugmasini yaratish.
+
+    Args:
+        lang: Til kodi (default: "uz")
+
+    Returns:
+        InlineKeyboardMarkup: Bosh menyu tugmasi
+    """
     return InlineKeyboardMarkup([[
         InlineKeyboardButton(get_text(lang, "btn_main_menu"), callback_data="main_menu")
     ]])
 
 def get_back_and_menu(back_to="main_menu", lang="uz"):
+    """
+    Orqaga va Bosh menyu tugmalarini yaratish.
+
+    Args:
+        back_to: Orqaga tugmasi uchun callback_data (default: "main_menu")
+        lang: Til kodi (default: "uz")
+
+    Returns:
+        InlineKeyboardMarkup: Navigatsiya tugmalari
+    """
     if back_to == "main_menu":
         return get_main_menu_button(lang)
     return InlineKeyboardMarkup([[
@@ -528,6 +737,15 @@ def get_back_and_menu(back_to="main_menu", lang="uz"):
     ]])
 
 def get_main_menu_keyboard(lang):
+    """
+    Bosh menyu klaviaturasini yaratish (barcha funksiyalar bilan).
+
+    Args:
+        lang: Til kodi
+
+    Returns:
+        InlineKeyboardMarkup: To'liq bosh menyu klaviaturasi
+    """
     keyboard = [
         [InlineKeyboardButton(get_text(lang, "btn_chat"), callback_data="chat"),
          InlineKeyboardButton(get_text(lang, "btn_healer"), callback_data="healer")],
@@ -724,6 +942,9 @@ async def check_and_send_reminders(app):
 # === COMMANDS ===
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """
+    /start buyrug'i - botni ishga tushirish va bosh menyuni ko'rsatish.
+    """
     user = update.effective_user
     full_name = f"{user.first_name or ''} {user.last_name or ''}".strip()
     save_user(user.id, user.username, full_name)
@@ -745,6 +966,9 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(welcome, reply_markup=get_main_menu_keyboard(lang), parse_mode="Markdown")
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """
+    /help buyrug'i - bot imkoniyatlari haqida ma'lumot.
+    """
     lang = get_user_lang(update.effective_user.id)
     help_text = """
 🤖 **MindMate - Sizning JARVIS'ingiz**
@@ -763,6 +987,9 @@ Shunchaki yozing! ❤️
     await update.message.reply_text(help_text, reply_markup=get_main_menu_button(lang), parse_mode="Markdown")
 
 async def mood_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """
+    /mood buyrug'i - kayfiyat tanlash menyusini ko'rsatish.
+    """
     lang = get_user_lang(update.effective_user.id)
     keyboard = [
         [InlineKeyboardButton("😄 Zo'r (5)", callback_data="mood_5"),
@@ -775,11 +1002,17 @@ async def mood_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(get_text(lang, "mood_ask"), reply_markup=InlineKeyboardMarkup(keyboard))
 
 async def journal_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """
+    /journal buyrug'i - kundalik yozish rejimini yoqish.
+    """
     lang = get_user_lang(update.effective_user.id)
     context.user_data["waiting_for"] = "journal"
     await update.message.reply_text(get_text(lang, "journal_ask"), reply_markup=get_main_menu_button(lang), parse_mode="Markdown")
 
 async def meditate_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """
+    /meditate buyrug'i - meditatsiya menyusini ko'rsatish.
+    """
     lang = get_user_lang(update.effective_user.id)
     keyboard = [
         [InlineKeyboardButton("🌬️ Nafas (2 daq)", callback_data="meditate_breathing"),
@@ -790,6 +1023,9 @@ async def meditate_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(get_text(lang, "meditate_ask"), reply_markup=InlineKeyboardMarkup(keyboard))
 
 async def fitness_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """
+    /fitness buyrug'i - mashq turlari menyusini ko'rsatish.
+    """
     lang = get_user_lang(update.effective_user.id)
     btns = get_workout_buttons(lang)
     keyboard = [
@@ -801,30 +1037,38 @@ async def fitness_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(btns["ask"], reply_markup=InlineKeyboardMarkup(keyboard))
 
 async def healer_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """
+    /healer buyrug'i - tabiiy shifokor rejimini yoqish.
+    """
     lang = get_user_lang(update.effective_user.id)
     context.user_data["mode"] = "healer"
-    
+
     memories = get_user_memories(update.effective_user.id)
     name = None
     for m in memories:
         if m["key"] == "name":
             name = m["value"]
             break
-    
+
     if name:
         text = f"🌿 **Assalomu alaykum, {name}!**\n\nDardingizni ayting, yordam beraman. ❤️"
     else:
         text = "🌿 **Tabiiy Shifokor**\n\nDardingizni ayting, yordam beraman. ❤️"
-    
+
     await update.message.reply_text(text, reply_markup=get_main_menu_button(lang), parse_mode="Markdown")
 
 async def reminders_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Eslatmalar buyrug'i"""
+    """
+    /reminders buyrug'i - eslatmalar menyusini ko'rsatish.
+    """
     lang = get_user_lang(update.effective_user.id)
     text = get_reminder_text(lang, "reminder_menu")
     await update.message.reply_text(text, reply_markup=get_reminder_menu_keyboard(lang), parse_mode="Markdown")
 
 async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """
+    /stats buyrug'i - foydalanuvchi statistikasini ko'rsatish.
+    """
     user_id = update.effective_user.id
     lang = get_user_lang(user_id)
     stats = get_user_stats(user_id)
@@ -859,6 +1103,9 @@ async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(stats_text, reply_markup=get_main_menu_button(lang), parse_mode="Markdown")
 
 async def reset_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """
+    /reset buyrug'i - suhbat tarixini tozalash.
+    """
     user_id = update.effective_user.id
     lang = get_user_lang(user_id)
     clear_conversations(user_id)
@@ -866,6 +1113,9 @@ async def reset_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(get_text(lang, "reset_done") if lang != "uz" else "🔄 Suhbat tarixi tozalandi.", reply_markup=get_main_menu_button(lang))
 
 async def lang_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """
+    /lang buyrug'i - til tanlash menyusini ko'rsatish.
+    """
     keyboard = [
         [InlineKeyboardButton("🇺🇿 O'zbekcha", callback_data="lang_uz"),
          InlineKeyboardButton("🇷🇺 Русский", callback_data="lang_ru"),
