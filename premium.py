@@ -273,9 +273,48 @@ def create_referral(conn, referrer_id, referred_id):
         ''', (referrer_id,))
         conn.commit()
 
+        # Check if user reached milestone for premium bonus (10, 20, 30... referrals)
+        cur.execute('SELECT COUNT(*) FROM referrals WHERE referrer_id = %s', (referrer_id,))
+        ref_count = cur.fetchone()[0]
+
+        # Grant 7 days premium for every 10 referrals
+        if ref_count > 0 and ref_count % 10 == 0:
+            # Grant 7 days premium
+            from datetime import datetime, timedelta
+            cur.execute('''
+                SELECT tier, expires_at FROM subscriptions WHERE user_id = %s
+            ''', (referrer_id,))
+            result = cur.fetchone()
+
+            if result and result[0] in ['premium', 'pro']:
+                # User already has premium/pro - extend it by 7 days
+                expires_at = result[1]
+                if expires_at and expires_at > datetime.now():
+                    new_expiry = expires_at + timedelta(days=7)
+                else:
+                    new_expiry = datetime.now() + timedelta(days=7)
+
+                cur.execute('''
+                    UPDATE subscriptions
+                    SET expires_at = %s
+                    WHERE user_id = %s
+                ''', (new_expiry, referrer_id))
+            else:
+                # User doesn't have premium - grant 7 days premium
+                new_expiry = datetime.now() + timedelta(days=7)
+                cur.execute('''
+                    INSERT INTO subscriptions (user_id, tier, expires_at)
+                    VALUES (%s, 'premium', %s)
+                    ON CONFLICT (user_id) DO UPDATE SET
+                        tier = 'premium',
+                        expires_at = %s
+                ''', (referrer_id, new_expiry, new_expiry))
+            conn.commit()
+
         cur.close()
         return True
-    except:
+    except Exception as e:
+        print(f"Error in create_referral: {e}")
         cur.close()
         return False
 

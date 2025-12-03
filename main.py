@@ -627,6 +627,7 @@ def get_settings_menu(lang="en"):
             "notifications": "🔔 Notifications",
             "reset": "🔄 Reset Chat History",
             "help": "❓ Help",
+            "feedback": "💬 Support & Feedback",
             "back": "🔙 Main Menu"
         },
         "ru": {
@@ -634,6 +635,7 @@ def get_settings_menu(lang="en"):
             "notifications": "🔔 Уведомления",
             "reset": "🔄 Сбросить историю",
             "help": "❓ Помощь",
+            "feedback": "💬 Поддержка и отзывы",
             "back": "🔙 Главное меню"
         },
         "uz": {
@@ -641,6 +643,7 @@ def get_settings_menu(lang="en"):
             "notifications": "🔔 Bildirishnomalar",
             "reset": "🔄 Tarixni tozalash",
             "help": "❓ Yordam",
+            "feedback": "💬 Qo'llab-quvvatlash",
             "back": "🔙 Bosh menyu"
         }
     }
@@ -650,6 +653,7 @@ def get_settings_menu(lang="en"):
     keyboard = [
         [InlineKeyboardButton(t["language"], callback_data="lang")],
         [InlineKeyboardButton(t["notifications"], callback_data="notifications")],
+        [InlineKeyboardButton(t["feedback"], callback_data="support_feedback")],
         [InlineKeyboardButton(t["reset"], callback_data="reset_history")],
         [InlineKeyboardButton(t["help"], callback_data="help")],
         [InlineKeyboardButton(t["back"], callback_data="main_menu")]
@@ -848,6 +852,38 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     lang = get_user_lang(user.id)
     context.user_data["mode"] = "normal"
 
+    # Handle referral code from /start command
+    if context.args and len(context.args) > 0:
+        ref_code = context.args[0]
+        referrer_id = parse_referral_code(ref_code)
+
+        if referrer_id and referrer_id != user.id:
+            # Valid referral code and not self-referral
+            conn = get_db()
+            if conn:
+                # Check if this user was already referred
+                cur = conn.cursor()
+                cur.execute('SELECT COUNT(*) FROM referrals WHERE referred_id = %s', (user.id,))
+                already_referred = cur.fetchone()[0] > 0
+                cur.close()
+
+                if not already_referred:
+                    # Create referral
+                    success = create_referral(conn, referrer_id, user.id)
+                    if success:
+                        welcome_bonus = f"🎉 Welcome! You were invited by a friend and both of you got bonuses!\n\n"
+                    else:
+                        welcome_bonus = ""
+                else:
+                    welcome_bonus = ""
+                conn.close()
+            else:
+                welcome_bonus = ""
+        else:
+            welcome_bonus = ""
+    else:
+        welcome_bonus = ""
+
     memories = get_user_memories(user.id)
     name = None
     for m in memories:
@@ -860,7 +896,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         welcome = get_text(lang, "welcome")
 
-    await update.message.reply_text(welcome, reply_markup=get_main_menu_keyboard(lang), parse_mode="Markdown")
+    await update.message.reply_text(welcome_bonus + welcome, reply_markup=get_main_menu_keyboard(lang), parse_mode="Markdown")
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     lang = get_user_lang(update.effective_user.id)
@@ -1440,11 +1476,33 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 expires_text=expires_text
             )
 
+            # Language-aware button texts
+            button_texts = {
+                "en": {
+                    "premium": "🌟 Premium ($4.99/M)",
+                    "pro": "⭐ Pro ($14.99/M)",
+                    "referral": "🎁 Referral",
+                    "main_menu": "🏠 Main Menu"
+                },
+                "ru": {
+                    "premium": "🌟 Премиум ($4.99/М)",
+                    "pro": "⭐ Про ($14.99/М)",
+                    "referral": "🎁 Реферальная",
+                    "main_menu": "🏠 Главное меню"
+                },
+                "uz": {
+                    "premium": "🌟 Premium ($4.99/O)",
+                    "pro": "⭐ Pro ($14.99/O)",
+                    "referral": "🎁 Referal",
+                    "main_menu": "🏠 Bosh menyu"
+                }
+            }
+            btn = button_texts.get(lang, button_texts["en"])
             keyboard = [
-                [InlineKeyboardButton("🌟 Premium ($4.99/M)", callback_data="buy_premium")],
-                [InlineKeyboardButton("⭐ Pro ($14.99/M)", callback_data="buy_pro")],
-                [InlineKeyboardButton("🎁 Referral", callback_data="show_referral")],
-                [InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")]
+                [InlineKeyboardButton(btn["premium"], callback_data="buy_premium")],
+                [InlineKeyboardButton(btn["pro"], callback_data="buy_pro")],
+                [InlineKeyboardButton(btn["referral"], callback_data="show_referral")],
+                [InlineKeyboardButton(btn["main_menu"], callback_data="main_menu")]
             ]
 
             await safe_edit(query, usage_text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
@@ -1456,11 +1514,11 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if conn:
             ref_count = get_referral_stats(conn, user_id)
 
-            # Mock bonuses (real implementation DB'da)
+            # Calculate bonuses
             bonuses = {
                 "ai_requests": ref_count * 5,
                 "pdf_bonus": ref_count * 2,
-                "premium_days": 0  # 10 referral = 7 days premium
+                "premium_days": (ref_count // 10) * 7  # 10 referrals = 7 days premium
             }
 
             ref_text = get_referral_text(user_id, ref_count, bonuses, lang)
@@ -1581,7 +1639,7 @@ Invite {10 - (ref_count % 10)} more friends → 7 days Premium! 🎉"""
 
 📧 **To pay:**
 
-1. PayPal: [your-paypal-email@example.com]
+1. PayPal: d.murodullaev@mail.ru
 2. Amount: ${price} USD
 3. Note: "MindMate {tier} - User ID: {user_id}"
 
@@ -1602,6 +1660,39 @@ Send screenshot to this bot and we'll activate within 24 hours!
     if query.data == "financial_menu":
         conn = get_db()
         if conn:
+            # Language-aware button texts
+            button_texts = {
+                "en": {
+                    "add_expense": "💸 Add Expense",
+                    "add_income": "💵 Add Income",
+                    "monthly_report": "📊 Monthly Report",
+                    "ai_advice": "💡 AI Advice",
+                    "investment": "📈 Investment 💎",
+                    "recurring": "🔄 Recurring Expense",
+                    "main_menu": "🏠 Main Menu"
+                },
+                "ru": {
+                    "add_expense": "💸 Добавить расход",
+                    "add_income": "💵 Добавить доход",
+                    "monthly_report": "📊 Месячный отчёт",
+                    "ai_advice": "💡 AI Совет",
+                    "investment": "📈 Инвестиции 💎",
+                    "recurring": "🔄 Регулярный расход",
+                    "main_menu": "🏠 Главное меню"
+                },
+                "uz": {
+                    "add_expense": "💸 Xarajat qo'shish",
+                    "add_income": "💵 Daromad qo'shish",
+                    "monthly_report": "📊 Oylik hisobot",
+                    "ai_advice": "💡 AI Maslahat",
+                    "investment": "📈 Investitsiya 💎",
+                    "recurring": "🔄 Doimiy xarajat",
+                    "main_menu": "🏠 Bosh menyu"
+                }
+            }
+
+            btn = button_texts.get(lang, button_texts["en"])
+
             # Check for quick expense shortcuts
             shortcuts = get_quick_expense_shortcuts(user_id, conn)
 
@@ -1612,13 +1703,13 @@ Send screenshot to this bot and we'll activate within 24 hours!
             else:
                 # Standard menu
                 keyboard = [
-                    [InlineKeyboardButton("💸 Add Expense", callback_data="add_expense"),
-                     InlineKeyboardButton("💵 Add Income", callback_data="add_income")],
-                    [InlineKeyboardButton("📊 Monthly Report", callback_data="financial_report")],
-                    [InlineKeyboardButton("💡 AI Advice", callback_data="financial_advice_start")],
-                    [InlineKeyboardButton("📈 Investment 💎", callback_data="investment_advice")],
-                    [InlineKeyboardButton("🔄 Recurring Expense", callback_data="add_recurring_expense_start")],
-                    [InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")]
+                    [InlineKeyboardButton(btn["add_expense"], callback_data="add_expense"),
+                     InlineKeyboardButton(btn["add_income"], callback_data="add_income")],
+                    [InlineKeyboardButton(btn["monthly_report"], callback_data="financial_report")],
+                    [InlineKeyboardButton(btn["ai_advice"], callback_data="financial_advice_start")],
+                    [InlineKeyboardButton(btn["investment"], callback_data="investment_advice")],
+                    [InlineKeyboardButton(btn["recurring"], callback_data="add_recurring_expense_start")],
+                    [InlineKeyboardButton(btn["main_menu"], callback_data="main_menu")]
                 ]
                 text = get_text(lang, "financial_coach_menu")
                 keyboard_markup = InlineKeyboardMarkup(keyboard)
@@ -1727,6 +1818,17 @@ Send screenshot to this bot and we'll activate within 24 hours!
         if conn:
             # Check investment advice usage
             cur = conn.cursor()
+            # Create usage_stats table if it doesn't exist
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS usage_stats (
+                    id SERIAL PRIMARY KEY,
+                    user_id BIGINT,
+                    feature TEXT,
+                    used_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            conn.commit()
+
             cur.execute("""
                 SELECT COUNT(*) FROM usage_stats
                 WHERE user_id = %s AND feature = 'investment_advice'
@@ -1883,6 +1985,62 @@ Send screenshot to this bot and we'll activate within 24 hours!
         await safe_edit(query, text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
         return
 
+    if query.data == "support_feedback":
+        # Support & Feedback menu
+        feedback_texts = {
+            "en": {
+                "title": "💬 **Support & Feedback**",
+                "message": """We appreciate your feedback!
+
+🐛 **Report a bug**
+💡 **Suggest a feature**
+⭐ **Share your experience**
+
+Please send your feedback as a message, and we'll review it!
+
+Your feedback helps us improve MindMate. ❤️""",
+                "back": "🔙 Settings"
+            },
+            "ru": {
+                "title": "💬 **Поддержка и отзывы**",
+                "message": """Мы ценим ваши отзывы!
+
+🐛 **Сообщить об ошибке**
+💡 **Предложить функцию**
+⭐ **Поделиться впечатлением**
+
+Пожалуйста, отправьте ваш отзыв сообщением, и мы его рассмотрим!
+
+Ваши отзывы помогают нам улучшить MindMate. ❤️""",
+                "back": "🔙 Настройки"
+            },
+            "uz": {
+                "title": "💬 **Qo'llab-quvvatlash**",
+                "message": """Sizning fikringiz biz uchun muhim!
+
+🐛 **Xatolik haqida xabar berish**
+💡 **Yangi funksiya taklif qilish**
+⭐ **Tajribangizni baham ko'rish**
+
+Iltimos, fikringizni xabar sifatida yuboring, biz ko'rib chiqamiz!
+
+Sizning fikringiz MindMate'ni yaxshilashga yordam beradi. ❤️""",
+                "back": "🔙 Sozlamalar"
+            }
+        }
+
+        texts = feedback_texts.get(lang, feedback_texts["en"])
+        context.user_data["waiting_for"] = "feedback_message"
+
+        keyboard = [
+            [InlineKeyboardButton(texts["back"], callback_data="settings_menu")],
+            [InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")]
+        ]
+
+        await safe_edit(query, f"{texts['title']}\n\n{texts['message']}",
+                       reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
+        return
+
     # === HEALTH MENU SUBMENUS ===
 
     if query.data == "health_ai":
@@ -1893,13 +2051,41 @@ Send screenshot to this bot and we'll activate within 24 hours!
 
     # === PRODUCTIVITY MENU ===
     if query.data == "productivity_menu":
+        # Language-aware button texts
+        button_texts = {
+            "en": {
+                "add_task": "📝 Add Task",
+                "my_tasks": "📋 My Tasks",
+                "daily_plan": "📅 Daily Plan",
+                "focus_session": "🎯 Focus Session",
+                "productivity_report": "📊 Productivity Report",
+                "main_menu": "🏠 Main Menu"
+            },
+            "ru": {
+                "add_task": "📝 Добавить задачу",
+                "my_tasks": "📋 Мои задачи",
+                "daily_plan": "📅 Дневной план",
+                "focus_session": "🎯 Фокус-сессия",
+                "productivity_report": "📊 Отчёт продуктивности",
+                "main_menu": "🏠 Главное меню"
+            },
+            "uz": {
+                "add_task": "📝 Vazifa qo'shish",
+                "my_tasks": "📋 Mening vazifalarim",
+                "daily_plan": "📅 Kunlik reja",
+                "focus_session": "🎯 Fokus sessiyasi",
+                "productivity_report": "📊 Produktivlik hisoboti",
+                "main_menu": "🏠 Bosh menyu"
+            }
+        }
+        btn = button_texts.get(lang, button_texts["en"])
         keyboard = [
-            [InlineKeyboardButton("📝 Add Task", callback_data="add_task_start"),
-             InlineKeyboardButton("📋 My Tasks", callback_data="view_tasks")],
-            [InlineKeyboardButton("📅 Daily Plan", callback_data="create_daily_plan_start")],
-            [InlineKeyboardButton("🎯 Focus Session", callback_data="start_focus_25")],
-            [InlineKeyboardButton("📊 Productivity Report", callback_data="productivity_report")],
-            [InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")]
+            [InlineKeyboardButton(btn["add_task"], callback_data="add_task_start"),
+             InlineKeyboardButton(btn["my_tasks"], callback_data="view_tasks")],
+            [InlineKeyboardButton(btn["daily_plan"], callback_data="create_daily_plan_start")],
+            [InlineKeyboardButton(btn["focus_session"], callback_data="start_focus_25")],
+            [InlineKeyboardButton(btn["productivity_report"], callback_data="productivity_report")],
+            [InlineKeyboardButton(btn["main_menu"], callback_data="main_menu")]
         ]
         text = get_text(lang, "productivity_coach_menu")
         await safe_edit(query, text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
@@ -1918,9 +2104,16 @@ Send screenshot to this bot and we'll activate within 24 hours!
 
             if not tasks:
                 text = get_text(lang, "no_tasks")
+                # Language-aware button texts
+                button_texts = {
+                    "en": {"add_task": "➕ Add Task", "main_menu": "🏠 Main Menu"},
+                    "ru": {"add_task": "➕ Добавить задачу", "main_menu": "🏠 Главное меню"},
+                    "uz": {"add_task": "➕ Vazifa qo'shish", "main_menu": "🏠 Bosh menyu"}
+                }
+                btn = button_texts.get(lang, button_texts["en"])
                 keyboard = [
-                    [InlineKeyboardButton("➕ Add Task", callback_data="add_task_start")],
-                    [InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")]
+                    [InlineKeyboardButton(btn["add_task"], callback_data="add_task_start")],
+                    [InlineKeyboardButton(btn["main_menu"], callback_data="main_menu")]
                 ]
             else:
                 text = get_text(lang, "your_tasks") + "\n\n"
@@ -1933,8 +2126,15 @@ Send screenshot to this bot and we'll activate within 24 hours!
                         InlineKeyboardButton(f"✅ {i}. {task['title'][:20]}...", callback_data=f"complete_task_{task['id']}")
                     ])
 
-                keyboard.append([InlineKeyboardButton("🔙 Orqaga", callback_data="productivity_menu")])
-                keyboard.append([InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")])
+                # Language-aware back buttons
+                button_texts = {
+                    "en": {"back": "🔙 Back", "main_menu": "🏠 Main Menu"},
+                    "ru": {"back": "🔙 Назад", "main_menu": "🏠 Главное меню"},
+                    "uz": {"back": "🔙 Orqaga", "main_menu": "🏠 Bosh menyu"}
+                }
+                btn = button_texts.get(lang, button_texts["en"])
+                keyboard.append([InlineKeyboardButton(btn["back"], callback_data="productivity_menu")])
+                keyboard.append([InlineKeyboardButton(btn["main_menu"], callback_data="main_menu")])
 
             await safe_edit(query, text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
             conn.close()
@@ -2047,6 +2247,28 @@ Ready for the next session?"""
             await query.message.reply_text("📊 Preparing investment advice...")
             advice = await get_investment_advice(amount, risk_level, "1 year", lang)
             await query.message.reply_text(f"📈 **Investment Advice:**\n\n{advice}", parse_mode="Markdown")
+
+            # Record usage for free trial tracking
+            conn = get_db()
+            if conn:
+                cur = conn.cursor()
+                # Create usage_stats table if it doesn't exist
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS usage_stats (
+                        id SERIAL PRIMARY KEY,
+                        user_id BIGINT,
+                        feature TEXT,
+                        used_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    )
+                """)
+                # Record this investment advice usage
+                cur.execute("""
+                    INSERT INTO usage_stats (user_id, feature)
+                    VALUES (%s, 'investment_advice')
+                """, (user_id,))
+                conn.commit()
+                cur.close()
+                conn.close()
 
         context.user_data["waiting_for"] = None
         context.user_data["investment_amount"] = None
@@ -2167,6 +2389,44 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data["waiting_for"] = None
         text = get_text(lang, "journal_saved") + "\n\n💭 Yozganlaringizni eslab qolaman."
         await update.message.reply_text(text, reply_markup=get_main_menu_button(lang))
+        return
+
+    # Feedback submission
+    if waiting_for == "feedback_message":
+        feedback_text = user_message
+
+        # Store feedback in database
+        conn = get_db()
+        if conn:
+            cur = conn.cursor()
+            # Create feedback table if it doesn't exist
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS feedback (
+                    id SERIAL PRIMARY KEY,
+                    user_id BIGINT,
+                    feedback_text TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            # Insert feedback
+            cur.execute("""
+                INSERT INTO feedback (user_id, feedback_text)
+                VALUES (%s, %s)
+            """, (user_id, feedback_text))
+            conn.commit()
+            cur.close()
+            conn.close()
+
+        # Send confirmation
+        confirmation_texts = {
+            "en": "✅ **Thank you for your feedback!**\n\nWe appreciate your input and will review it carefully.\n\nYour feedback helps us improve MindMate! ❤️",
+            "ru": "✅ **Спасибо за ваш отзыв!**\n\nМы ценим ваше мнение и внимательно его рассмотрим.\n\nВаши отзывы помогают нам улучшить MindMate! ❤️",
+            "uz": "✅ **Fikringiz uchun rahmat!**\n\nBiz sizning fikringizni qadrlaymiz va diqqat bilan ko'rib chiqamiz.\n\nSizning fikringiz MindMate'ni yaxshilashga yordam beradi! ❤️"
+        }
+
+        confirmation = confirmation_texts.get(lang, confirmation_texts["en"])
+        await update.message.reply_text(confirmation, reply_markup=get_main_menu_button(lang), parse_mode="Markdown")
+        context.user_data["waiting_for"] = None
         return
 
     # PDF Creation
@@ -2392,7 +2652,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 reply_markup=InlineKeyboardMarkup(keyboard)
             )
         except:
-            await update.message.reply_text("⚠️ Enter amount as a number (e.g., 50000)")
+            await update.message.reply_text("⚠️ Enter amount as a number (e.g., $50)")
         return
 
     if waiting_for == "income_amount":

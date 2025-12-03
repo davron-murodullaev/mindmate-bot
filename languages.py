@@ -52,7 +52,7 @@ Quyidagi tugmalardan birini tanlang yoki shunchaki xabar yozing!
         "chat_mode_noname": "💬 Salom! Men sizning AI do'stingizman. Ismingiz nima?",
 
         # Moliya
-        "add_expense": "💸 **Xarajat qo'shish**\n\nXarajat summasini kiriting (masalan: 50000):",
+        "add_expense": "💸 **Xarajat qo'shish**\n\nXarajat summasini kiriting (masalan: $50):",
         "add_income": "💵 **Daromad qo'shish**\n\nDaromad summasini kiriting (masalan: 1000000):",
         "financial_report": "📊 **Oylik Moliyaviy Hisobot**",
         "expense_added": "✅ **Xarajat Qo'shildi!**",
@@ -114,7 +114,7 @@ Quyidagi tugmalardan birini tanlang yoki shunchaki xabar yozing!
         "financial_coach_menu": "💰 **Moliyaviy Coach**\n\nQaysi xizmat kerak?",
         "financial_coach_quick": "💰 **Moliyaviy Coach**\n\n⚡ **Tez xarajatlar:**",
         "productivity_coach_menu": "⚡ **Productivity Coach**\n\nQaysi xizmat kerak?",
-        "investment_advice_amount": "📈 **Investitsiya Maslahati**\n\nInvestitsiya qilmoqchi bo'lgan summangizni kiriting (masalan: 5000000):",
+        "investment_advice_amount": "📈 **Investitsiya Maslahati**\n\nInvestitsiya qilmoqchi bo'lgan summangizni kiriting (masalan: $5000):",
 
         # Shifokor variantlari
         "healer_greeting_name": "🌿 **Assalomu alaykum, {name}!**\n\nDardingizni ayting, yordam beraman. ❤️",
@@ -238,7 +238,7 @@ Choose a button below or just send me a message!
         "chat_mode_noname": "💬 Hello! I'm your AI friend. What's your name?",
 
         # Financial
-        "add_expense": "💸 **Add Expense**\n\nEnter expense amount (e.g., 50000):",
+        "add_expense": "💸 **Add Expense**\n\nEnter expense amount (e.g., $50):",
         "add_income": "💵 **Add Income**\n\nEnter income amount (e.g., 1000000):",
         "financial_report": "📊 **Monthly Financial Report**",
         "expense_added": "✅ **Expense Added!**",
@@ -300,7 +300,7 @@ Choose a button below or just send me a message!
         "financial_coach_menu": "💰 **Financial Coach**\n\nWhat service do you need?",
         "financial_coach_quick": "💰 **Financial Coach**\n\n⚡ **Quick Expenses:**",
         "productivity_coach_menu": "⚡ **Productivity Coach**\n\nWhat service do you need?",
-        "investment_advice_amount": "📈 **Investment Advice**\n\nEnter the amount you want to invest (e.g., 5000000):",
+        "investment_advice_amount": "📈 **Investment Advice**\n\nEnter the amount you want to invest (e.g., $5000):",
 
         # Healer variations
         "healer_greeting_name": "🌿 **Hello, {name}!**\n\nTell me what troubles you. I'm here to help. ❤️",
