@@ -4,8 +4,9 @@ import psycopg2
 import json
 import asyncio
 from datetime import datetime, time, timedelta
+from typing import Optional, List, Dict, Any
 from dotenv import load_dotenv
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, CallbackQuery
 from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, filters, ContextTypes
 from openai import OpenAI
 from languages import get_text, get_mood_response, TRANSLATIONS
@@ -14,7 +15,7 @@ from healer import get_healer_prompt, get_healer_buttons
 from ai_brain import get_master_prompt
 from reminders import (
     get_reminder_text, get_reminder_menu_keyboard, get_time_keyboard,
-    get_mood_keyboard_for_reminder, format_reminder_list, 
+    get_mood_keyboard_for_reminder, format_reminder_list,
     get_reminder_type_name, get_reminder_emoji
 )
 
@@ -22,22 +23,61 @@ load_dotenv()
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# === ENVIRONMENT VARIABLES ===
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 DATABASE_URL = os.getenv("DATABASE_URL")
+
+# === CONSTANTS ===
+# Language settings
+DEFAULT_LANGUAGE = "uz"
+
+# Message limits
+MAX_MESSAGE_LENGTH = 4000
+MAX_JOURNAL_LENGTH = 10000
+
+# History and memory limits
+CONVERSATION_HISTORY_LIMIT = 30
+IMPORTANT_CONVERSATION_LIMIT = 10
+MEMORY_LIMIT = 50
+MOOD_HISTORY_LIMIT = 7
+MOOD_HISTORY_DISPLAY_LIMIT = 5
+TOP_MEMORIES_DISPLAY = 5
+RECENT_CONVERSATIONS_FOR_AI = 20
+RECENT_CONVERSATIONS_LIMIT = 10
+
+# AI settings
+AI_MODEL = "gpt-3.5-turbo"
+AI_MAX_TOKENS = 600
+AI_TEMPERATURE = 0.8
+AI_EXTRACTION_MAX_TOKENS = 200
+AI_EXTRACTION_TEMPERATURE = 0.3
+
+# Importance levels
+IMPORTANCE_NORMAL = 1
+IMPORTANCE_MEDIUM = 2
+IMPORTANCE_HIGH = 3
+
+# Scheduler settings
+REMINDER_CHECK_INTERVAL_SECONDS = 60
+
+# UI constants
+MOOD_EMOJI_INDEX_MAX = 4
 
 client = OpenAI(api_key=OPENAI_API_KEY)
 
 # === DATABASE ===
 
-def get_db():
+def get_db() -> Optional[psycopg2.extensions.connection]:
+    """Ma'lumotlar bazasiga ulanish (PostgreSQL connection)."""
     try:
         return psycopg2.connect(DATABASE_URL, sslmode="require")
     except Exception as e:
         logger.error(f"DB xato: {e}")
         return None
 
-def init_db():
+def init_db() -> None:
+    """Ma'lumotlar bazasini boshlang'ich holatga keltirish (initialize tables and indexes)."""
     conn = get_db()
     if conn is None:
         return
@@ -149,18 +189,41 @@ def init_db():
     conn.close()
     logger.info("✅ Database initialized with reminders system and indexes")
 
+# === HELPER FUNCTIONS ===
+
+def get_user_name_from_memories(memories: List[Dict[str, Any]]) -> Optional[str]:
+    """Xotiralardan foydalanuvchi ismini topish (extract user name from memories)."""
+    for m in memories:
+        if m["key"] == "name":
+            return m["value"]
+    return None
+
+def build_mood_emoji_map() -> Dict[int, str]:
+    """Kayfiyat emoji xaritasini yaratish (build mood emoji mapping)."""
+    return {1: "😢", 2: "😔", 3: "😐", 4: "🙂", 5: "😄"}
+
+def build_mood_follow_up(score: int) -> str:
+    """Kayfiyatga mos follow-up xabar qaytarish (get follow-up message based on mood score)."""
+    if score <= 2:
+        return "\n\n💬 Nima bo'ldi? Gaplashmoqchimisiz?"
+    elif score == 3:
+        return "\n\n🤔 Normal kun."
+    else:
+        return "\n\n🌟 Ajoyib!"
+
 # === USER FUNCTIONS ===
 
-def save_user(user_id, username, full_name=None, lang="uz"):
+def save_user(user_id: int, username: str, full_name: Optional[str] = None, lang: str = DEFAULT_LANGUAGE) -> None:
+    """Foydalanuvchini saqlash yoki yangilash (save or update user in database)."""
     conn = get_db()
     if conn is None:
         return
     cur = conn.cursor()
     cur.execute('''
-        INSERT INTO users (user_id, username, full_name, language, last_active) 
+        INSERT INTO users (user_id, username, full_name, language, last_active)
         VALUES (%s, %s, %s, %s, NOW())
-        ON CONFLICT (user_id) DO UPDATE SET 
-            username = %s, 
+        ON CONFLICT (user_id) DO UPDATE SET
+            username = %s,
             full_name = COALESCE(%s, users.full_name),
             last_active = NOW()
     ''', (user_id, username, full_name, lang, username, full_name))
@@ -168,18 +231,20 @@ def save_user(user_id, username, full_name=None, lang="uz"):
     cur.close()
     conn.close()
 
-def get_user_lang(user_id):
+def get_user_lang(user_id: int) -> str:
+    """Foydalanuvchi tilini olish (get user's language preference)."""
     conn = get_db()
     if conn is None:
-        return "uz"
+        return DEFAULT_LANGUAGE
     cur = conn.cursor()
     cur.execute('SELECT language FROM users WHERE user_id = %s', (user_id,))
     row = cur.fetchone()
     cur.close()
     conn.close()
-    return row[0] if row else "uz"
+    return row[0] if row else DEFAULT_LANGUAGE
 
-def set_user_lang(user_id, lang):
+def set_user_lang(user_id: int, lang: str) -> None:
+    """Foydalanuvchi tilini o'rnatish (set user's language preference)."""
     conn = get_db()
     if conn is None:
         return
@@ -189,7 +254,8 @@ def set_user_lang(user_id, lang):
     cur.close()
     conn.close()
 
-def get_user_profile(user_id):
+def get_user_profile(user_id: int) -> Dict[str, Any]:
+    """Foydalanuvchi profilini olish (get user profile information)."""
     conn = get_db()
     if conn is None:
         return {}
@@ -207,7 +273,8 @@ def get_user_profile(user_id):
         }
     return {}
 
-def update_user_profile(user_id, key, value):
+def update_user_profile(user_id: int, key: str, value: Any) -> None:
+    """Foydalanuvchi profil ma'lumotlarini yangilash (update user profile data)."""
     conn = get_db()
     if conn is None:
         return
@@ -221,7 +288,8 @@ def update_user_profile(user_id, key, value):
 
 # === MEMORY FUNCTIONS (JARVIS) ===
 
-def save_memory(user_id, memory_type, key, value, importance=1):
+def save_memory(user_id: int, memory_type: str, key: str, value: str, importance: int = IMPORTANCE_NORMAL) -> None:
+    """Foydalanuvchi haqida xotira saqlash (save user memory for JARVIS system)."""
     conn = get_db()
     if conn is None:
         return
@@ -238,14 +306,15 @@ def save_memory(user_id, memory_type, key, value, importance=1):
     cur.close()
     conn.close()
 
-def get_user_memories(user_id, limit=50):
+def get_user_memories(user_id: int, limit: int = MEMORY_LIMIT) -> List[Dict[str, Any]]:
+    """Foydalanuvchi xotiralarini olish (get user memories)."""
     conn = get_db()
     if conn is None:
         return []
     cur = conn.cursor()
     cur.execute('''
-        SELECT memory_type, memory_key, memory_value, importance 
-        FROM user_memories WHERE user_id = %s 
+        SELECT memory_type, memory_key, memory_value, importance
+        FROM user_memories WHERE user_id = %s
         ORDER BY importance DESC, updated_at DESC LIMIT %s
     ''', (user_id, limit))
     rows = cur.fetchall()
@@ -253,10 +322,11 @@ def get_user_memories(user_id, limit=50):
     conn.close()
     return [{"type": r[0], "key": r[1], "value": r[2], "importance": r[3]} for r in rows]
 
-def format_memories_for_ai(memories):
+def format_memories_for_ai(memories: List[Dict[str, Any]]) -> str:
+    """Xotiralarni AI uchun matn shaklida formatlash (format memories for AI prompt)."""
     if not memories:
         return "Yangi foydalanuvchi - hali ma'lumot yo'q"
-    
+
     text = "📋 FOYDALANUVCHI HAQIDA BILGANLARIM:\n"
     for m in memories:
         text += f"- {m['key']}: {m['value']}\n"
@@ -264,26 +334,28 @@ def format_memories_for_ai(memories):
 
 # === CONVERSATION FUNCTIONS ===
 
-def save_conversation(user_id, role, content, mode="normal", importance=1):
+def save_conversation(user_id: int, role: str, content: str, mode: str = "normal", importance: int = IMPORTANCE_NORMAL) -> None:
+    """Suhbat xabarini saqlash (save conversation message to database)."""
     conn = get_db()
     if conn is None:
         return
     cur = conn.cursor()
     cur.execute('''
-        INSERT INTO conversations (user_id, role, content, mode, importance) 
+        INSERT INTO conversations (user_id, role, content, mode, importance)
         VALUES (%s, %s, %s, %s, %s)
     ''', (user_id, role, content, mode, importance))
     conn.commit()
     cur.close()
     conn.close()
 
-def get_conversations(user_id, limit=30):
+def get_conversations(user_id: int, limit: int = CONVERSATION_HISTORY_LIMIT) -> List[Dict[str, str]]:
+    """Foydalanuvchi suhbat tarixini olish (get user conversation history)."""
     conn = get_db()
     if conn is None:
         return []
     cur = conn.cursor()
     cur.execute('''
-        SELECT role, content, mode FROM conversations 
+        SELECT role, content, mode FROM conversations
         WHERE user_id = %s ORDER BY created_at DESC LIMIT %s
     ''', (user_id, limit))
     rows = cur.fetchall()
@@ -291,14 +363,15 @@ def get_conversations(user_id, limit=30):
     conn.close()
     return [{"role": r[0], "content": r[1], "mode": r[2]} for r in reversed(rows)]
 
-def get_important_conversations(user_id, limit=10):
+def get_important_conversations(user_id: int, limit: int = IMPORTANT_CONVERSATION_LIMIT) -> List[Dict[str, str]]:
+    """Muhim suhbatlarni olish (get important conversations with importance >= 2)."""
     conn = get_db()
     if conn is None:
         return []
     cur = conn.cursor()
     cur.execute('''
-        SELECT role, content FROM conversations 
-        WHERE user_id = %s AND importance >= 2 
+        SELECT role, content FROM conversations
+        WHERE user_id = %s AND importance >= 2
         ORDER BY created_at DESC LIMIT %s
     ''', (user_id, limit))
     rows = cur.fetchall()
@@ -306,7 +379,8 @@ def get_important_conversations(user_id, limit=10):
     conn.close()
     return [{"role": r[0], "content": r[1]} for r in reversed(rows)]
 
-def clear_conversations(user_id):
+def clear_conversations(user_id: int) -> None:
+    """Suhbat tarixini tozalash (clear conversation history, keeps important ones)."""
     conn = get_db()
     if conn is None:
         return
@@ -318,32 +392,35 @@ def clear_conversations(user_id):
 
 # === MOOD & JOURNAL ===
 
-def save_mood(user_id, score, note=None, context=None):
+def save_mood(user_id: int, score: int, note: Optional[str] = None, context: Optional[str] = None) -> None:
+    """Kayfiyat yozuvini saqlash (save mood entry with optional note and context)."""
     conn = get_db()
     if conn is None:
         return
     cur = conn.cursor()
-    cur.execute('INSERT INTO moods (user_id, score, note, context) VALUES (%s, %s, %s, %s)', 
+    cur.execute('INSERT INTO moods (user_id, score, note, context) VALUES (%s, %s, %s, %s)',
                 (user_id, score, note, context))
     conn.commit()
     cur.close()
     conn.close()
-    save_memory(user_id, "mood", "last_mood", f"{score}/5", importance=1)
+    save_memory(user_id, "mood", "last_mood", f"{score}/5", importance=IMPORTANCE_NORMAL)
 
-def save_journal(user_id, text):
+def save_journal(user_id: int, text: str) -> None:
+    """Kundalik yozuvini saqlash (save journal entry with length validation)."""
     conn = get_db()
     if conn is None:
         return
     # Input validation: limit text length
-    if len(text) > 10000:
-        text = text[:10000]
+    if len(text) > MAX_JOURNAL_LENGTH:
+        text = text[:MAX_JOURNAL_LENGTH]
     cur = conn.cursor()
     cur.execute('INSERT INTO journals (user_id, text) VALUES (%s, %s)', (user_id, text))
     conn.commit()
     cur.close()
     conn.close()
 
-def get_user_stats(user_id):
+def get_user_stats(user_id: int) -> Dict[str, Any]:
+    """Foydalanuvchi statistikasini olish (get user statistics: mood count, average, journal count)."""
     conn = get_db()
     if conn is None:
         return {"mood_count": 0, "avg_mood": 0, "journal_count": 0}
@@ -360,13 +437,14 @@ def get_user_stats(user_id):
         "journal_count": journal_count or 0
     }
 
-def get_mood_history(user_id, limit=7):
+def get_mood_history(user_id: int, limit: int = MOOD_HISTORY_LIMIT) -> List[Dict[str, Any]]:
+    """Kayfiyat tarixini olish (get mood history with scores, notes, and dates)."""
     conn = get_db()
     if conn is None:
         return []
     cur = conn.cursor()
     cur.execute('''
-        SELECT score, note, created_at FROM moods 
+        SELECT score, note, created_at FROM moods
         WHERE user_id = %s ORDER BY created_at DESC LIMIT %s
     ''', (user_id, limit))
     rows = cur.fetchall()
@@ -376,7 +454,8 @@ def get_mood_history(user_id, limit=7):
 
 # === WORKOUT & HEALER ===
 
-def save_workout(user_id, workout_type):
+def save_workout(user_id: int, workout_type: str) -> None:
+    """Mashq yozuvini saqlash (save completed workout session)."""
     conn = get_db()
     if conn is None:
         return
@@ -386,7 +465,8 @@ def save_workout(user_id, workout_type):
     cur.close()
     conn.close()
 
-def get_workout_count(user_id):
+def get_workout_count(user_id: int) -> int:
+    """Mashqlar sonini olish (get total workout count)."""
     conn = get_db()
     if conn is None:
         return 0
@@ -397,19 +477,21 @@ def get_workout_count(user_id):
     conn.close()
     return count or 0
 
-def save_healer_session(user_id, problem_type, notes=None):
+def save_healer_session(user_id: int, problem_type: str, notes: Optional[str] = None) -> None:
+    """Shifokor sessiyasini saqlash (save healer consultation session)."""
     conn = get_db()
     if conn is None:
         return
     cur = conn.cursor()
-    cur.execute('INSERT INTO healer_sessions (user_id, problem_type, notes) VALUES (%s, %s, %s)', 
+    cur.execute('INSERT INTO healer_sessions (user_id, problem_type, notes) VALUES (%s, %s, %s)',
                 (user_id, problem_type, notes))
     conn.commit()
     cur.close()
     conn.close()
-    save_memory(user_id, "health", "recent_problem", problem_type, importance=2)
+    save_memory(user_id, "health", "recent_problem", problem_type, importance=IMPORTANCE_MEDIUM)
 
-def get_healer_count(user_id):
+def get_healer_count(user_id: int) -> int:
+    """Shifokor sessiyalari sonini olish (get total healer session count)."""
     conn = get_db()
     if conn is None:
         return 0
@@ -422,14 +504,14 @@ def get_healer_count(user_id):
 
 # === REMINDER FUNCTIONS ===
 
-def save_reminder(user_id, reminder_type, reminder_time):
-    """Eslatma saqlash"""
+def save_reminder(user_id: int, reminder_type: str, reminder_time: str) -> bool:
+    """Eslatma saqlash (save reminder, replaces existing one of same type)."""
     conn = get_db()
     if conn is None:
         return False
     cur = conn.cursor()
     # Avvalgi eslatmani o'chirish (bir turdagi faqat bitta)
-    cur.execute('DELETE FROM reminders WHERE user_id = %s AND reminder_type = %s', 
+    cur.execute('DELETE FROM reminders WHERE user_id = %s AND reminder_type = %s',
                 (user_id, reminder_type))
     # Yangi eslatma qo'shish
     cur.execute('''
@@ -441,14 +523,14 @@ def save_reminder(user_id, reminder_type, reminder_time):
     conn.close()
     return True
 
-def get_user_reminders(user_id):
-    """Foydalanuvchi eslatmalarini olish"""
+def get_user_reminders(user_id: int) -> List[Dict[str, str]]:
+    """Foydalanuvchi eslatmalarini olish (get all active user reminders)."""
     conn = get_db()
     if conn is None:
         return []
     cur = conn.cursor()
     cur.execute('''
-        SELECT reminder_type, reminder_time FROM reminders 
+        SELECT reminder_type, reminder_time FROM reminders
         WHERE user_id = %s AND is_active = TRUE
         ORDER BY reminder_time
     ''', (user_id,))
@@ -457,27 +539,27 @@ def get_user_reminders(user_id):
     conn.close()
     return [{"type": r[0], "time": r[1]} for r in rows]
 
-def delete_reminder(user_id, reminder_type):
-    """Eslatmani o'chirish"""
+def delete_reminder(user_id: int, reminder_type: str) -> bool:
+    """Eslatmani o'chirish (delete reminder by type)."""
     conn = get_db()
     if conn is None:
         return False
     cur = conn.cursor()
-    cur.execute('DELETE FROM reminders WHERE user_id = %s AND reminder_type = %s', 
+    cur.execute('DELETE FROM reminders WHERE user_id = %s AND reminder_type = %s',
                 (user_id, reminder_type))
     conn.commit()
     cur.close()
     conn.close()
     return True
 
-def get_reminders_for_time(current_time):
-    """Berilgan vaqt uchun eslatmalarni olish"""
+def get_reminders_for_time(current_time: str) -> List[Dict[str, Any]]:
+    """Berilgan vaqt uchun eslatmalarni olish (get all reminders for specific time)."""
     conn = get_db()
     if conn is None:
         return []
     cur = conn.cursor()
     cur.execute('''
-        SELECT user_id, reminder_type FROM reminders 
+        SELECT user_id, reminder_type FROM reminders
         WHERE reminder_time = %s AND is_active = TRUE
     ''', (current_time,))
     rows = cur.fetchall()
@@ -485,8 +567,8 @@ def get_reminders_for_time(current_time):
     conn.close()
     return [{"user_id": r[0], "type": r[1]} for r in rows]
 
-def get_reminder_count(user_id):
-    """Eslatmalar sonini olish"""
+def get_reminder_count(user_id: int) -> int:
+    """Eslatmalar sonini olish (get total active reminder count)."""
     conn = get_db()
     if conn is None:
         return 0
@@ -498,7 +580,9 @@ def get_reminder_count(user_id):
     return count or 0
 
 # === SAFE EDIT ===
-async def safe_edit(query, text, reply_markup=None, parse_mode=None):
+
+async def safe_edit(query: CallbackQuery, text: str, reply_markup: Optional[InlineKeyboardMarkup] = None, parse_mode: Optional[str] = None) -> None:
+    """Xabarni xavfsiz tahrirlash (safely edit message with fallbacks for errors)."""
     try:
         await query.edit_message_text(text, reply_markup=reply_markup, parse_mode=parse_mode)
     except Exception as e:
@@ -514,12 +598,14 @@ async def safe_edit(query, text, reply_markup=None, parse_mode=None):
 
 # === NAVIGATION BUTTONS ===
 
-def get_main_menu_button(lang="uz"):
+def get_main_menu_button(lang: str = DEFAULT_LANGUAGE) -> InlineKeyboardMarkup:
+    """Bosh menyu tugmasi (main menu button)."""
     return InlineKeyboardMarkup([[
         InlineKeyboardButton(get_text(lang, "btn_main_menu"), callback_data="main_menu")
     ]])
 
-def get_back_and_menu(back_to="main_menu", lang="uz"):
+def get_back_and_menu(back_to: str = "main_menu", lang: str = DEFAULT_LANGUAGE) -> InlineKeyboardMarkup:
+    """Orqaga va bosh menyu tugmalari (back and main menu buttons)."""
     if back_to == "main_menu":
         return get_main_menu_button(lang)
     return InlineKeyboardMarkup([[
@@ -527,7 +613,8 @@ def get_back_and_menu(back_to="main_menu", lang="uz"):
         InlineKeyboardButton(get_text(lang, "btn_main_menu"), callback_data="main_menu")
     ]])
 
-def get_main_menu_keyboard(lang):
+def get_main_menu_keyboard(lang: str) -> InlineKeyboardMarkup:
+    """Asosiy menyu klaviaturasi (main menu keyboard with all options)."""
     keyboard = [
         [InlineKeyboardButton(get_text(lang, "btn_chat"), callback_data="chat"),
          InlineKeyboardButton(get_text(lang, "btn_healer"), callback_data="healer")],
@@ -543,7 +630,8 @@ def get_main_menu_keyboard(lang):
 
 # === AI BRAIN (JARVIS) ===
 
-async def extract_and_save_memories(user_id, user_message, ai_response, lang):
+async def extract_and_save_memories(user_id: int, user_message: str, ai_response: str, lang: str) -> None:
+    """Suhbatdan xotiralar ajratib olish (extract and save memories from conversation using AI)."""
     try:
         extraction_prompt = f"""
 Quyidagi suhbatdan foydalanuvchi haqida muhim ma'lumotlarni ajrat.
@@ -562,99 +650,103 @@ JSON format:
 }}
 
 Agar ma'lumot bo'lmasa, null yoz. Faqat JSON, boshqa hech narsa!"""
-        
+
         response = client.chat.completions.create(
-            model="gpt-3.5-turbo",
+            model=AI_MODEL,
             messages=[{"role": "user", "content": extraction_prompt}],
-            max_tokens=200,
-            temperature=0.3
+            max_tokens=AI_EXTRACTION_MAX_TOKENS,
+            temperature=AI_EXTRACTION_TEMPERATURE
         )
-        
+
         result = response.choices[0].message.content.strip()
-        
+
         if result.startswith("{"):
             data = json.loads(result)
-            
+
             if data.get("name"):
-                save_memory(user_id, "personal", "name", data["name"], importance=3)
+                save_memory(user_id, "personal", "name", data["name"], importance=IMPORTANCE_HIGH)
                 update_user_profile(user_id, "name", data["name"])
-            
+
             if data.get("problem"):
-                save_memory(user_id, "health", "current_problem", data["problem"], importance=2)
-            
+                save_memory(user_id, "health", "current_problem", data["problem"], importance=IMPORTANCE_MEDIUM)
+
             if data.get("mood"):
-                save_memory(user_id, "mood", "current_mood", data["mood"], importance=1)
-            
+                save_memory(user_id, "mood", "current_mood", data["mood"], importance=IMPORTANCE_NORMAL)
+
             if data.get("interests"):
-                save_memory(user_id, "personal", "interests", data["interests"], importance=2)
-            
+                save_memory(user_id, "personal", "interests", data["interests"], importance=IMPORTANCE_MEDIUM)
+
             if data.get("important_fact"):
-                save_memory(user_id, "fact", "important", data["important_fact"], importance=2)
-                
+                save_memory(user_id, "fact", "important", data["important_fact"], importance=IMPORTANCE_MEDIUM)
+
     except Exception as e:
         logger.error(f"Memory extraction error: {e}")
 
 async def get_ai_response(user_id: int, message: str, mode: str = "normal") -> str:
+    """AI javob olish (get AI response with full context and memory)."""
     lang = get_user_lang(user_id)
-    
+
     profile = get_user_profile(user_id)
     memories = get_user_memories(user_id)
     memories_text = format_memories_for_ai(memories)
-    
-    conversations = get_conversations(user_id, limit=20)
-    important_convs = get_important_conversations(user_id, limit=5)
-    
-    mood_history = get_mood_history(user_id, limit=5)
+
+    conversations = get_conversations(user_id, limit=RECENT_CONVERSATIONS_FOR_AI)
+    important_convs = get_important_conversations(user_id, limit=TOP_MEMORIES_DISPLAY)
+
+    mood_history = get_mood_history(user_id, limit=MOOD_HISTORY_DISPLAY_LIMIT)
     mood_text = ""
     if mood_history:
         mood_text = "\n📊 KAYFIYAT TARIXI:\n"
         for m in mood_history:
             mood_text += f"- {m['date'].strftime('%d.%m')}: {m['score']}/5\n"
-    
+
     if mode == "healer":
         base_prompt = get_healer_prompt(lang)
     else:
         base_prompt = get_master_prompt(lang, memories_text, "")
-    
+
+    user_display_name = profile.get('full_name') or profile.get('username') or "noma'lum"
+    member_since = profile.get('member_since', 'yangi')
+
     full_context = f"""{base_prompt}
 
 {memories_text}
 {mood_text}
 
 📝 MUHIM ESLATMALAR:
-- Foydalanuvchi ismi: {profile.get('full_name') or profile.get('username') or 'noma\'lum'}
-- Bot bilan: {profile.get('member_since', 'yangi')}dan beri
+- Foydalanuvchi ismi: {user_display_name}
+- Bot bilan: {member_since}dan beri
 
 Har bir javobda:
 1. Oldingi ma'lumotlardan foydalaning
 2. Shaxsiylashtirilgan javob bering
 3. Samimiy va foydali bo'ling"""
-    
+
     messages = [{"role": "system", "content": full_context}]
-    
+
     for conv in important_convs:
         messages.append(conv)
-    
-    for conv in conversations[-10:]:
+
+    for conv in conversations[-RECENT_CONVERSATIONS_LIMIT:]:
         messages.append({"role": conv["role"], "content": conv["content"]})
-    
+
     messages.append({"role": "user", "content": message})
-    
+
     try:
         response = client.chat.completions.create(
-            model="gpt-3.5-turbo",
+            model=AI_MODEL,
             messages=messages,
-            max_tokens=600,
-            temperature=0.8
+            max_tokens=AI_MAX_TOKENS,
+            temperature=AI_TEMPERATURE
         )
         ai_message = response.choices[0].message.content
-        
-        importance = 2 if mode == "healer" else 1
+
+        importance = IMPORTANCE_MEDIUM if mode == "healer" else IMPORTANCE_NORMAL
         save_conversation(user_id, "user", message, mode, importance)
         save_conversation(user_id, "assistant", ai_message, mode, importance)
-        
+
         await extract_and_save_memories(user_id, message, ai_message, lang)
-        
+
         return ai_message
     except Exception as e:
         logger.error(f"OpenAI xatosi: {e}")
@@ -662,11 +754,11 @@ Har bir javobda:
 
 # === REMINDER SCHEDULER ===
 
-async def send_reminder_notification(app, user_id, reminder_type):
-    """Eslatma xabarini yuborish"""
+async def send_reminder_notification(app: Application, user_id: int, reminder_type: str) -> None:
+    """Eslatma xabarini yuborish (send reminder notification to user)."""
     try:
         lang = get_user_lang(user_id)
-        
+
         if reminder_type == "mood":
             text = get_reminder_text(lang, "mood_notify")
             keyboard = [
@@ -699,31 +791,32 @@ async def send_reminder_notification(app, user_id, reminder_type):
             reply_markup = InlineKeyboardMarkup(keyboard)
         else:
             return
-        
+
         await app.bot.send_message(chat_id=user_id, text=text, reply_markup=reply_markup)
         logger.info(f"✅ Eslatma yuborildi: {user_id} - {reminder_type}")
     except Exception as e:
         logger.error(f"Eslatma yuborishda xato: {e}")
 
-async def check_and_send_reminders(app):
-    """Har daqiqada eslatmalarni tekshirish"""
+async def check_and_send_reminders(app: Application) -> None:
+    """Har daqiqada eslatmalarni tekshirish (check and send reminders every minute)."""
     while True:
         try:
             current_time = datetime.now().strftime("%H:%M")
             reminders = get_reminders_for_time(current_time)
-            
+
             for reminder in reminders:
                 await send_reminder_notification(app, reminder["user_id"], reminder["type"])
-            
+
             # Keyingi daqiqagacha kutish
-            await asyncio.sleep(60)
+            await asyncio.sleep(REMINDER_CHECK_INTERVAL_SECONDS)
         except Exception as e:
             logger.error(f"Reminder check error: {e}")
-            await asyncio.sleep(60)
+            await asyncio.sleep(REMINDER_CHECK_INTERVAL_SECONDS)
 
 # === COMMANDS ===
 
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """/start buyrug'i - Botni ishga tushirish (start bot and show main menu)."""
     user = update.effective_user
     full_name = f"{user.first_name or ''} {user.last_name or ''}".strip()
     save_user(user.id, user.username, full_name)
@@ -731,11 +824,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["mode"] = "normal"
 
     memories = get_user_memories(user.id)
-    name = None
-    for m in memories:
-        if m["key"] == "name":
-            name = m["value"]
-            break
+    name = get_user_name_from_memories(memories)
 
     if name:
         welcome = f"🌟 Xush kelibsiz, **{name}**! Sizni yana ko'rganimdan xursandman!"
@@ -744,7 +833,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await update.message.reply_text(welcome, reply_markup=get_main_menu_keyboard(lang), parse_mode="Markdown")
 
-async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """/help buyrug'i - Yordam ko'rsatish (show help information)."""
     lang = get_user_lang(update.effective_user.id)
     help_text = """
 🤖 **MindMate - Sizning JARVIS'ingiz**
@@ -762,7 +852,8 @@ Shunchaki yozing! ❤️
     """
     await update.message.reply_text(help_text, reply_markup=get_main_menu_button(lang), parse_mode="Markdown")
 
-async def mood_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def mood_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """/mood buyrug'i - Kayfiyat tanlash (track mood)."""
     lang = get_user_lang(update.effective_user.id)
     keyboard = [
         [InlineKeyboardButton("😄 Zo'r (5)", callback_data="mood_5"),
@@ -774,12 +865,14 @@ async def mood_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ]
     await update.message.reply_text(get_text(lang, "mood_ask"), reply_markup=InlineKeyboardMarkup(keyboard))
 
-async def journal_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def journal_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """/journal buyrug'i - Kundalik yozish (write journal entry)."""
     lang = get_user_lang(update.effective_user.id)
     context.user_data["waiting_for"] = "journal"
     await update.message.reply_text(get_text(lang, "journal_ask"), reply_markup=get_main_menu_button(lang), parse_mode="Markdown")
 
-async def meditate_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def meditate_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """/meditate buyrug'i - Meditatsiya tanlash (choose meditation)."""
     lang = get_user_lang(update.effective_user.id)
     keyboard = [
         [InlineKeyboardButton("🌬️ Nafas (2 daq)", callback_data="meditate_breathing"),
@@ -789,7 +882,8 @@ async def meditate_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ]
     await update.message.reply_text(get_text(lang, "meditate_ask"), reply_markup=InlineKeyboardMarkup(keyboard))
 
-async def fitness_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def fitness_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """/fitness buyrug'i - Mashq tanlash (choose workout)."""
     lang = get_user_lang(update.effective_user.id)
     btns = get_workout_buttons(lang)
     keyboard = [
@@ -800,31 +894,29 @@ async def fitness_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ]
     await update.message.reply_text(btns["ask"], reply_markup=InlineKeyboardMarkup(keyboard))
 
-async def healer_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def healer_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """/healer buyrug'i - Tabiiy shifokor (natural healer consultation)."""
     lang = get_user_lang(update.effective_user.id)
     context.user_data["mode"] = "healer"
-    
+
     memories = get_user_memories(update.effective_user.id)
-    name = None
-    for m in memories:
-        if m["key"] == "name":
-            name = m["value"]
-            break
-    
+    name = get_user_name_from_memories(memories)
+
     if name:
         text = f"🌿 **Assalomu alaykum, {name}!**\n\nDardingizni ayting, yordam beraman. ❤️"
     else:
         text = "🌿 **Tabiiy Shifokor**\n\nDardingizni ayting, yordam beraman. ❤️"
-    
+
     await update.message.reply_text(text, reply_markup=get_main_menu_button(lang), parse_mode="Markdown")
 
-async def reminders_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Eslatmalar buyrug'i"""
+async def reminders_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """/reminders buyrug'i - Eslatmalar menyusi (reminders menu)."""
     lang = get_user_lang(update.effective_user.id)
     text = get_reminder_text(lang, "reminder_menu")
     await update.message.reply_text(text, reply_markup=get_reminder_menu_keyboard(lang), parse_mode="Markdown")
 
-async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """/stats buyrug'i - Statistika ko'rsatish (show user statistics)."""
     user_id = update.effective_user.id
     lang = get_user_lang(user_id)
     stats = get_user_stats(user_id)
@@ -832,17 +924,17 @@ async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     healer_count = get_healer_count(user_id)
     reminder_count = get_reminder_count(user_id)
     memories = get_user_memories(user_id)
-    
+
     if stats["mood_count"] > 0:
-        mood_emoji = ["😢", "😔", "😐", "🙂", "😄"][min(4, int(stats["avg_mood"]) - 1)]
+        mood_emoji = ["😢", "😔", "😐", "🙂", "😄"][min(MOOD_EMOJI_INDEX_MAX, int(stats["avg_mood"]) - 1)]
     else:
         mood_emoji = "❓"
-    
+
     memory_info = ""
-    for m in memories[:5]:
+    for m in memories[:TOP_MEMORIES_DISPLAY]:
         if m["key"] != "last_mood":
             memory_info += f"• {m['key']}: {m['value']}\n"
-    
+
     stats_text = f"""
 📊 **Sizning statistikangiz**
 
@@ -858,14 +950,16 @@ async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """
     await update.message.reply_text(stats_text, reply_markup=get_main_menu_button(lang), parse_mode="Markdown")
 
-async def reset_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def reset_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """/reset buyrug'i - Suhbat tarixini tozalash (clear conversation history)."""
     user_id = update.effective_user.id
     lang = get_user_lang(user_id)
     clear_conversations(user_id)
     context.user_data["mode"] = "normal"
     await update.message.reply_text(get_text(lang, "reset_done") if lang != "uz" else "🔄 Suhbat tarixi tozalandi.", reply_markup=get_main_menu_button(lang))
 
-async def lang_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def lang_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """/lang buyrug'i - Til tanlash (choose language)."""
     keyboard = [
         [InlineKeyboardButton("🇺🇿 O'zbekcha", callback_data="lang_uz"),
          InlineKeyboardButton("🇷🇺 Русский", callback_data="lang_ru"),
@@ -1173,15 +1267,16 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # === MESSAGE HANDLER ===
 
-async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Matn xabarlarini qayta ishlash (handle text messages and AI responses)."""
     user_id = update.effective_user.id
     user_message = update.message.text
     lang = get_user_lang(user_id)
 
     # Input validation: check message length
-    if not user_message or len(user_message) > 4000:
+    if not user_message or len(user_message) > MAX_MESSAGE_LENGTH:
         await update.message.reply_text(
-            get_text(lang, "error") if len(user_message) > 4000 else "⚠️ Xabar bo'sh bo'lishi mumkin emas.",
+            get_text(lang, "error") if len(user_message) > MAX_MESSAGE_LENGTH else "⚠️ Xabar bo'sh bo'lishi mumkin emas.",
             reply_markup=get_main_menu_button(lang)
         )
         return
@@ -1201,22 +1296,23 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # === MAIN ===
 
-async def post_init(app: Application):
-    """Bot ishga tushgandan keyin eslatmalar schedulerini boshlash"""
+async def post_init(app: Application) -> None:
+    """Bot ishga tushgandan keyin eslatmalar schedulerini boshlash (start reminder scheduler after bot initialization)."""
     asyncio.create_task(check_and_send_reminders(app))
     logger.info("✅ Reminder scheduler started")
 
-def main():
+def main() -> None:
+    """Botni ishga tushirish (start the bot application)."""
     if not TELEGRAM_TOKEN:
         logger.error("TELEGRAM_BOT_TOKEN topilmadi!")
         return
     if not OPENAI_API_KEY:
         logger.error("OPENAI_API_KEY topilmadi!")
         return
-    
+
     if DATABASE_URL:
         init_db()
-    
+
     app = Application.builder().token(TELEGRAM_TOKEN).post_init(post_init).build()
     
     app.add_handler(CommandHandler("start", start))
