@@ -437,5 +437,18 @@ How can I help you?""",
             "focus_end": "🎉 Focus session complete!\n\n☕ Take a 5 minute break.",
             "daily_plan": "📅 **Today's Plan**\n\n{plan}",
             "productivity_report": "📊 **Productivity Report**\n\n{report}"
+        },
+        "ru": {
+            "menu": """⚡ **Productivity Coach**
+
+Чем помочь?""",
+            "add_task_prompt": "📝 Введи название задачи:",
+            "task_added": "✅ Задача добавлена: {title}",
+            "task_completed": "🎉 Задача выполнена! Поздравляю!",
+            "no_tasks": "📝 Пока нет задач.",
+            "focus_start": "🎯 Фокус-сессия началась!\n⏱️ {duration} минут\n\n💡 Закрой телефон и соцсети.",
+            "focus_end": "🎉 Фокус-сессия завершена!\n\n☕ Отдохни 5 минут.",
+            "daily_plan": "📅 **План на Сегодня**\n\n{plan}",
+            "productivity_report": "📊 **Отчёт о Продуктивности**\n\n{report}"
         }
     }.get(lang, {})

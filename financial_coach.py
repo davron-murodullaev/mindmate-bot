@@ -387,5 +387,25 @@ How can I help you?""",
 {breakdown}
 
 {advice}"""
+        },
+        "ru": {
+            "menu": """💰 **Финансовый Коуч**
+
+Чем помочь?""",
+            "add_expense_prompt": "💸 Введи сумму расхода (например, 50.00):",
+            "add_income_prompt": "💵 Введи сумму дохода:",
+            "category_select": "📂 Выбери категорию:",
+            "expense_added": "✅ Расход сохранён: ${amount:,.2f} ({category})",
+            "income_added": "✅ Доход сохранён: ${amount:,.2f}",
+            "monthly_report": """📊 **Месячный Отчёт**
+
+💵 Доход: ${income:,.2f}
+💸 Расходы: ${expenses:,.2f}
+💰 Баланс: ${balance:,.2f}
+
+📈 Расходы:
+{breakdown}
+
+{advice}"""
         }
     }.get(lang, {})
