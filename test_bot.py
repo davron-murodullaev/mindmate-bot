@@ -21,11 +21,11 @@ def test_imports():
     """Test if all modules can be imported"""
     print("🧪 Testing imports...")
     try:
-        from languages import get_text, TRANSLATIONS
-        from fitness import get_workout_text, get_workout_buttons
-        from healer import get_healer_prompt
-        from ai_brain import get_master_prompt
-        from reminders import get_reminder_text, get_reminder_menu_keyboard
+        from mindmate.i18n.loader import get_text, TRANSLATIONS
+        from mindmate.services.workout_service import get_workout_text, get_workout_buttons
+        from mindmate.ai.engines.healer_engine import get_healer_prompt
+        from mindmate.ai.core import get_master_prompt
+        from mindmate.reminders.service import get_reminder_text, get_reminder_menu_keyboard
         print("✅ All imports successful")
         return True
     except Exception as e:
@@ -36,7 +36,7 @@ def test_language_system():
     """Test language translation system"""
     print("\n🧪 Testing language system...")
     try:
-        from languages import get_text, TRANSLATIONS
+        from mindmate.i18n.loader import get_text, TRANSLATIONS
 
         # Test supported languages
         languages = ['uz', 'ru', 'en', 'tr', 'ar', 'hi', 'zh', 'ko', 'ja', 'es', 'fr', 'de', 'pt']
@@ -62,7 +62,7 @@ def test_ai_prompts():
     """Test AI prompt generation"""
     print("\n🧪 Testing AI prompts...")
     try:
-        from ai_brain import get_master_prompt
+        from mindmate.ai.core import get_master_prompt
 
         # Test prompts for main languages
         for lang in ['uz', 'ru', 'en']:
@@ -81,7 +81,7 @@ def test_fitness_module():
     """Test fitness module"""
     print("\n🧪 Testing fitness module...")
     try:
-        from fitness import get_workout_text, get_workout_buttons
+        from mindmate.services.workout_service import get_workout_text, get_workout_buttons
 
         # Test workout types
         workout_types = ['morning', 'energy', 'relax']
@@ -108,7 +108,7 @@ def test_healer_module():
     """Test healer module"""
     print("\n🧪 Testing healer module...")
     try:
-        from healer import get_healer_prompt
+        from mindmate.ai.engines.healer_engine import get_healer_prompt
 
         # Test healer prompts
         for lang in ['uz', 'ru', 'en']:
@@ -127,7 +127,7 @@ def test_reminder_system():
     """Test reminder system"""
     print("\n🧪 Testing reminder system...")
     try:
-        from reminders import get_reminder_text, get_reminder_type_name, get_reminder_emoji
+        from mindmate.reminders.service import get_reminder_text, get_reminder_type_name, get_reminder_emoji
 
         # Test reminder types
         reminder_types = ['mood', 'meditate', 'workout', 'water']

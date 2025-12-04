@@ -8,13 +8,16 @@ from dotenv import load_dotenv
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, filters, ContextTypes
 from openai import OpenAI
-from languages import get_text, get_mood_response, TRANSLATIONS
-from fitness import get_workout_text, get_workout_buttons, get_workout_done, get_workout_stats_label
-from healer import get_healer_prompt, get_healer_buttons
-from ai_brain import get_master_prompt
-from reminders import (
+from mindmate.i18n.loader import get_text, get_mood_response, TRANSLATIONS
+from mindmate.services.workout_service import (
+    get_workout_text, get_workout_buttons,
+    get_workout_done, get_workout_stats_label
+)
+from mindmate.ai.engines.healer_engine import get_healer_prompt, get_healer_buttons
+from mindmate.ai.core import get_master_prompt
+from mindmate.reminders.service import (
     get_reminder_text, get_reminder_menu_keyboard, get_time_keyboard,
-    get_mood_keyboard_for_reminder, format_reminder_list, 
+    get_mood_keyboard_for_reminder, format_reminder_list,
     get_reminder_type_name, get_reminder_emoji
 )
 
