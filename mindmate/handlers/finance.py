@@ -1,9 +1,17 @@
-# handlers/finance.py
-# Placeholder for finance handler
-# Will contain: Expense tracking, budget management, financial insights
-# Future responsibilities:
-#   - show_finance_menu(update, context)
-#   - log_expense(update, context)
-#   - show_expense_history(update, context)
-#   - set_budget(update, context)
-#   - show_financial_summary(update, context)
+"""
+Finance Handler - Handles expense tracking, budget management, and financial insights
+"""
+
+from telegram.ext import CommandHandler, MessageHandler, CallbackQueryHandler, filters
+from mindmate.i18n.loader import get_text
+from mindmate.ui.keyboards import get_main_menu_keyboard
+
+
+async def finance_command(update, context):
+    """Handle the /finance command"""
+    await update.message.reply_text("Handler finance works! Expense tracking coming soon...")
+
+
+def register_finance_handlers(app):
+    """Register all finance-related handlers"""
+    app.add_handler(CommandHandler("finance", finance_command))

@@ -1,8 +1,17 @@
-# handlers/start.py
-# Placeholder for start command handler
-# Will contain: /start command, user onboarding, language selection
-# Future responsibilities:
-#   - handle_start_command(update, context)
-#   - show_language_selection(update, context)
-#   - process_language_selection(update, context)
-#   - show_welcome_message(update, context)
+"""
+Start Handler - Handles /start command and initial user onboarding
+"""
+
+from telegram.ext import CommandHandler, MessageHandler, CallbackQueryHandler, filters
+from mindmate.i18n.loader import get_text
+from mindmate.ui.keyboards import get_main_menu_keyboard
+
+
+async def start_command(update, context):
+    """Handle the /start command"""
+    await update.message.reply_text("Handler start works! Welcome to MindMate!")
+
+
+def register_start_handlers(app):
+    """Register all start-related handlers"""
+    app.add_handler(CommandHandler("start", start_command))

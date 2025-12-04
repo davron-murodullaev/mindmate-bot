@@ -1,9 +1,17 @@
-# handlers/fitness.py
-# Placeholder for fitness handler
-# Will contain: Workout logging, fitness tracking UI
-# Future responsibilities:
-#   - show_fitness_menu(update, context)
-#   - start_workout_logging(update, context)
-#   - save_workout(update, context)
-#   - show_workout_history(update, context)
-#   - show_fitness_stats(update, context)
+"""
+Fitness Handler - Handles workout logging and fitness tracking
+"""
+
+from telegram.ext import CommandHandler, MessageHandler, CallbackQueryHandler, filters
+from mindmate.i18n.loader import get_text
+from mindmate.ui.keyboards import get_main_menu_keyboard
+
+
+async def fitness_command(update, context):
+    """Handle the /fitness command"""
+    await update.message.reply_text("Handler fitness works! Fitness tracking coming soon...")
+
+
+def register_fitness_handlers(app):
+    """Register all fitness-related handlers"""
+    app.add_handler(CommandHandler("fitness", fitness_command))

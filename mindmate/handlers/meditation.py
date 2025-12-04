@@ -1,8 +1,17 @@
-# handlers/meditation.py
-# Placeholder for meditation-specific handler
-# Will contain: Meditation session management, guided meditation flows
-# Future responsibilities:
-#   - start_guided_meditation(update, context)
-#   - handle_meditation_duration_selection(update, context)
-#   - complete_meditation_session(update, context)
-#   - show_meditation_types(update, context)
+"""
+Meditation Handler - Handles meditation sessions and guided meditation flows
+"""
+
+from telegram.ext import CommandHandler, MessageHandler, CallbackQueryHandler, filters
+from mindmate.i18n.loader import get_text
+from mindmate.ui.keyboards import get_main_menu_keyboard
+
+
+async def meditation_command(update, context):
+    """Handle the /meditation command"""
+    await update.message.reply_text("Handler meditation works! Meditation sessions coming soon...")
+
+
+def register_meditation_handlers(app):
+    """Register all meditation-related handlers"""
+    app.add_handler(CommandHandler("meditation", meditation_command))
