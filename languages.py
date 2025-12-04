@@ -43,6 +43,20 @@ Quyidagi tugmalardan birini tanlang yoki shunchaki xabar yozing!
         "btn_lang": "🌍 Til",
         "btn_back": "🔙 Orqaga",
         "btn_main_menu": "🏠 Bosh menyu",
+        # Menu button labels
+        "menu_mood": "😊 Kayfiyat",
+        "menu_journal": "📝 Kundalik",
+        "menu_meditate": "🧘 Meditatsiya",
+        "menu_fitness": "💪 Fitness",
+        "menu_healer": "🌿 Shifokor",
+        "menu_stats": "📊 Statistika",
+        "menu_productivity": "⚡ Samaradorlik",
+        "menu_finance": "💰 Moliya",
+        # Action labels
+        "back": "Orqaga",
+        "cancel": "Bekor qilish",
+        "yes": "Ha",
+        "no": "Yo'q",
         "error": "Kechirasiz, hozir javob bera olmayapman. Keyinroq urinib ko'ring."
     },
     
@@ -87,6 +101,20 @@ Quyidagi tugmalardan birini tanlang yoki shunchaki xabar yozing!
         "btn_lang": "🌍 Язык",
         "btn_back": "🔙 Назад",
         "btn_main_menu": "🏠 Главное меню",
+        # Menu button labels
+        "menu_mood": "😊 Настроение",
+        "menu_journal": "📝 Дневник",
+        "menu_meditate": "🧘 Медитация",
+        "menu_fitness": "💪 Фитнес",
+        "menu_healer": "🌿 Целитель",
+        "menu_stats": "📊 Статистика",
+        "menu_productivity": "⚡ Продуктивность",
+        "menu_finance": "💰 Финансы",
+        # Action labels
+        "back": "Назад",
+        "cancel": "Отмена",
+        "yes": "Да",
+        "no": "Нет",
         "error": "Извините, не могу ответить сейчас. Попробуйте позже."
     },
     
@@ -131,6 +159,20 @@ Choose a button below or just send me a message!
         "btn_lang": "🌍 Language",
         "btn_back": "🔙 Back",
         "btn_main_menu": "🏠 Main Menu",
+        # Menu button labels
+        "menu_mood": "😊 Mood",
+        "menu_journal": "📝 Journal",
+        "menu_meditate": "🧘 Meditate",
+        "menu_fitness": "💪 Fitness",
+        "menu_healer": "🌿 Healer",
+        "menu_stats": "📊 Stats",
+        "menu_productivity": "⚡ Productivity",
+        "menu_finance": "💰 Finance",
+        # Action labels
+        "back": "Back",
+        "cancel": "Cancel",
+        "yes": "Yes",
+        "no": "No",
         "error": "Sorry, I can't respond right now. Please try later."
     },
     
@@ -175,6 +217,20 @@ Aşağıdaki butonlardan birini seçin veya bana mesaj yazın!
         "btn_lang": "🌍 Dil",
         "btn_back": "🔙 Geri",
         "btn_main_menu": "🏠 Ana Menü",
+        # Menu button labels
+        "menu_mood": "😊 Ruh Hali",
+        "menu_journal": "📝 Günlük",
+        "menu_meditate": "🧘 Meditasyon",
+        "menu_fitness": "💪 Fitness",
+        "menu_healer": "🌿 Şifacı",
+        "menu_stats": "📊 İstatistik",
+        "menu_productivity": "⚡ Verimlilik",
+        "menu_finance": "💰 Finans",
+        # Action labels
+        "back": "Geri",
+        "cancel": "İptal",
+        "yes": "Evet",
+        "no": "Hayır",
         "error": "Üzgünüm, şu anda yanıt veremiyorum. Daha sonra deneyin."
     },
     
@@ -219,6 +275,20 @@ Aşağıdaki butonlardan birini seçin veya bana mesaj yazın!
         "btn_lang": "🌍 اللغة",
         "btn_back": "🔙 رجوع",
         "btn_main_menu": "🏠 القائمة الرئيسية",
+        # Menu button labels
+        "menu_mood": "😊 المزاج",
+        "menu_journal": "📝 اليوميات",
+        "menu_meditate": "🧘 تأمل",
+        "menu_fitness": "💪 لياقة",
+        "menu_healer": "🌿 معالج",
+        "menu_stats": "📊 إحصائيات",
+        "menu_productivity": "⚡ إنتاجية",
+        "menu_finance": "💰 مالية",
+        # Action labels
+        "back": "رجوع",
+        "cancel": "إلغاء",
+        "yes": "نعم",
+        "no": "لا",
         "error": "عذراً، لا أستطيع الرد الآن. حاول لاحقاً."
     },
     
@@ -263,6 +333,20 @@ Aşağıdaki butonlardan birini seçin veya bana mesaj yazın!
         "btn_lang": "🌍 भाषा",
         "btn_back": "🔙 वापस",
         "btn_main_menu": "🏠 मुख्य मेनू",
+        # Menu button labels
+        "menu_mood": "😊 मूड",
+        "menu_journal": "📝 डायरी",
+        "menu_meditate": "🧘 ध्यान",
+        "menu_fitness": "💪 फिटनेस",
+        "menu_healer": "🌿 हीलर",
+        "menu_stats": "📊 आंकड़े",
+        "menu_productivity": "⚡ उत्पादकता",
+        "menu_finance": "💰 वित्त",
+        # Action labels
+        "back": "वापस",
+        "cancel": "रद्द करें",
+        "yes": "हाँ",
+        "no": "नहीं",
         "error": "क्षमा करें, अभी जवाब नहीं दे सकता। बाद में कोशिश करें।"
     },
     
@@ -307,6 +391,20 @@ Aşağıdaki butonlardan birini seçin veya bana mesaj yazın!
         "btn_lang": "🌍 语言",
         "btn_back": "🔙 返回",
         "btn_main_menu": "🏠 主菜单",
+        # Menu button labels
+        "menu_mood": "😊 心情",
+        "menu_journal": "📝 日记",
+        "menu_meditate": "🧘 冥想",
+        "menu_fitness": "💪 健身",
+        "menu_healer": "🌿 治愈师",
+        "menu_stats": "📊 统计",
+        "menu_productivity": "⚡ 生产力",
+        "menu_finance": "💰 财务",
+        # Action labels
+        "back": "返回",
+        "cancel": "取消",
+        "yes": "是",
+        "no": "否",
         "error": "抱歉，现在无法回复。请稍后再试。"
     },
     
@@ -351,6 +449,20 @@ Aşağıdaki butonlardan birini seçin veya bana mesaj yazın!
         "btn_lang": "🌍 언어",
         "btn_back": "🔙 뒤로",
         "btn_main_menu": "🏠 메인 메뉴",
+        # Menu button labels
+        "menu_mood": "😊 기분",
+        "menu_journal": "📝 일기",
+        "menu_meditate": "🧘 명상",
+        "menu_fitness": "💪 피트니스",
+        "menu_healer": "🌿 힐러",
+        "menu_stats": "📊 통계",
+        "menu_productivity": "⚡ 생산성",
+        "menu_finance": "💰 재무",
+        # Action labels
+        "back": "뒤로",
+        "cancel": "취소",
+        "yes": "예",
+        "no": "아니요",
         "error": "죄송합니다, 지금은 답변할 수 없습니다. 나중에 다시 시도해주세요."
     },
     
@@ -395,6 +507,20 @@ Aşağıdaki butonlardan birini seçin veya bana mesaj yazın!
         "btn_lang": "🌍 言語",
         "btn_back": "🔙 戻る",
         "btn_main_menu": "🏠 メインメニュー",
+        # Menu button labels
+        "menu_mood": "😊 気分",
+        "menu_journal": "📝 日記",
+        "menu_meditate": "🧘 瞑想",
+        "menu_fitness": "💪 フィットネス",
+        "menu_healer": "🌿 ヒーラー",
+        "menu_stats": "📊 統計",
+        "menu_productivity": "⚡ 生産性",
+        "menu_finance": "💰 財務",
+        # Action labels
+        "back": "戻る",
+        "cancel": "キャンセル",
+        "yes": "はい",
+        "no": "いいえ",
         "error": "申し訳ありません、今は返信できません。後でもう一度お試しください。"
     },
     
@@ -430,7 +556,25 @@ Puedo ayudarte con:
         "btn_mood": "😊 Ánimo",
         "btn_journal": "📝 Diario",
         "btn_meditate": "🧘 Meditar",
+        "btn_fitness": "💪 Fitness",
+        "btn_healer": "🌿 Sanador",
         "btn_stats": "📊 Stats",
+        "btn_back": "🔙 Atrás",
+        "btn_main_menu": "🏠 Menú Principal",
+        # Menu button labels
+        "menu_mood": "😊 Ánimo",
+        "menu_journal": "📝 Diario",
+        "menu_meditate": "🧘 Meditar",
+        "menu_fitness": "💪 Fitness",
+        "menu_healer": "🌿 Sanador",
+        "menu_stats": "📊 Estadísticas",
+        "menu_productivity": "⚡ Productividad",
+        "menu_finance": "💰 Finanzas",
+        # Action labels
+        "back": "Atrás",
+        "cancel": "Cancelar",
+        "yes": "Sí",
+        "no": "No",
         "error": "Lo siento, no puedo responder ahora. Inténtalo más tarde."
     },
     
@@ -466,7 +610,25 @@ Choisissez un bouton ci-dessous ou envoyez-moi un message!
         "btn_mood": "😊 Humeur",
         "btn_journal": "📝 Journal",
         "btn_meditate": "🧘 Méditer",
+        "btn_fitness": "💪 Fitness",
+        "btn_healer": "🌿 Guérisseur",
         "btn_stats": "📊 Stats",
+        "btn_back": "🔙 Retour",
+        "btn_main_menu": "🏠 Menu Principal",
+        # Menu button labels
+        "menu_mood": "😊 Humeur",
+        "menu_journal": "📝 Journal",
+        "menu_meditate": "🧘 Méditer",
+        "menu_fitness": "💪 Fitness",
+        "menu_healer": "🌿 Guérisseur",
+        "menu_stats": "📊 Statistiques",
+        "menu_productivity": "⚡ Productivité",
+        "menu_finance": "💰 Finances",
+        # Action labels
+        "back": "Retour",
+        "cancel": "Annuler",
+        "yes": "Oui",
+        "no": "Non",
         "error": "Désolé, je ne peux pas répondre maintenant. Réessayez plus tard."
     },
     
@@ -502,7 +664,25 @@ Wähle einen Button unten oder schreibe mir eine Nachricht!
         "btn_mood": "😊 Stimmung",
         "btn_journal": "📝 Tagebuch",
         "btn_meditate": "🧘 Meditieren",
+        "btn_fitness": "💪 Fitness",
+        "btn_healer": "🌿 Heiler",
         "btn_stats": "📊 Statistik",
+        "btn_back": "🔙 Zurück",
+        "btn_main_menu": "🏠 Hauptmenü",
+        # Menu button labels
+        "menu_mood": "😊 Stimmung",
+        "menu_journal": "📝 Tagebuch",
+        "menu_meditate": "🧘 Meditieren",
+        "menu_fitness": "💪 Fitness",
+        "menu_healer": "🌿 Heiler",
+        "menu_stats": "📊 Statistik",
+        "menu_productivity": "⚡ Produktivität",
+        "menu_finance": "💰 Finanzen",
+        # Action labels
+        "back": "Zurück",
+        "cancel": "Abbrechen",
+        "yes": "Ja",
+        "no": "Nein",
         "error": "Entschuldigung, ich kann gerade nicht antworten. Versuche es später."
     },
     
@@ -538,7 +718,25 @@ Escolha um botão abaixo ou me envie uma mensagem!
         "btn_mood": "😊 Humor",
         "btn_journal": "📝 Diário",
         "btn_meditate": "🧘 Meditar",
+        "btn_fitness": "💪 Fitness",
+        "btn_healer": "🌿 Curador",
         "btn_stats": "📊 Stats",
+        "btn_back": "🔙 Voltar",
+        "btn_main_menu": "🏠 Menu Principal",
+        # Menu button labels
+        "menu_mood": "😊 Humor",
+        "menu_journal": "📝 Diário",
+        "menu_meditate": "🧘 Meditar",
+        "menu_fitness": "💪 Fitness",
+        "menu_healer": "🌿 Curador",
+        "menu_stats": "📊 Estatísticas",
+        "menu_productivity": "⚡ Produtividade",
+        "menu_finance": "💰 Finanças",
+        # Action labels
+        "back": "Voltar",
+        "cancel": "Cancelar",
+        "yes": "Sim",
+        "no": "Não",
         "error": "Desculpe, não posso responder agora. Tente mais tarde."
     }
 }
