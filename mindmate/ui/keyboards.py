@@ -6,7 +6,7 @@ All text labels are retrieved using the get_text() function for multi-language s
 """
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
-from languages import get_text
+from mindmate.i18n import get_text
 
 
 def get_main_menu_keyboard(lang: str) -> InlineKeyboardMarkup:

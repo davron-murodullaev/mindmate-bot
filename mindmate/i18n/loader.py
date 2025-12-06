@@ -1,5 +1,9 @@
-# languages.py - MindMate Multi-Language Support
-# 13 tilni qo'llab-quvvatlaydi: UZ, RU, EN, TR, AR, HI, ZH, KO, JA, ES, FR, DE, PT
+"""
+i18n/loader.py - MindMate Multi-Language Translation Loader
+
+This module contains all translations for 13 supported languages:
+UZ, RU, EN, TR, AR, HI, ZH, KO, JA, ES, FR, DE, PT
+"""
 
 TRANSLATIONS = {
     # ============ O'ZBEK TILI ============
