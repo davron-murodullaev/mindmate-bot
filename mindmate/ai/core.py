@@ -4,6 +4,7 @@ Core AI functionality using Anthropic Claude
 import anthropic
 from typing import List, Dict, Any, Optional
 import logging
+import asyncio
 
 from mindmate.core.config import settings
 
@@ -59,13 +60,17 @@ class AICore:
                 "content": user_message
             })
 
-            # Call Claude API
-            response = self.client.messages.create(
-                model=self.model,
-                max_tokens=max_tokens or self.max_tokens,
-                temperature=temperature or self.temperature,
-                system=system_prompt,
-                messages=messages
+            # Call Claude API in a thread to avoid blocking the event loop
+            loop = asyncio.get_event_loop()
+            response = await loop.run_in_executor(
+                None,
+                lambda: self.client.messages.create(
+                    model=self.model,
+                    max_tokens=max_tokens or self.max_tokens,
+                    temperature=temperature or self.temperature,
+                    system=system_prompt,
+                    messages=messages
+                )
             )
 
             # Extract response text
@@ -102,4 +107,5 @@ class AICore:
 
 
 # Global AI core instance
+ai_core = AICore()
 ai_core = AICore()

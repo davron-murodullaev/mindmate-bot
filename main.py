@@ -7,8 +7,8 @@ from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQu
 
 from mindmate.core.config import settings
 from mindmate.core.logger import setup_logger
-from mindmate.db.connection import init_db
-from mindmate.reminders.scheduler import start_scheduler
+from mindmate.db.connection import init_db, close_pool
+from mindmate.reminders.scheduler import start_scheduler, stop_scheduler
 
 # Import all handlers
 from mindmate.handlers.start import start_handler, language_callback, setup_callback
@@ -23,8 +23,6 @@ from mindmate.handlers.finance import finance_handler, finance_callback, add_exp
 from mindmate.handlers.stats import stats_handler, stats_callback
 
 logger = setup_logger(__name__)
-
-
 
 
 async def post_init(application: Application) -> None:
@@ -43,12 +41,27 @@ async def post_init(application: Application) -> None:
         raise
 
 
+async def post_stop(application: Application) -> None:
+    """Clean up components on application shutdown."""
+    try:
+        # Stop reminder scheduler
+        await stop_scheduler()
+        logger.info("Reminder scheduler stopped")
+
+        # Close database connection pool
+        await close_pool()
+        logger.info("Database connection pool closed")
+
+    except Exception as e:
+        logger.error(f"Error during shutdown: {e}")
+
+
 def main():
     """Main function to run the bot."""
     logger.info("Starting MindMate Bot...")
 
     # Create application
-    application = Application.builder().token(settings.TELEGRAM_BOT_TOKEN).post_init(post_init).build()
+    application = Application.builder().token(settings.TELEGRAM_BOT_TOKEN).post_init(post_init).post_stop(post_stop).build()
 
     # Command handlers
     application.add_handler(CommandHandler("start", start_handler))
@@ -74,37 +87,38 @@ def main():
     application.add_handler(CallbackQueryHandler(finance_callback, pattern="^finance_"))
     application.add_handler(CallbackQueryHandler(stats_callback, pattern="^stats_"))
 
-    # Message handlers for specific contexts
+    # Message handlers for specific contexts (ordered by specificity)
+    # Mood emoji quick response (high priority)
     application.add_handler(MessageHandler(
         filters.TEXT & ~filters.COMMAND & filters.Regex(r"^(😊|😢|😠|😰|😴|🤗)"),
         save_mood_handler
     ))
 
-    # Healer mode message handler (when user is in healer mode)
+    # Healer mode message handler - checks user state internally
     application.add_handler(MessageHandler(
         filters.TEXT & ~filters.COMMAND,
         healer_message_handler
     ), group=1)
 
-    # Productivity mode message handler
+    # Productivity mode message handler - checks user state internally
     application.add_handler(MessageHandler(
         filters.TEXT & ~filters.COMMAND,
         productivity_message_handler
     ), group=2)
 
-    # Journal entry handler
+    # Journal entry handler - checks user state internally
     application.add_handler(MessageHandler(
         filters.TEXT & ~filters.COMMAND,
         save_journal_handler
     ), group=3)
 
-    # Workout logging handler
+    # Workout logging handler - checks user state internally
     application.add_handler(MessageHandler(
         filters.TEXT & ~filters.COMMAND,
         log_workout_handler
     ), group=4)
 
-    # Expense logging handler
+    # Expense logging handler - checks user state internally
     application.add_handler(MessageHandler(
         filters.TEXT & ~filters.COMMAND,
         add_expense_handler
