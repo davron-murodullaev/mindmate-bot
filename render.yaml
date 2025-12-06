@@ -1,0 +1,40 @@
+services:
+  - type: web
+    name: mindmate-bot
+    env: python
+    region: oregon
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: python main.py
+    envVars:
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: DATABASE_URL
+        fromDatabase:
+          name: mindmate-db
+          property: connectionString
+      - key: ENVIRONMENT
+        value: production
+      - key: LOG_LEVEL
+        value: INFO
+      - key: ENABLE_REMINDERS
+        value: true
+      - key: ENABLE_ANALYTICS
+        value: true
+      - key: AI_MODEL
+        value: claude-3-5-sonnet-20241022
+      - key: MAX_TOKENS
+        value: 2048
+      - key: TEMPERATURE
+        value: 0.7
+      - key: TIMEZONE
+        value: UTC
+
+databases:
+  - name: mindmate-db
+    databaseName: mindmate
+    user: mindmate
+    region: oregon
+    plan: free
