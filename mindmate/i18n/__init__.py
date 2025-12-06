@@ -1,2 +1,6 @@
-# i18n/__init__.py
-# Internationalization package initialization
+"""
+Internationalization module
+"""
+from mindmate.i18n.loader import i18n, t
+
+__all__ = ["i18n", "t"]

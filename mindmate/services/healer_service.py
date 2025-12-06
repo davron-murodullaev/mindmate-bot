@@ -1,8 +1,40 @@
-# services/healer_service.py
-# Placeholder for healer/meditation service
-# Will contain: Meditation session management, guided exercises
-# Future responsibilities:
-#   - start_meditation_session(user_id, duration, type)
-#   - complete_meditation(user_id, session_id)
-#   - get_meditation_history(user_id)
-#   - get_healing_exercises()
+"""
+Healer service for mental health support
+"""
+import logging
+
+from ai_brain import ai_brain
+
+logger = logging.getLogger(__name__)
+
+
+class HealerService:
+    """Service for healer mode interactions."""
+
+    @staticmethod
+    async def process_message(user_id: int, message: str) -> str:
+        """
+        Process message in healer mode.
+
+        Args:
+            user_id: User ID
+            message: User message
+
+        Returns:
+            AI response
+        """
+        try:
+            response = await ai_brain.process_message(
+                user_id=user_id,
+                message=message,
+                mode="healer"
+            )
+            return response
+
+        except Exception as e:
+            logger.error(f"Error in healer service: {e}")
+            return "I'm here to support you. I'm experiencing a technical issue at the moment. Please try again."
+
+
+# Global service instance
+healer_service = HealerService()
