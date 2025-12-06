@@ -24,9 +24,7 @@ from mindmate.handlers.stats import stats_handler, stats_callback
 
 logger = setup_logger(__name__)
 
-TELEGRAM_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-DATABASE_URL = os.getenv("DATABASE_URL")
+
 
 
 async def post_init(application: Application) -> None:
