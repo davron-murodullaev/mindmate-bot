@@ -3,7 +3,7 @@ Healer service for mental health support
 """
 import logging
 
-from ai_brain import ai_brain
+from mindmate.ai_orchestrator import ai_orchestrator
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +24,7 @@ class HealerService:
             AI response
         """
         try:
-            response = await ai_brain.process_message(
+            response = await ai_orchestrator.process_message(
                 user_id=user_id,
                 message=message,
                 mode="healer"

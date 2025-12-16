@@ -6,7 +6,7 @@ from telegram.ext import ContextTypes
 import logging
 
 from mindmate.services.user_service import user_service
-from ai_brain import ai_brain
+from mindmate.ai_orchestrator import ai_orchestrator
 from mindmate.ui.keyboards import get_back_to_menu_keyboard
 from mindmate.i18n import t
 
@@ -47,7 +47,7 @@ async def productivity_message_handler(update: Update, context: ContextTypes.DEF
         lang = await user_service.get_user_language(user.id)
 
         # Process message through productivity AI
-        response = await ai_brain.process_message(
+        response = await ai_orchestrator.process_message(
             user_id=user.id,
             message=message.text,
             mode="productivity"
