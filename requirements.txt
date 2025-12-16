@@ -1,26 +1,41 @@
-# Telegram Bot
-python-telegram-bot==20.7
-python-telegram-bot[job-queue]
+# ========================================
+# TRADEMATE TRADING BOT REQUIREMENTS
+# ========================================
 
-# AI & NLP
-anthropic==0.18.1
-openai==1.12.0
+# Core Trading
+websockets==12.0
+pandas==2.1.4
+numpy==1.26.2
 
-# Database
-asyncpg==0.29.0
-psycopg2-binary==2.9.9
+# Technical Analysis
+pandas-ta==0.3.14b
 
-# Date & Time
+# API & Async
+aiohttp==3.9.3
+asyncio==3.4.3
+
+# Configuration
+python-dotenv==1.0.1
+pydantic==2.6.1
+pydantic-settings==2.1.0
+
+# Utilities
 python-dateutil==2.8.2
 pytz==2024.1
 
-# Environment & Config
-python-dotenv==1.0.1
+# Logging & Monitoring
+colorlog==6.8.0
 
-# Async & Scheduling
-apscheduler==3.10.4
-aiohttp==3.9.3
+# Optional: Telegram Integration (if you want notifications)
+python-telegram-bot==20.7
 
-# Utilities
-pydantic==2.6.1
-pydantic-settings==2.1.0
+# Optional: Database (for trade logging)
+asyncpg==0.29.0
+
+# Optional: Plotting (for backtest visualizations)
+matplotlib==3.8.2
+plotly==5.18.0
+
+# Development & Testing
+pytest==7.4.3
+pytest-asyncio==0.21.1
