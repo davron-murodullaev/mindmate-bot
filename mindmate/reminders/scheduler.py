@@ -2,14 +2,17 @@
 Reminder scheduler
 """
 import asyncio
-from datetime import datetime
-from telegram import Bot
 import logging
+from datetime import datetime, timedelta
+
+from telegram import Bot
 
 from mindmate.core.config import settings
-from mindmate.db.queries import get_pending_reminders, mark_reminder_sent
-from mindmate.reminders.parser import get_next_occurrence
-from mindmate.i18n import t
+from mindmate.db.queries import (
+    get_pending_reminders,
+    mark_reminder_sent,
+    update_reminder_time,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -17,38 +20,53 @@ logger = logging.getLogger(__name__)
 _scheduler_task = None
 
 
-async def check_and_send_reminders(bot: Bot) -> None:
-    """
-    Check for pending reminders and send them.
+def _next_occurrence(current: datetime, repeat_type: str) -> datetime:
+    """Compute the next firing time for a repeating reminder."""
+    if repeat_type == "daily":
+        return current + timedelta(days=1)
+    if repeat_type == "weekly":
+        return current + timedelta(weeks=1)
+    if repeat_type == "monthly":
+        # Approximate a month as 30 days (sufficient for casual reminders)
+        return current + timedelta(days=30)
+    return current  # 'once' or unknown — caller should not use
 
-    Args:
-        bot: Telegram Bot instance
-    """
+
+async def check_and_send_reminders(bot: Bot) -> None:
+    """Check for pending reminders and send them. Reschedule repeats."""
     try:
         current_time = datetime.now()
         pending = await get_pending_reminders(current_time)
 
         for reminder in pending:
             try:
-                user_id = reminder['user_id']
-                text = reminder['text']
-                reminder_id = reminder['id']
-                repeat_type = reminder.get('repeat_type', 'once')
+                user_id = reminder["user_id"]
+                text = reminder["text"]
+                reminder_id = reminder["id"]
+                repeat_type = reminder.get("repeat_type", "once")
+                reminder_time = reminder["reminder_time"]
 
                 # Send reminder to user
                 message = f"⏰ Reminder: {text}"
                 await bot.send_message(chat_id=user_id, text=message)
 
-                # Mark as sent
-                await mark_reminder_sent(reminder_id)
+                if repeat_type and repeat_type != "once":
+                    # Reschedule the same row to next occurrence
+                    next_time = _next_occurrence(reminder_time, repeat_type)
+                    # Make sure the rescheduled time is in the future even if we
+                    # missed several intervals (e.g. bot was offline)
+                    while next_time <= current_time:
+                        next_time = _next_occurrence(next_time, repeat_type)
+                    await update_reminder_time(reminder_id, next_time)
+                    logger.info(
+                        f"Rescheduled repeating reminder {reminder_id} "
+                        f"({repeat_type}) to {next_time.isoformat()}"
+                    )
+                else:
+                    # One-shot reminder — mark sent so it won't fire again
+                    await mark_reminder_sent(reminder_id)
 
                 logger.info(f"Sent reminder {reminder_id} to user {user_id}")
-
-                # If it's a repeating reminder, create next occurrence
-                # (In a real implementation, you'd create a new reminder entry)
-                if repeat_type != 'once':
-                    logger.info(f"Repeating reminder {reminder_id} is {repeat_type}")
-                    # TODO: Create new reminder for next occurrence
 
             except Exception as e:
                 logger.error(f"Error sending reminder {reminder.get('id')}: {e}")
@@ -58,36 +76,24 @@ async def check_and_send_reminders(bot: Bot) -> None:
 
 
 async def reminder_scheduler_loop(bot: Bot) -> None:
-    """
-    Main scheduler loop that runs continuously.
-
-    Args:
-        bot: Telegram Bot instance
-    """
+    """Main scheduler loop that runs continuously."""
     logger.info("Reminder scheduler started")
 
     while True:
         try:
             await check_and_send_reminders(bot)
-            # Wait for the configured interval
             await asyncio.sleep(settings.REMINDER_CHECK_INTERVAL)
-
         except asyncio.CancelledError:
             logger.info("Reminder scheduler cancelled")
             break
         except Exception as e:
             logger.error(f"Error in reminder scheduler loop: {e}")
-            # Wait a bit before retrying to avoid rapid error loops
+            # Backoff before retrying
             await asyncio.sleep(60)
 
 
 async def start_scheduler(bot: Bot) -> None:
-    """
-    Start the reminder scheduler.
-
-    Args:
-        bot: Telegram Bot instance
-    """
+    """Start the reminder scheduler."""
     global _scheduler_task
 
     if _scheduler_task is not None and not _scheduler_task.done():

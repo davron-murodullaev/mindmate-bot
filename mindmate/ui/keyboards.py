@@ -2,15 +2,9 @@
 Keyboard builders for MindMate Bot
 """
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, KeyboardButton
-from typing import List, Optional
 
 from mindmate.i18n import t
-from mindmate.core.constants import (
-    SUPPORTED_LANGUAGES,
-    MOOD_EMOJIS,
-    MEDITATION_DURATIONS,
-    STATS_PERIODS
-)
+from mindmate.core.constants import MOOD_EMOJIS
 
 
 def get_language_keyboard() -> InlineKeyboardMarkup:
@@ -22,7 +16,7 @@ def get_language_keyboard() -> InlineKeyboardMarkup:
         ],
         [
             InlineKeyboardButton("🇺🇿 O'zbek", callback_data="lang_uz"),
-        ]
+        ],
     ]
     return InlineKeyboardMarkup(keyboard)
 
@@ -39,47 +33,23 @@ def get_setup_keyboard(lang: str = "en") -> InlineKeyboardMarkup:
 
 
 def get_main_menu_keyboard(lang: str = "en") -> InlineKeyboardMarkup:
-    """Get main menu keyboard."""
+    """Get main menu keyboard - simplified to core features."""
     keyboard = [
         [
-            InlineKeyboardButton(
-                t("menu.mood_tracking", lang),
-                callback_data="menu_mood"
-            ),
-            InlineKeyboardButton(
-                t("menu.meditation", lang),
-                callback_data="menu_meditation"
-            ),
+            InlineKeyboardButton(t("menu.healer", lang), callback_data="menu_healer"),
+            InlineKeyboardButton(t("menu.productivity", lang), callback_data="menu_productivity"),
         ],
         [
-            InlineKeyboardButton(
-                t("menu.fitness", lang),
-                callback_data="menu_fitness"
-            ),
-            InlineKeyboardButton(
-                t("menu.journal", lang),
-                callback_data="menu_journal"
-            ),
+            InlineKeyboardButton(t("menu.mood_tracking", lang), callback_data="menu_mood"),
+            InlineKeyboardButton(t("menu.journal", lang), callback_data="menu_journal"),
         ],
         [
-            InlineKeyboardButton(
-                t("menu.healer", lang),
-                callback_data="menu_healer"
-            ),
-            InlineKeyboardButton(
-                t("menu.productivity", lang),
-                callback_data="menu_productivity"
-            ),
+            InlineKeyboardButton(t("menu.reminders", lang), callback_data="menu_reminders"),
+            InlineKeyboardButton(t("menu.stats", lang), callback_data="menu_stats"),
         ],
         [
-            InlineKeyboardButton(
-                t("menu.finance", lang),
-                callback_data="menu_finance"
-            ),
-            InlineKeyboardButton(
-                t("menu.stats", lang),
-                callback_data="menu_stats"
-            ),
+            InlineKeyboardButton(t("menu.premium", lang), callback_data="menu_premium"),
+            InlineKeyboardButton(t("menu.settings", lang), callback_data="menu_settings"),
         ],
     ]
     return InlineKeyboardMarkup(keyboard)
@@ -119,64 +89,7 @@ def get_mood_keyboard(lang: str = "en") -> InlineKeyboardMarkup:
             ),
         ],
         [
-            InlineKeyboardButton(
-                t("buttons.back", lang),
-                callback_data="menu_main"
-            ),
-        ],
-    ]
-    return InlineKeyboardMarkup(keyboard)
-
-
-def get_meditation_keyboard(lang: str = "en") -> InlineKeyboardMarkup:
-    """Get meditation duration selection keyboard."""
-    keyboard = []
-
-    # Add duration buttons
-    row = []
-    for duration in MEDITATION_DURATIONS:
-        row.append(InlineKeyboardButton(
-            t(f"meditation.duration_{duration}", lang),
-            callback_data=f"duration_{duration}"
-        ))
-        if len(row) == 2:
-            keyboard.append(row)
-            row = []
-
-    if row:
-        keyboard.append(row)
-
-    # Add back button
-    keyboard.append([
-        InlineKeyboardButton(
-            t("buttons.back", lang),
-            callback_data="menu_main"
-        )
-    ])
-
-    return InlineKeyboardMarkup(keyboard)
-
-
-def get_fitness_keyboard(lang: str = "en") -> InlineKeyboardMarkup:
-    """Get fitness menu keyboard."""
-    keyboard = [
-        [
-            InlineKeyboardButton(
-                t("fitness.log_workout", lang),
-                callback_data="fitness_log"
-            ),
-        ],
-        [
-            InlineKeyboardButton(
-                t("fitness.view_stats", lang),
-                callback_data="fitness_stats"
-            ),
-        ],
-        [
-            InlineKeyboardButton(
-                t("buttons.back", lang),
-                callback_data="menu_main"
-            ),
+            InlineKeyboardButton(t("buttons.back", lang), callback_data="menu_main"),
         ],
     ]
     return InlineKeyboardMarkup(keyboard)
@@ -185,82 +98,53 @@ def get_fitness_keyboard(lang: str = "en") -> InlineKeyboardMarkup:
 def get_journal_keyboard(lang: str = "en") -> InlineKeyboardMarkup:
     """Get journal menu keyboard."""
     keyboard = [
-        [
-            InlineKeyboardButton(
-                t("journal.new_entry", lang),
-                callback_data="journal_new"
-            ),
-        ],
-        [
-            InlineKeyboardButton(
-                t("journal.view_entries", lang),
-                callback_data="journal_view"
-            ),
-        ],
-        [
-            InlineKeyboardButton(
-                t("buttons.back", lang),
-                callback_data="menu_main"
-            ),
-        ],
+        [InlineKeyboardButton(t("journal.new_entry", lang), callback_data="journal_new")],
+        [InlineKeyboardButton(t("journal.view_entries", lang), callback_data="journal_view")],
+        [InlineKeyboardButton(t("buttons.back", lang), callback_data="menu_main")],
     ]
     return InlineKeyboardMarkup(keyboard)
 
 
-def get_finance_keyboard(lang: str = "en") -> InlineKeyboardMarkup:
-    """Get finance menu keyboard."""
+def get_reminders_keyboard(lang: str = "en") -> InlineKeyboardMarkup:
+    """Get reminders menu keyboard."""
     keyboard = [
-        [
-            InlineKeyboardButton(
-                t("finance.add_expense", lang),
-                callback_data="finance_add"
-            ),
-        ],
-        [
-            InlineKeyboardButton(
-                t("finance.view_stats", lang),
-                callback_data="finance_stats"
-            ),
-        ],
-        [
-            InlineKeyboardButton(
-                t("buttons.back", lang),
-                callback_data="menu_main"
-            ),
-        ],
+        [InlineKeyboardButton(t("reminders.new", lang), callback_data="reminder_new")],
+        [InlineKeyboardButton(t("reminders.list", lang), callback_data="reminder_list")],
+        [InlineKeyboardButton(t("buttons.back", lang), callback_data="menu_main")],
     ]
     return InlineKeyboardMarkup(keyboard)
 
 
 def get_stats_keyboard(lang: str = "en") -> InlineKeyboardMarkup:
-    """Get statistics menu keyboard."""
+    """Get statistics menu keyboard - simplified."""
     keyboard = [
         [
-            InlineKeyboardButton(
-                t("stats.mood", lang),
-                callback_data="stats_mood"
-            ),
-            InlineKeyboardButton(
-                t("stats.fitness", lang),
-                callback_data="stats_fitness"
-            ),
+            InlineKeyboardButton(t("stats.mood", lang), callback_data="stats_mood"),
+            InlineKeyboardButton(t("stats.journal", lang), callback_data="stats_journal"),
         ],
-        [
-            InlineKeyboardButton(
-                t("stats.meditation", lang),
-                callback_data="stats_meditation"
-            ),
-            InlineKeyboardButton(
-                t("stats.finance", lang),
-                callback_data="stats_finance"
-            ),
-        ],
-        [
-            InlineKeyboardButton(
-                t("buttons.back", lang),
-                callback_data="menu_main"
-            ),
-        ],
+        [InlineKeyboardButton(t("stats.overall", lang), callback_data="stats_overall")],
+        [InlineKeyboardButton(t("buttons.back", lang), callback_data="menu_main")],
+    ]
+    return InlineKeyboardMarkup(keyboard)
+
+
+def get_settings_keyboard(lang: str = "en") -> InlineKeyboardMarkup:
+    """Get settings menu keyboard."""
+    keyboard = [
+        [InlineKeyboardButton(t("settings.language", lang), callback_data="settings_language")],
+        [InlineKeyboardButton(t("settings.timezone", lang), callback_data="settings_timezone")],
+        [InlineKeyboardButton(t("settings.delete_data", lang), callback_data="settings_delete")],
+        [InlineKeyboardButton(t("buttons.back", lang), callback_data="menu_main")],
+    ]
+    return InlineKeyboardMarkup(keyboard)
+
+
+def get_premium_keyboard(lang: str = "en") -> InlineKeyboardMarkup:
+    """Get premium subscription keyboard."""
+    keyboard = [
+        [InlineKeyboardButton(t("premium.subscribe_stars", lang), callback_data="premium_stars")],
+        [InlineKeyboardButton(t("premium.subscribe_card", lang), callback_data="premium_card")],
+        [InlineKeyboardButton(t("buttons.back", lang), callback_data="menu_main")],
     ]
     return InlineKeyboardMarkup(keyboard)
 
@@ -268,12 +152,7 @@ def get_stats_keyboard(lang: str = "en") -> InlineKeyboardMarkup:
 def get_back_to_menu_keyboard(lang: str = "en") -> InlineKeyboardMarkup:
     """Get back to main menu keyboard."""
     keyboard = [
-        [
-            InlineKeyboardButton(
-                t("buttons.back", lang),
-                callback_data="menu_main"
-            ),
-        ],
+        [InlineKeyboardButton(t("buttons.back", lang), callback_data="menu_main")],
     ]
     return InlineKeyboardMarkup(keyboard)
 
@@ -286,5 +165,5 @@ def get_cancel_keyboard(lang: str = "en") -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(
         keyboard,
         resize_keyboard=True,
-        one_time_keyboard=True
+        one_time_keyboard=True,
     )

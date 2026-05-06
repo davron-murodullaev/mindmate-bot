@@ -1,26 +1,34 @@
 """
 MindMate Bot - Main Entry Point
 """
-import asyncio
-import logging
-from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, filters
+from telegram.ext import (
+    Application,
+    CommandHandler,
+    MessageHandler,
+    CallbackQueryHandler,
+    filters,
+)
 
 from mindmate.core.config import settings
 from mindmate.core.logger import setup_logger
 from mindmate.db.connection import init_db, close_pool
 from mindmate.reminders.scheduler import start_scheduler, stop_scheduler
 
-# Import all handlers
+# Handlers (simplified set — fitness/finance/meditation removed)
 from mindmate.handlers.start import start_handler, language_callback, setup_callback
 from mindmate.handlers.menu import menu_handler, main_menu_callback
 from mindmate.handlers.mood import mood_handler, mood_callback, save_mood_handler
-from mindmate.handlers.meditation import meditation_handler, meditation_callback, meditation_duration_callback
-from mindmate.handlers.fitness import fitness_handler, fitness_callback, log_workout_handler
 from mindmate.handlers.healer import healer_handler, healer_message_handler
 from mindmate.handlers.journal import journal_handler, journal_callback, save_journal_handler
 from mindmate.handlers.productivity import productivity_handler, productivity_message_handler
-from mindmate.handlers.finance import finance_handler, finance_callback, add_expense_handler
 from mindmate.handlers.stats import stats_handler, stats_callback
+from mindmate.handlers.reminders import (
+    reminders_handler,
+    reminders_callback,
+    reminder_text_handler,
+)
+from mindmate.handlers.settings import settings_handler, settings_callback
+from mindmate.handlers.premium import premium_handler, premium_callback
 
 logger = setup_logger(__name__)
 
@@ -28,14 +36,11 @@ logger = setup_logger(__name__)
 async def post_init(application: Application) -> None:
     """Initialize components after application startup."""
     try:
-        # Initialize database
         await init_db()
         logger.info("Database initialized successfully")
 
-        # Start reminder scheduler
         await start_scheduler(application.bot)
-        logger.info("Reminder scheduler started successfully")
-
+        logger.info("Reminder scheduler started")
     except Exception as e:
         logger.error(f"Error during post-init: {e}")
         raise
@@ -44,89 +49,108 @@ async def post_init(application: Application) -> None:
 async def post_stop(application: Application) -> None:
     """Clean up components on application shutdown."""
     try:
-        # Stop reminder scheduler
         await stop_scheduler()
         logger.info("Reminder scheduler stopped")
 
-        # Close database connection pool
         await close_pool()
-        logger.info("Database connection pool closed")
-
+        logger.info("Database pool closed")
     except Exception as e:
         logger.error(f"Error during shutdown: {e}")
+
+
+# ──────────────────────────────────────────────────────────────────────
+# Single dispatcher MessageHandler — replaces the 5 conflicting groups.
+# Order: mood emoji → reminder text → journal text → healer mode → productivity mode
+# ──────────────────────────────────────────────────────────────────────
+
+async def text_dispatcher(update, context):
+    """Dispatch a free-text message to the right handler based on user_data state."""
+    if not update.message or not update.message.text:
+        return
+
+    text = update.message.text.strip()
+
+    # 1) Quick mood log via leading emoji (😊 😢 😠 😰 😴 🤗)
+    first = text[:1]
+    if first in {"😊", "😢", "😠", "😰", "😴", "🤗"}:
+        await save_mood_handler(update, context)
+        return
+
+    # 2) Pending reminder text
+    if context.user_data.get("waiting_for_reminder"):
+        await reminder_text_handler(update, context)
+        return
+
+    # 3) Pending journal entry
+    if context.user_data.get("waiting_for_journal"):
+        await save_journal_handler(update, context)
+        return
+
+    # 4) Active AI mode
+    mode = context.user_data.get("mode")
+    if mode == "healer":
+        await healer_message_handler(update, context)
+        return
+    if mode == "productivity":
+        await productivity_message_handler(update, context)
+        return
+
+    # 5) Otherwise — gentle nudge to use the menu
+    try:
+        from mindmate.services.user_service import user_service
+        from mindmate.ui.keyboards import get_main_menu_keyboard
+        from mindmate.i18n import t
+
+        lang = await user_service.get_user_language(update.effective_user.id)
+        await update.message.reply_text(
+            t("menu.main_menu", lang),
+            reply_markup=get_main_menu_keyboard(lang),
+        )
+    except Exception as e:
+        logger.error(f"Error in text_dispatcher fallback: {e}")
 
 
 def main():
     """Main function to run the bot."""
     logger.info("Starting MindMate Bot...")
 
-    # Create application
-    application = Application.builder().token(settings.TELEGRAM_BOT_TOKEN).post_init(post_init).post_stop(post_stop).build()
+    application = (
+        Application.builder()
+        .token(settings.TELEGRAM_BOT_TOKEN)
+        .post_init(post_init)
+        .post_stop(post_stop)
+        .build()
+    )
 
-    # Command handlers
+    # ── Command handlers ──────────────────────────────────────────────
     application.add_handler(CommandHandler("start", start_handler))
     application.add_handler(CommandHandler("menu", menu_handler))
     application.add_handler(CommandHandler("mood", mood_handler))
-    application.add_handler(CommandHandler("meditation", meditation_handler))
-    application.add_handler(CommandHandler("fitness", fitness_handler))
     application.add_handler(CommandHandler("healer", healer_handler))
     application.add_handler(CommandHandler("journal", journal_handler))
     application.add_handler(CommandHandler("productivity", productivity_handler))
-    application.add_handler(CommandHandler("finance", finance_handler))
+    application.add_handler(CommandHandler("reminders", reminders_handler))
     application.add_handler(CommandHandler("stats", stats_handler))
+    application.add_handler(CommandHandler("settings", settings_handler))
+    application.add_handler(CommandHandler("premium", premium_handler))
 
-    # Callback query handlers
+    # ── Callback query handlers ───────────────────────────────────────
     application.add_handler(CallbackQueryHandler(language_callback, pattern="^lang_"))
     application.add_handler(CallbackQueryHandler(setup_callback, pattern="^setup_"))
     application.add_handler(CallbackQueryHandler(main_menu_callback, pattern="^menu_"))
     application.add_handler(CallbackQueryHandler(mood_callback, pattern="^mood_"))
-    application.add_handler(CallbackQueryHandler(meditation_callback, pattern="^meditation_"))
-    application.add_handler(CallbackQueryHandler(meditation_duration_callback, pattern="^duration_"))
-    application.add_handler(CallbackQueryHandler(fitness_callback, pattern="^fitness_"))
     application.add_handler(CallbackQueryHandler(journal_callback, pattern="^journal_"))
-    application.add_handler(CallbackQueryHandler(finance_callback, pattern="^finance_"))
+    application.add_handler(CallbackQueryHandler(reminders_callback, pattern="^reminder_"))
     application.add_handler(CallbackQueryHandler(stats_callback, pattern="^stats_"))
+    application.add_handler(CallbackQueryHandler(settings_callback, pattern="^settings_"))
+    application.add_handler(CallbackQueryHandler(premium_callback, pattern="^premium_"))
 
-    # Message handlers for specific contexts (ordered by specificity)
-    # Mood emoji quick response (high priority)
-    application.add_handler(MessageHandler(
-        filters.TEXT & ~filters.COMMAND & filters.Regex(r"^(😊|😢|😠|😰|😴|🤗)"),
-        save_mood_handler
-    ))
-
-    # Healer mode message handler - checks user state internally
-    application.add_handler(MessageHandler(
-        filters.TEXT & ~filters.COMMAND,
-        healer_message_handler
-    ), group=1)
-
-    # Productivity mode message handler - checks user state internally
-    application.add_handler(MessageHandler(
-        filters.TEXT & ~filters.COMMAND,
-        productivity_message_handler
-    ), group=2)
-
-    # Journal entry handler - checks user state internally
-    application.add_handler(MessageHandler(
-        filters.TEXT & ~filters.COMMAND,
-        save_journal_handler
-    ), group=3)
-
-    # Workout logging handler - checks user state internally
-    application.add_handler(MessageHandler(
-        filters.TEXT & ~filters.COMMAND,
-        log_workout_handler
-    ), group=4)
-
-    # Expense logging handler - checks user state internally
-    application.add_handler(MessageHandler(
-        filters.TEXT & ~filters.COMMAND,
-        add_expense_handler
-    ), group=5)
+    # ── Single text dispatcher (replaces 5 conflicting groups) ────────
+    application.add_handler(
+        MessageHandler(filters.TEXT & ~filters.COMMAND, text_dispatcher)
+    )
 
     logger.info("Bot started successfully. Polling for updates...")
-
-    # Start polling
     application.run_polling(allowed_updates=["message", "callback_query"])
 
 

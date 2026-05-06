@@ -1,19 +1,79 @@
 """
 Healer mode AI engine
 """
-from typing import List, Dict, Any
 import logging
+from typing import List, Dict, Any
 
 from mindmate.ai.core import ai_core
 
 logger = logging.getLogger(__name__)
 
 
+# Crisis keywords across English, Russian, and Uzbek (lowercased substrings)
+CRISIS_KEYWORDS = {
+    "en": [
+        "suicide", "kill myself", "end my life", "want to die",
+        "self-harm", "self harm", "hurt myself", "no reason to live",
+        "i want to die", "ending it all",
+    ],
+    "ru": [
+        "суицид", "самоубийств", "убить себя", "покончить с собой",
+        "не хочу жить", "хочу умереть", "причинить себе вред",
+        "нанести себе вред", "не вижу смысла жить",
+    ],
+    "uz": [
+        "o'zimni o'ldir", "ozimni oldir", "o'zimga zarar",
+        "yashashni xohlamayman", "o'lishni xohlayman", "olishni xohlayman",
+        "hayotim ma'nosiz", "o'z joniga", "oz joniga",
+    ],
+}
+
+
+# Crisis hotlines per language
+CRISIS_RESPONSES = {
+    "en": (
+        "I'm deeply concerned about what you're sharing. Your life matters.\n\n"
+        "🆘 Please reach out NOW:\n"
+        "• 988 — Suicide & Crisis Lifeline (US)\n"
+        "• Text HOME to 741741\n"
+        "• findahelpline.com — international directory\n\n"
+        "These services are free, confidential, and available 24/7.\n"
+        "You don't have to face this alone. 💚"
+    ),
+    "ru": (
+        "Мне очень важно то, что вы говорите. Ваша жизнь имеет значение.\n\n"
+        "🆘 Пожалуйста, обратитесь СЕЙЧАС:\n"
+        "• 8-800-2000-122 — Россия (бесплатно, круглосуточно)\n"
+        "• 112 — экстренная служба\n"
+        "• findahelpline.com — международный список\n\n"
+        "Это бесплатно, конфиденциально и доступно 24/7.\n"
+        "Вы не одни. 💚"
+    ),
+    "uz": (
+        "Sizning so'zlaringizdan juda tashvishlanyapman. Hayotingiz qadrli.\n\n"
+        "🆘 Iltimos, HOZIROQ murojaat qiling:\n"
+        "• 1050 — O'zbekiston ishonch telefoni\n"
+        "• 103 — Tez tibbiy yordam\n"
+        "• findahelpline.com — xalqaro yordam\n\n"
+        "Bu xizmatlar bepul, sirli va 24/7 ishlaydi.\n"
+        "Yolg'iz emassiz. 💚"
+    ),
+}
+
+
+def detect_crisis(message: str) -> bool:
+    """Return True if the message contains crisis keywords in any supported language."""
+    lower = message.lower()
+    for keywords in CRISIS_KEYWORDS.values():
+        if any(kw in lower for kw in keywords):
+            return True
+    return False
+
+
 class HealerEngine:
     """AI engine for healer mode - mental health support and therapeutic guidance."""
 
     def __init__(self):
-        """Initialize healer engine."""
         self.system_prompt = """You are a compassionate mental health companion. Your role is to:
 
 1. Provide a safe, non-judgmental space for users to express themselves
@@ -31,6 +91,7 @@ Communication style:
 - Reflect back what you hear to show understanding
 - Provide gentle guidance without being prescriptive
 - Keep responses thoughtful and measured (2-4 paragraphs)
+- Respond in the same language the user writes in (English, Russian, or Uzbek)
 
 Techniques to draw from:
 - Cognitive Behavioral Therapy (CBT) principles
@@ -45,61 +106,26 @@ If someone expresses thoughts of self-harm or suicide, encourage them to seek im
         self,
         message: str,
         history: List[Dict[str, str]],
-        context: Dict[str, Any]
+        context: Dict[str, Any],
     ) -> str:
-        """
-        Process user message in healer mode.
-
-        Args:
-            message: User message
-            history: Conversation history
-            context: Additional context
-
-        Returns:
-            AI response
-        """
+        """Process user message in healer mode."""
         try:
-            # Check for crisis keywords
-            crisis_keywords = [
-                'suicide', 'kill myself', 'end my life', 'want to die',
-                'self-harm', 'hurt myself'
-            ]
-
-            message_lower = message.lower()
-            if any(keyword in message_lower for keyword in crisis_keywords):
-                return self._get_crisis_response()
+            # Crisis detection across supported languages
+            if detect_crisis(message):
+                lang = (context or {}).get("lang", "en")
+                return CRISIS_RESPONSES.get(lang, CRISIS_RESPONSES["en"])
 
             response = await ai_core.generate_response(
                 system_prompt=self.system_prompt,
                 user_message=message,
                 conversation_history=history,
-                temperature=0.7  # Balanced temperature for thoughtful responses
+                temperature=0.7,
             )
             return response
 
         except Exception as e:
             logger.error(f"Error in healer engine: {e}")
-            return "I'm here to support you. I'm experiencing a technical issue at the moment, but I want you to know that your feelings matter. Please try again in a moment."
-
-    def _get_crisis_response(self) -> str:
-        """
-        Get response for crisis situations.
-
-        Returns:
-            Crisis support message
-        """
-        return """I'm deeply concerned about what you're sharing. Your life matters, and you deserve support.
-
-Please reach out to professional help immediately:
-
-🆘 Crisis Hotlines:
-- National Suicide Prevention Lifeline: 988 (US)
-- Crisis Text Line: Text HOME to 741741
-- International: findahelpline.com
-
-These services are:
-✓ Available 24/7
-✓ Free and confidential
-✓ Staffed by trained counselors
-
-You don't have to face this alone. Please reach out to one of these resources or a trusted person in your life right now. Your well-being is the top priority. 💚"""
+            return (
+                "I'm here to support you. I'm experiencing a technical issue at "
+                "the moment, but your feelings matter. Please try again shortly."
+            )
