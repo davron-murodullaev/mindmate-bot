@@ -4,7 +4,7 @@ Application constants
 
 # Bot Information
 BOT_NAME = "MindMate"
-BOT_VERSION = "2.0.0"
+BOT_VERSION = "2.1.0"
 BOT_DESCRIPTION = "Your AI-powered mental health and productivity companion"
 
 # Supported Languages
@@ -27,52 +27,27 @@ MOOD_EMOJIS = {
     "tired": "😴",
     "excited": "🤗",
     "neutral": "😐",
-    "stressed": "😫"
+    "stressed": "😫",
 }
 
 MOOD_TYPES = list(MOOD_EMOJIS.keys())
 
-# Meditation Durations (in minutes)
-MEDITATION_DURATIONS = [5, 10, 15, 20, 30]
-
-# Fitness Activity Types
-FITNESS_ACTIVITIES = [
-    "running",
-    "walking",
-    "cycling",
-    "swimming",
-    "yoga",
-    "gym",
-    "sports",
-    "other"
-]
-
-# Finance Categories
-FINANCE_CATEGORIES = [
-    "food",
-    "transport",
-    "entertainment",
-    "health",
-    "education",
-    "shopping",
-    "bills",
-    "other"
-]
+# Map raw emoji -> mood key (for emoji-only quick mood logging)
+EMOJI_TO_MOOD = {emoji: mood for mood, emoji in MOOD_EMOJIS.items()}
 
 # Statistics Periods
 STATS_PERIODS = {
     "week": 7,
     "month": 30,
-    "year": 365
+    "year": 365,
 }
 
 # User States
 USER_STATE_WAITING_MOOD = "waiting_mood"
 USER_STATE_WAITING_JOURNAL = "waiting_journal"
-USER_STATE_WAITING_WORKOUT = "waiting_workout"
-USER_STATE_WAITING_EXPENSE = "waiting_expense"
 USER_STATE_IN_HEALER_MODE = "in_healer_mode"
 USER_STATE_IN_PRODUCTIVITY_MODE = "in_productivity_mode"
+USER_STATE_WAITING_REMINDER = "waiting_reminder"
 
 # Conversation Memory Limits
 MAX_CONVERSATION_HISTORY = 20  # Maximum number of messages to keep in memory
@@ -82,17 +57,22 @@ CONVERSATION_TIMEOUT = 3600  # 1 hour in seconds
 TABLE_USERS = "users"
 TABLE_MOODS = "moods"
 TABLE_JOURNALS = "journals"
-TABLE_WORKOUTS = "workouts"
-TABLE_EXPENSES = "expenses"
 TABLE_REMINDERS = "reminders"
 TABLE_CONVERSATIONS = "conversations"
-TABLE_MEDITATION_SESSIONS = "meditation_sessions"
+TABLE_SUBSCRIPTIONS = "subscriptions"
 
 # Reminder Types
 REMINDER_TYPE_ONCE = "once"
 REMINDER_TYPE_DAILY = "daily"
 REMINDER_TYPE_WEEKLY = "weekly"
 REMINDER_TYPE_MONTHLY = "monthly"
+
+REPEAT_TYPES = [
+    REMINDER_TYPE_ONCE,
+    REMINDER_TYPE_DAILY,
+    REMINDER_TYPE_WEEKLY,
+    REMINDER_TYPE_MONTHLY,
+]
 
 # Time Formats
 TIME_FORMAT_12H = "%I:%M %p"
@@ -103,9 +83,6 @@ DATETIME_FORMAT = "%Y-%m-%d %H:%M:%S"
 # Limits
 MAX_JOURNAL_LENGTH = 5000
 MAX_REMINDER_TEXT_LENGTH = 500
-MAX_EXPENSE_AMOUNT = 1000000
-MIN_WORKOUT_DURATION = 1  # minutes
-MAX_WORKOUT_DURATION = 600  # minutes
 
 # Pagination
 ITEMS_PER_PAGE = 10
@@ -114,6 +91,16 @@ ITEMS_PER_PAGE = 10
 CACHE_TTL_SHORT = 300  # 5 minutes
 CACHE_TTL_MEDIUM = 1800  # 30 minutes
 CACHE_TTL_LONG = 3600  # 1 hour
+
+# Subscription / Premium
+SUB_TIER_FREE = "free"
+SUB_TIER_PREMIUM = "premium"
+SUB_TIERS = [SUB_TIER_FREE, SUB_TIER_PREMIUM]
+
+# Free-tier daily limits
+FREE_DAILY_AI_MESSAGES = 10
+FREE_MAX_REMINDERS = 5
+FREE_MAX_JOURNAL_ENTRIES_PER_DAY = 3
 
 # Error Messages
 ERROR_GENERIC = "An error occurred. Please try again later."

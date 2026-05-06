@@ -3,7 +3,7 @@ Uzbek translations
 """
 
 TRANSLATIONS = {
-    "welcome": "👋 MindMate'ga xush kelibsiz!\n\nMen sizning ruhiy salomatlik, samaradorlik va farovonlik uchun AI yordamchingizman.\n\nIltimos, tilingizni tanlang:",
+    "welcome": "👋 MindMate'ga xush kelibsiz!\n\nMen sizning ruhiy salomatlik va samaradorlik uchun AI yordamchingizman.\n\nIltimos, tilingizni tanlang:",
 
     "setup": {
         "complete": "✅ Sozlash tugallandi! Endi barcha funksiyalardan foydalanishingiz mumkin.",
@@ -12,55 +12,35 @@ TRANSLATIONS = {
 
     "menu": {
         "main_menu": "🏠 Asosiy menyu\n\nBugun nima qilmoqchisiz?",
-        "mood_tracking": "😊 Kayfiyatni kuzatish",
-        "meditation": "🧘 Meditatsiya",
-        "fitness": "💪 Fitnes",
-        "healer": "🌟 Shifokor bilan gaplashish",
+        "mood_tracking": "😊 Kayfiyat",
+        "healer": "🌟 Shifokor",
         "journal": "📝 Kundalik",
         "productivity": "🎯 Samaradorlik",
-        "finance": "💰 Moliya",
+        "reminders": "⏰ Eslatmalar",
         "stats": "📊 Statistika",
         "settings": "⚙️ Sozlamalar",
+        "premium": "💎 Premium",
         "help": "❓ Yordam",
     },
 
     "mood": {
         "select": "Bugun o'zingizni qanday his qilyapsiz?",
         "logged": "✅ Kayfiyat saqlandi!",
-        "happy": "😊 Xursand",
-        "sad": "😢 G'amgin",
-        "angry": "😠 Jahldor",
-        "anxious": "😰 Tashvishli",
-        "tired": "😴 Charchagan",
-        "excited": "🤗 Hayajonli",
+        "happy": "Xursand",
+        "sad": "G'amgin",
+        "angry": "Jahldor",
+        "anxious": "Tashvishli",
+        "tired": "Charchagan",
+        "excited": "Hayajonli",
         "stats": "📊 So'nggi {days} kundagi kayfiyat statistikasi:",
-    },
-
-    "meditation": {
-        "welcome": "🧘 Meditatsiyaga xush kelibsiz\n\nMeditatsiya davomiyligini tanlang:",
-        "duration_5": "5 daqiqa",
-        "duration_10": "10 daqiqa",
-        "duration_15": "15 daqiqa",
-        "duration_20": "20 daqiqa",
-        "duration_30": "30 daqiqa",
-        "start": "🧘 {duration} daqiqalik meditatsiya boshlanmoqda...\n\nQulay holatni toping, ko'zlaringizni yuming va nafasingizga e'tibor qarating.\n\nSessiya tugagach, sizga xabar beraman.",
-        "complete": "✅ Meditatsiya tugadi!\n\nAjoyib! Siz {duration} daqiqalik meditatsiyani tugatdingiz.",
-        "stats": "📊 Meditatsiya statistikasi:\n\nJami sessiyalar: {total}\nUmumiy vaqt: {time} daqiqa\nO'rtacha davomiylik: {avg} daqiqa",
-    },
-
-    "fitness": {
-        "welcome": "💪 Fitnes kuzatuvi\n\nNima qilmoqchisiz?",
-        "log_workout": "📝 Mashg'ulotni yozish",
-        "view_stats": "📊 Statistikani ko'rish",
-        "enter_workout": "Mashg'ulot ma'lumotlarini quyidagi formatda kiriting:\n\nFaoliyat: davomiylik (daqiqa)\n\nMisol: Yugurish: 30",
-        "logged": "✅ Mashg'ulot yozildi!\n\nFaoliyat: {activity}\nDavomiylik: {duration} daqiqa",
-        "stats": "📊 Fitnes statistikasi ({days} kun):\n\nJami mashg'ulotlar: {total}\nUmumiy davomiylik: {duration} daqiqa\nO'rtacha davomiylik: {avg} daqiqa",
+        "no_data": "Hali kayfiyat ma'lumotlari yo'q. Birinchi kayfiyatingizni kiriting!",
     },
 
     "healer": {
         "welcome": "🌟 Shifokor rejimiga xush kelibsiz\n\nMen sizni tinglash va qo'llab-quvvatlash uchun shu yerdaman. Fikrlaringiz bilan bo'lishing.\n\nXabaringizni quyida yozing:",
         "active": "🌟 Shifokor rejimi faol\n\nMen tinglayapman. Fikr va his-tuyg'ularingiz bilan bo'lishing:",
         "exit": "Bo'lishganingiz uchun rahmat. O'zingizga yaxshilik qiling! 💚",
+        "crisis": "Sizning hayotingiz qadrli. Iltimos, darhol professional yordamga murojaat qiling:\n\n🆘 Tez yordam:\n• 1050 (O'zbekiston ishonch telefoni)\n• 103 (Tez tibbiy yordam)\n\nYolg'iz emassiz. 💚",
     },
 
     "journal": {
@@ -78,29 +58,42 @@ TRANSLATIONS = {
         "active": "🎯 Samaradorlik rejimi faol\n\nVazifalaringiz, maqsadlaringiz bilan bo'lishing yoki samaradorlik bo'yicha maslahat so'rang:",
     },
 
-    "finance": {
-        "welcome": "💰 Moliya kuzatuvi\n\nNima qilmoqchisiz?",
-        "add_expense": "➕ Xarajat qo'shish",
-        "view_stats": "📊 Statistikani ko'rish",
-        "enter_expense": "Xarajat ma'lumotlarini quyidagi formatda kiriting:\n\nMiqdor Kategoriya: Tavsif\n\nMisol: 50 oziq-ovqat: Restoranda tushlik",
-        "added": "✅ Xarajat qo'shildi!\n\nMiqdor: ${amount}\nKategoriya: {category}",
-        "stats": "📊 Moliya statistikasi ({days} kun):\n\nJami xarajatlar: ${total}\nO'rtacha xarajat: ${avg}\nTransaksiyalar soni: {count}",
-        "by_category": "💰 Kategoriyalar bo'yicha xarajatlar:\n\n{categories}",
-    },
-
     "stats": {
         "welcome": "📊 Sizning statistikangiz\n\nNimani ko'rmoqchisiz?",
         "mood": "😊 Kayfiyat statistikasi",
-        "fitness": "💪 Fitnes statistikasi",
-        "meditation": "🧘 Meditatsiya statistikasi",
-        "finance": "💰 Moliya statistikasi",
+        "journal": "📝 Kundalik statistikasi",
         "overall": "📈 Umumiy statistika",
+        "summary": "📊 Umumiy statistika ({days} kun):\n\n• Kayfiyat yozuvlari: {moods}\n• Kundalik yozuvlari: {journals}\n• AI suhbatlar: {chats}",
     },
 
     "reminders": {
+        "welcome": "⏰ Eslatmalar\n\nNima qilmoqchisiz?",
+        "new": "➕ Yangi eslatma",
+        "list": "📋 Mening eslatmalarim",
         "set": "⏰ Eslatma o'rnatish\n\nMenga qachon va nima haqida eslatishim kerakligini ayting.\n\nMisol: Ertaga soat 15:00 da suv ichishni eslatib tur",
         "created": "✅ Eslatma yaratildi!\n\nMen sizga eslataman: {text}\nVaqt: {time}",
         "notification": "⏰ Eslatma: {text}",
+        "no_reminders": "Sizda faol eslatmalar yo'q.",
+        "list_item": "• {time} — {text}",
+        "limit_reached": "❌ Bepul rejimda maksimum {limit} eslatma mumkin. Premium'ga o'ting!",
+        "parse_error": "❌ Vaqtni tushunmadim. Iltimos, qayta urinib ko'ring.\n\nMisol: Ertaga 15:00 da yig'ilish",
+    },
+
+    "settings": {
+        "welcome": "⚙️ Sozlamalar",
+        "language": "🌐 Til",
+        "timezone": "🕐 Vaqt zonasi",
+        "delete_data": "🗑 Ma'lumotlarimni o'chirish",
+        "delete_confirm": "⚠️ Barcha ma'lumotlaringiz o'chiriladi. Davom etasizmi?",
+        "delete_done": "✅ Ma'lumotlaringiz o'chirildi.",
+    },
+
+    "premium": {
+        "welcome": "💎 Premium obuna\n\nPremium imkoniyatlar:\n\n✅ Cheksiz AI suhbatlar\n✅ Cheksiz eslatmalar\n✅ Chuqur statistika\n✅ Ovozli xabarlar\n✅ Birinchi navbatda javob\n\nNarxi: 25 000 so'm/oy",
+        "subscribe_stars": "⭐ Telegram Stars (200⭐)",
+        "subscribe_card": "💳 Karta orqali to'lash",
+        "active": "✅ Premium obunangiz faol! Tugash sanasi: {date}",
+        "limit_reached": "❌ Bugungi bepul limit tugadi ({limit} ta xabar). Premium'ga o'ting!",
     },
 
     "errors": {

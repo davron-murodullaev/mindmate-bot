@@ -1,16 +1,10 @@
 """
-Statistics service
+Statistics service (simplified — mood + journal only)
 """
-from typing import Dict, Any
 import logging
+from typing import Dict, Any
 
-from mindmate.db.queries import (
-    get_mood_stats,
-    get_workout_stats,
-    get_meditation_stats,
-    get_expense_stats,
-    get_expense_by_category
-)
+from mindmate.db.queries import get_mood_stats, count_user_journals
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +14,7 @@ class StatsService:
 
     @staticmethod
     async def get_mood_statistics(user_id: int, days: int = 7) -> Dict[str, int]:
-        """Get mood statistics."""
+        """Get mood statistics for the last N days."""
         try:
             return await get_mood_stats(user_id, days)
         except Exception as e:
@@ -28,35 +22,28 @@ class StatsService:
             return {}
 
     @staticmethod
-    async def get_fitness_statistics(user_id: int, days: int = 7) -> Dict[str, Any]:
-        """Get fitness statistics."""
+    async def get_journal_count(user_id: int, days: int = 7) -> int:
+        """Number of journal entries in the last N days."""
         try:
-            return await get_workout_stats(user_id, days)
+            return await count_user_journals(user_id, days)
         except Exception as e:
-            logger.error(f"Error getting fitness stats: {e}")
-            return {}
+            logger.error(f"Error counting journal entries: {e}")
+            return 0
 
     @staticmethod
-    async def get_meditation_statistics(user_id: int, days: int = 30) -> Dict[str, Any]:
-        """Get meditation statistics."""
+    async def get_overall(user_id: int, days: int = 30) -> Dict[str, Any]:
+        """Get a one-shot overall summary."""
         try:
-            return await get_meditation_stats(user_id, days)
+            mood_stats = await get_mood_stats(user_id, days)
+            journal_count = await count_user_journals(user_id, days)
+            return {
+                "moods": sum(mood_stats.values()),
+                "journals": journal_count,
+                "chats": 0,  # populated by AI brain when added
+            }
         except Exception as e:
-            logger.error(f"Error getting meditation stats: {e}")
-            return {}
-
-    @staticmethod
-    async def get_finance_statistics(user_id: int, days: int = 30) -> Dict[str, Any]:
-        """Get finance statistics."""
-        try:
-            stats = await get_expense_stats(user_id, days)
-            categories = await get_expense_by_category(user_id, days)
-            stats['categories'] = categories
-            return stats
-        except Exception as e:
-            logger.error(f"Error getting finance stats: {e}")
-            return {}
+            logger.error(f"Error getting overall stats: {e}")
+            return {"moods": 0, "journals": 0, "chats": 0}
 
 
-# Global service instance
 stats_service = StatsService()

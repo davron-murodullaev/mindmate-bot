@@ -1,16 +1,31 @@
 services:
-  - type: web
+  - type: worker            # IMPORTANT: long-polling Telegram bot, not a web server
     name: mindmate-bot
     env: python
     region: oregon
-    plan: free
+    plan: starter
     buildCommand: pip install -r requirements.txt
     startCommand: python main.py
     envVars:
       - key: TELEGRAM_BOT_TOKEN
         sync: false
+
+      # ── AI provider — change to 'anthropic' to switch to Claude ──
+      - key: AI_PROVIDER
+        value: openai
+
+      # OpenAI (used when AI_PROVIDER=openai)
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: OPENAI_MODEL
+        value: gpt-4o-mini
+
+      # Anthropic (used when AI_PROVIDER=anthropic)
       - key: ANTHROPIC_API_KEY
         sync: false
+      - key: ANTHROPIC_MODEL
+        value: claude-sonnet-4-5
+
       - key: DATABASE_URL
         fromDatabase:
           name: mindmate-db
@@ -23,14 +38,12 @@ services:
         value: true
       - key: ENABLE_ANALYTICS
         value: true
-      - key: AI_MODEL
-        value: claude-3-5-sonnet-20241022
       - key: MAX_TOKENS
         value: 2048
       - key: TEMPERATURE
         value: 0.7
       - key: TIMEZONE
-        value: UTC
+        value: Asia/Tashkent
 
 databases:
   - name: mindmate-db
