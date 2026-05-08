@@ -134,12 +134,11 @@ def kb_looking_for() -> InlineKeyboardMarkup:
 
 
 def kb_gender() -> InlineKeyboardMarkup:
-    rows = [
+    """Gender is required so users can be matched correctly — no skip option."""
+    return InlineKeyboardMarkup([
         [InlineKeyboardButton(FRIEND_GENDER_LABELS_UZ[g], callback_data=f"friends_g_{g}")]
         for g in FRIEND_GENDER_OPTIONS
-    ]
-    rows.append([InlineKeyboardButton("⏭ O'tkazib yuborish", callback_data="friends_g_skip")])
-    return InlineKeyboardMarkup(rows)
+    ])
 
 
 def kb_interests(selected: list[str]) -> InlineKeyboardMarkup:
@@ -307,9 +306,11 @@ async def friends_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         # ── Setup wizard: gender ──────────────────────────────────
         if data.startswith("friends_g_"):
             tag = data.replace("friends_g_", "")
+            if tag not in FRIEND_GENDER_OPTIONS:
+                await query.answer("Iltimos, jinsingizni tanlang", show_alert=True)
+                return
             setup = context.user_data.get("friends_setup", {})
-            if tag != "skip":
-                setup.setdefault("data", {})["gender"] = tag
+            setup.setdefault("data", {})["gender"] = tag
             setup["step"] = "city"
             context.user_data["friends_setup"] = setup
             await query.edit_message_text(
@@ -739,16 +740,63 @@ async def friends_text_handler(update: Update, context: ContextTypes.DEFAULT_TYP
         return
 
 
+async def _resolve_to_photo_id(
+    update: Update, context: ContextTypes.DEFAULT_TYPE, message,
+) -> Optional[str]:
+    """
+    Resolve any image submission (photo OR image-document like PNG file)
+    to a Telegram *photo* file_id we can later send via send_photo().
+
+    If the user uploaded a PNG/JPEG as a file (document), we download the
+    bytes and re-upload them as a photo to obtain a proper photo file_id.
+    """
+    if message.photo:
+        return message.photo[-1].file_id
+
+    if message.document:
+        mime = message.document.mime_type or ""
+        if not mime.startswith("image/"):
+            return None
+        try:
+            doc_file = await message.document.get_file()
+            doc_bytes = await doc_file.download_as_bytearray()
+            sent = await context.bot.send_photo(
+                chat_id=update.effective_chat.id,
+                photo=bytes(doc_bytes),
+            )
+            # Capture the resulting photo file_id (largest size)
+            return sent.photo[-1].file_id
+        except Exception as e:
+            logger.error(f"Failed to convert document image to photo: {e}")
+            await message.reply_text(
+                "❌ Rasmni qayta ishlashda xatolik. Iltimos, *fayl* sifatida emas, "
+                "*rasm* sifatida qaytadan yuboring (skrepka emas, kamera/galereya iconi).",
+                parse_mode="Markdown",
+            )
+            return None
+
+    return None
+
+
 async def friends_photo_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Receive a photo: either anketa photo OR verification selfie."""
+    """Receive a photo: either anketa photo OR verification selfie.
+
+    Accepts both regular photos and image-documents (e.g. PNG sent as file).
+    """
     setup = context.user_data.get("friends_setup")
     is_verifying = context.user_data.get("friends_verify")
 
     message = update.message
-    if not message or not message.photo:
+    if not message:
         return
 
-    photo_file_id = message.photo[-1].file_id
+    # Only run if user is in a state expecting a photo
+    if not is_verifying and (not setup or setup.get("step") != "photo"):
+        return
+
+    photo_file_id = await _resolve_to_photo_id(update, context, message)
+    if not photo_file_id:
+        return
 
     # ── Verification selfie ──────────────────────────────────────
     if is_verifying:
@@ -762,11 +810,11 @@ async def friends_photo_handler(update: Update, context: ContextTypes.DEFAULT_TY
                 context.user_data.pop("friends_verify", None)
                 return
 
-            # Download both photos as bytes
+            # Download both photos as bytes via their photo file_ids
             saved_file = await context.bot.get_file(profile["photo_file_id"])
             saved_bytes = await saved_file.download_as_bytearray()
 
-            selfie_file = await message.photo[-1].get_file()
+            selfie_file = await context.bot.get_file(photo_file_id)
             selfie_bytes = await selfie_file.download_as_bytearray()
 
             await chat.send_message("🔍 AI tasdiqlamoqda...")
@@ -798,8 +846,6 @@ async def friends_photo_handler(update: Update, context: ContextTypes.DEFAULT_TY
         return
 
     # ── Anketa photo ─────────────────────────────────────────────
-    if not setup or setup.get("step") != "photo":
-        return
     await _finalize_friend_setup(update, context, photo_file_id=photo_file_id)
 
 
