@@ -298,11 +298,15 @@ def main():
     application.add_handler(CallbackQueryHandler(friends_callback, pattern="^friends_"))
 
     # ── Text + voice + photo dispatcher ───────────────────────────────
-    # Photo handler covers BOTH wizard photos AND verification selfies
-    # (the handler decides what to do based on user_data state).
+    # Photo handler covers BOTH wizard photos AND verification selfies,
+    # for both regular photos AND image-files (PNG/JPEG sent as document).
+    # The handler decides what to do based on user_data state.
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, text_dispatcher))
     application.add_handler(MessageHandler(filters.VOICE, voice_dispatcher))
-    application.add_handler(MessageHandler(filters.PHOTO, friends_photo_handler))
+    application.add_handler(MessageHandler(
+        filters.PHOTO | filters.Document.IMAGE,
+        friends_photo_handler,
+    ))
 
     logger.info("Bot started successfully. Polling for updates...")
     application.run_polling(allowed_updates=["message", "callback_query"])
