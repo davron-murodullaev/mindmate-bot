@@ -423,3 +423,172 @@ async def upsert_career_profile(
 async def delete_career_profile(user_id: int) -> None:
     """Delete a user's career profile."""
     await execute_query("DELETE FROM career_profiles WHERE user_id = $1", user_id)
+
+
+# ──────────────────────── Friend Profile Queries ────────────────────────
+
+async def get_friend_profile(user_id: int) -> Optional[Dict[str, Any]]:
+    """Get a user's friend-finding profile."""
+    query = "SELECT * FROM friend_profiles WHERE user_id = $1"
+    row = await execute_fetchrow(query, user_id)
+    return dict(row) if row else None
+
+
+async def upsert_friend_profile(
+    user_id: int,
+    display_name: str,
+    age: int,
+    looking_for: str,
+    gender: Optional[str] = None,
+    city: Optional[str] = None,
+    interests: Optional[List[str]] = None,
+    bio: Optional[str] = None,
+    photo_file_id: Optional[str] = None,
+    is_active: bool = True,
+) -> None:
+    """Create or update a friend-finding profile."""
+    query = """
+        INSERT INTO friend_profiles
+            (user_id, display_name, age, gender, city, interests,
+             looking_for, bio, photo_file_id, is_active, updated_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, CURRENT_TIMESTAMP)
+        ON CONFLICT (user_id) DO UPDATE
+        SET display_name = EXCLUDED.display_name,
+            age = EXCLUDED.age,
+            gender = EXCLUDED.gender,
+            city = EXCLUDED.city,
+            interests = EXCLUDED.interests,
+            looking_for = EXCLUDED.looking_for,
+            bio = COALESCE(EXCLUDED.bio, friend_profiles.bio),
+            photo_file_id = COALESCE(EXCLUDED.photo_file_id, friend_profiles.photo_file_id),
+            is_active = EXCLUDED.is_active,
+            updated_at = CURRENT_TIMESTAMP
+    """
+    await execute_query(
+        query, user_id, display_name, age, gender, city,
+        interests or [], looking_for, bio, photo_file_id, is_active,
+    )
+
+
+async def deactivate_friend_profile(user_id: int) -> None:
+    """Hide profile from browsing without deleting it."""
+    await execute_query(
+        "UPDATE friend_profiles SET is_active = false, updated_at = CURRENT_TIMESTAMP "
+        "WHERE user_id = $1",
+        user_id,
+    )
+
+
+async def reactivate_friend_profile(user_id: int) -> None:
+    """Make profile visible again."""
+    await execute_query(
+        "UPDATE friend_profiles SET is_active = true, updated_at = CURRENT_TIMESTAMP "
+        "WHERE user_id = $1",
+        user_id,
+    )
+
+
+async def delete_friend_profile(user_id: int) -> None:
+    """Delete a user's friend profile (likes and matches cascade)."""
+    await execute_query("DELETE FROM friend_profiles WHERE user_id = $1", user_id)
+
+
+async def get_next_browse_profile(
+    viewer_id: int,
+    looking_for: Optional[str] = None,
+    same_city: Optional[str] = None,
+    target_gender: Optional[str] = None,
+) -> Optional[Dict[str, Any]]:
+    """
+    Find the next active profile the viewer hasn't reacted to yet.
+
+    - Excludes the viewer themselves
+    - Excludes profiles the viewer has already liked/passed
+    - Optional filters: looking_for, city match, gender
+    """
+    query = """
+        SELECT fp.*
+        FROM friend_profiles fp
+        WHERE fp.user_id != $1
+          AND fp.is_active = true
+          AND NOT EXISTS (
+              SELECT 1 FROM friend_likes fl
+              WHERE fl.from_user_id = $1 AND fl.to_user_id = fp.user_id
+          )
+          AND ($2::text IS NULL OR fp.looking_for = $2)
+          AND ($3::text IS NULL OR LOWER(fp.city) = LOWER($3))
+          AND ($4::text IS NULL OR fp.gender = $4)
+        ORDER BY RANDOM()
+        LIMIT 1
+    """
+    row = await execute_fetchrow(
+        query, viewer_id, looking_for, same_city, target_gender,
+    )
+    return dict(row) if row else None
+
+
+async def record_friend_reaction(
+    from_user_id: int,
+    to_user_id: int,
+    is_like: bool,
+) -> bool:
+    """
+    Save a like/pass reaction. Returns True if a mutual match was created.
+    """
+    # Insert/update the reaction
+    insert_query = """
+        INSERT INTO friend_likes (from_user_id, to_user_id, is_like)
+        VALUES ($1, $2, $3)
+        ON CONFLICT (from_user_id, to_user_id) DO UPDATE
+        SET is_like = EXCLUDED.is_like, created_at = CURRENT_TIMESTAMP
+    """
+    await execute_query(insert_query, from_user_id, to_user_id, is_like)
+
+    if not is_like:
+        return False
+
+    # Mutual like check
+    mutual_query = """
+        SELECT 1 FROM friend_likes
+        WHERE from_user_id = $1 AND to_user_id = $2 AND is_like = true
+    """
+    mutual = await execute_fetchval(mutual_query, to_user_id, from_user_id)
+    if not mutual:
+        return False
+
+    # Create match (always store with user1_id < user2_id for uniqueness)
+    user1, user2 = sorted([from_user_id, to_user_id])
+    match_query = """
+        INSERT INTO friend_matches (user1_id, user2_id)
+        VALUES ($1, $2)
+        ON CONFLICT (user1_id, user2_id) DO NOTHING
+    """
+    await execute_query(match_query, user1, user2)
+    return True
+
+
+async def get_friend_matches(user_id: int) -> List[Dict[str, Any]]:
+    """Get the user's matches (mutual likes), with the other user's profile."""
+    query = """
+        SELECT fp.*, fm.matched_at
+        FROM friend_matches fm
+        JOIN friend_profiles fp ON fp.user_id = (
+            CASE WHEN fm.user1_id = $1 THEN fm.user2_id ELSE fm.user1_id END
+        )
+        WHERE (fm.user1_id = $1 OR fm.user2_id = $1)
+          AND fp.is_active = true
+        ORDER BY fm.matched_at DESC
+        LIMIT 50
+    """
+    rows = await execute_query(query, user_id, fetch=True)
+    return [dict(row) for row in rows]
+
+
+async def count_friend_likes_received(user_id: int) -> int:
+    """Count how many active users have liked this user (premium feature)."""
+    query = """
+        SELECT COUNT(*) FROM friend_likes fl
+        JOIN friend_profiles fp ON fp.user_id = fl.from_user_id
+        WHERE fl.to_user_id = $1 AND fl.is_like = true AND fp.is_active = true
+    """
+    return await execute_fetchval(query, user_id) or 0

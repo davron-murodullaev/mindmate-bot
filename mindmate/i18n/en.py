@@ -33,23 +33,15 @@ TRANSLATIONS = {
 
     "friends": {
         "teaser": (
-            "💝 *Find friends — Coming soon!*\n\n"
-            "We're building MindMate's most powerful feature: AI-powered "
-            "friendship matching.\n\n"
-            "Better than LeoMatch:\n"
-            "✅ AI understands you and finds quality matches\n"
-            "✅ Verified profiles — no fakes\n"
-            "✅ AI helps start conversations\n"
-            "✅ Audio intros — meet via voice\n"
-            "✅ Interest-based groups\n\n"
-            "*Want to be first when we launch?*"
-        ),
-        "join_waitlist": "🔔 Join the waitlist",
-        "in_waitlist": "✅ You're on the list",
-        "waitlist_joined": (
-            "🎉 *You joined the waitlist!*\n\n"
-            "You'll be among the first when we launch. Until then, chat with me — "
-            "I'm a great listener!"
+            "💝 *Find Friends*\n\n"
+            "Meaningful connections — right inside MindMate.\n\n"
+            "✨ *Quick profile* — done in a minute\n"
+            "🎯 *Smart matching* — by interests and city\n"
+            "💬 *Direct Telegram chat* — no separate app\n"
+            "🎭 *Three connection types* — friendship, relationship, partnership\n"
+            "🔒 *18+ only* — safe community\n"
+            "👁 *Your control* — hide your profile anytime\n\n"
+            "Fill out your profile and start meeting new people!"
         ),
     },
 

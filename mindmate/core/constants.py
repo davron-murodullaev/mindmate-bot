@@ -140,6 +140,54 @@ CAREER_STATUS_LABELS_UZ = {
     "freelance": "🚀 Freelancer / Biznes",
 }
 
+# ── Friend Finding ──────────────────────────────────────────────────
+FRIEND_LOOKING_OPTIONS = ["friendship", "relationship", "partner"]
+FRIEND_LOOKING_LABELS_UZ = {
+    "friendship": "🤝 Do'stlik",
+    "relationship": "💕 Munosabat",
+    "partner": "🚀 Hamkorlik (biznes/loyiha)",
+}
+
+FRIEND_GENDER_OPTIONS = ["male", "female", "other"]
+FRIEND_GENDER_LABELS_UZ = {
+    "male": "👨 Erkak",
+    "female": "👩 Ayol",
+    "other": "🌈 Boshqa",
+}
+
+FRIEND_INTERESTS = [
+    "music", "movies", "books", "sport", "gaming",
+    "tech", "art", "travel", "cooking", "photography",
+    "fashion", "fitness", "languages", "business", "science",
+]
+FRIEND_INTERESTS_LABELS_UZ = {
+    "music": "🎵 Musiqa",
+    "movies": "🎬 Kino",
+    "books": "📚 Kitoblar",
+    "sport": "⚽ Sport",
+    "gaming": "🎮 O'yinlar",
+    "tech": "💻 Texnologiya",
+    "art": "🎨 San'at",
+    "travel": "✈️ Sayohat",
+    "cooking": "🍳 Oshxona",
+    "photography": "📸 Fotografiya",
+    "fashion": "👗 Moda",
+    "fitness": "💪 Fitnes",
+    "languages": "🌍 Tillar",
+    "business": "💼 Biznes",
+    "science": "🔬 Ilm-fan",
+}
+
+FRIEND_MIN_AGE = 18
+FRIEND_MAX_AGE = 100
+FRIEND_MIN_INTERESTS = 1
+FRIEND_MAX_INTERESTS = 6
+FRIEND_BIO_MAX_LENGTH = 300
+
+# Free-tier limits for friend finding
+FREE_DAILY_BROWSES = 10
+FREE_DAILY_LIKES = 5
+
 # ── Subscription / Premium ──────────────────────────────────────────
 SUB_TIER_FREE = "free"
 SUB_TIER_PREMIUM = "premium"

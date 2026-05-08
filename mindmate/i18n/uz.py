@@ -33,24 +33,15 @@ TRANSLATIONS = {
 
     "friends": {
         "teaser": (
-            "💝 *Do'st topish — Tez orada!*\n\n"
-            "MindMate'ning eng kuchli xususiyati ustida ishlayapmiz: "
-            "*AI yordamida* haqiqiy do'stlar topish.\n\n"
-            "Bu LeoMatch'dan farq qilib:\n"
-            "✅ AI sizni tushunadi va sifatli mos kelishlarni topadi\n"
-            "✅ Verifikatsiya — fake profillar yo'q\n"
-            "✅ Suhbat boshlashga AI yordam beradi\n"
-            "✅ Audio tanishuv — ovoz orqali tanish\n"
-            "✅ Qiziqishlar bo'yicha guruhlar\n\n"
-            "*Chiqarilganda birinchi bo'lib bilmoqchimisiz?*"
-        ),
-        "join_waitlist": "🔔 Kutish ro'yxatiga qo'shilish",
-        "in_waitlist": "✅ Siz ro'yxatdasiz",
-        "waitlist_joined": (
-            "🎉 *Kutish ro'yxatiga qo'shildingiz!*\n\n"
-            "Tayyor bo'lganda birinchilardan biri bo'lasiz. "
-            "Vaqtincha bot orqali do'st topa olmasangiz, men bilan suhbatlashing — "
-            "men ham yaxshi suhbatdoshman!"
+            "💝 *Do'st topish*\n\n"
+            "Yangi tanishuvlar va mazmunli munosabatlar uchun MindMate joyi.\n\n"
+            "✨ *Sodda anketa* — 1 daqiqada to'ldiriladi\n"
+            "🎯 *Aqlli mos topish* — qiziqish va shaharingiz bo'yicha\n"
+            "💬 *Telegram'da to'g'ridan-to'g'ri suhbat* — alohida ilova kerak emas\n"
+            "🎭 *3 turdagi tanishuv* — do'stlik, munosabat, hamkorlik\n"
+            "🔒 *Faqat 18+* — xavfsiz muhit\n"
+            "👁 *Sizni xohlasangiz yashiradi* — istalgan vaqt anketani o'chirib qo'ying\n\n"
+            "Anketangizni to'ldiring — yangi do'stlar topish vaqti!"
         ),
     },
 
