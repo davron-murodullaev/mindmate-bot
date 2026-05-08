@@ -187,7 +187,7 @@ async def text_dispatcher(update, context):
         await career_text_handler(update, context)
         return
 
-    if context.user_data.get("friends_setup"):
+    if context.user_data.get("friends_setup") or context.user_data.get("friends_pref_age"):
         await friends_text_handler(update, context)
         return
 
@@ -298,6 +298,8 @@ def main():
     application.add_handler(CallbackQueryHandler(friends_callback, pattern="^friends_"))
 
     # ── Text + voice + photo dispatcher ───────────────────────────────
+    # Photo handler covers BOTH wizard photos AND verification selfies
+    # (the handler decides what to do based on user_data state).
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, text_dispatcher))
     application.add_handler(MessageHandler(filters.VOICE, voice_dispatcher))
     application.add_handler(MessageHandler(filters.PHOTO, friends_photo_handler))

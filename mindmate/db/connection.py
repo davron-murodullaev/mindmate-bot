@@ -214,6 +214,54 @@ async def init_db() -> None:
             )
         """)
 
+        # Friend matching preferences (filters)
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS friend_preferences (
+                user_id BIGINT PRIMARY KEY REFERENCES users(user_id) ON DELETE CASCADE,
+                target_gender VARCHAR(20),  -- NULL = any
+                min_age INT DEFAULT 18,
+                max_age INT DEFAULT 100,
+                same_city_only BOOLEAN DEFAULT true,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+
+        # User blocks (user_id blocks blocked_user_id; bidirectional filtering at query time)
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS friend_blocks (
+                user_id BIGINT REFERENCES users(user_id) ON DELETE CASCADE,
+                blocked_user_id BIGINT REFERENCES users(user_id) ON DELETE CASCADE,
+                reason VARCHAR(50),  -- 'block', 'report', 'spam', etc.
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (user_id, blocked_user_id)
+            )
+        """)
+
+        # Daily friend-finding usage (separate from main daily_usage so AI quota
+        # and like quota are tracked independently)
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS daily_friend_usage (
+                user_id BIGINT REFERENCES users(user_id) ON DELETE CASCADE,
+                usage_date DATE NOT NULL,
+                likes_given INT DEFAULT 0,
+                profiles_browsed INT DEFAULT 0,
+                PRIMARY KEY (user_id, usage_date)
+            )
+        """)
+
+        # Photo verification status — separate so we can re-verify without
+        # touching the main profile.
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS photo_verifications (
+                user_id BIGINT PRIMARY KEY REFERENCES users(user_id) ON DELETE CASCADE,
+                is_verified BOOLEAN DEFAULT false,
+                verified_at TIMESTAMP,
+                last_attempt_at TIMESTAMP,
+                attempts_count INT DEFAULT 0,
+                ai_notes TEXT
+            )
+        """)
+
         # Indexes
         await conn.execute("CREATE INDEX IF NOT EXISTS idx_moods_user_id ON moods(user_id)")
         await conn.execute("CREATE INDEX IF NOT EXISTS idx_moods_created_at ON moods(created_at)")

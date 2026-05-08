@@ -498,13 +498,17 @@ async def get_next_browse_profile(
     looking_for: Optional[str] = None,
     same_city: Optional[str] = None,
     target_gender: Optional[str] = None,
+    min_age: int = 18,
+    max_age: int = 100,
 ) -> Optional[Dict[str, Any]]:
     """
     Find the next active profile the viewer hasn't reacted to yet.
 
-    - Excludes the viewer themselves
-    - Excludes profiles the viewer has already liked/passed
-    - Optional filters: looking_for, city match, gender
+    Excludes:
+      - The viewer themselves
+      - Already-reacted profiles (likes/passes)
+      - Blocked users (in either direction)
+    Filters: looking_for, city, gender, age range.
     """
     query = """
         SELECT fp.*
@@ -515,14 +519,20 @@ async def get_next_browse_profile(
               SELECT 1 FROM friend_likes fl
               WHERE fl.from_user_id = $1 AND fl.to_user_id = fp.user_id
           )
+          AND NOT EXISTS (
+              SELECT 1 FROM friend_blocks fb
+              WHERE (fb.user_id = $1 AND fb.blocked_user_id = fp.user_id)
+                 OR (fb.user_id = fp.user_id AND fb.blocked_user_id = $1)
+          )
           AND ($2::text IS NULL OR fp.looking_for = $2)
           AND ($3::text IS NULL OR LOWER(fp.city) = LOWER($3))
           AND ($4::text IS NULL OR fp.gender = $4)
+          AND fp.age BETWEEN $5 AND $6
         ORDER BY RANDOM()
         LIMIT 1
     """
     row = await execute_fetchrow(
-        query, viewer_id, looking_for, same_city, target_gender,
+        query, viewer_id, looking_for, same_city, target_gender, min_age, max_age,
     )
     return dict(row) if row else None
 
@@ -592,3 +602,152 @@ async def count_friend_likes_received(user_id: int) -> int:
         WHERE fl.to_user_id = $1 AND fl.is_like = true AND fp.is_active = true
     """
     return await execute_fetchval(query, user_id) or 0
+
+
+async def get_users_who_liked_me(user_id: int, limit: int = 20) -> List[Dict[str, Any]]:
+    """Get profiles of users who liked me (excluding mutual matches)."""
+    query = """
+        SELECT fp.*
+        FROM friend_likes fl
+        JOIN friend_profiles fp ON fp.user_id = fl.from_user_id
+        WHERE fl.to_user_id = $1
+          AND fl.is_like = true
+          AND fp.is_active = true
+          AND NOT EXISTS (
+              SELECT 1 FROM friend_likes mine
+              WHERE mine.from_user_id = $1 AND mine.to_user_id = fl.from_user_id
+          )
+        ORDER BY fl.created_at DESC
+        LIMIT $2
+    """
+    rows = await execute_query(query, user_id, limit, fetch=True)
+    return [dict(row) for row in rows]
+
+
+# ──────────────────────── Friend Preferences ────────────────────────
+
+async def get_friend_preferences(user_id: int) -> Optional[Dict[str, Any]]:
+    """Get the user's matching preferences (gender, age range, geo)."""
+    query = "SELECT * FROM friend_preferences WHERE user_id = $1"
+    row = await execute_fetchrow(query, user_id)
+    return dict(row) if row else None
+
+
+async def upsert_friend_preferences(
+    user_id: int,
+    target_gender: Optional[str] = None,
+    min_age: int = 18,
+    max_age: int = 100,
+    same_city_only: bool = True,
+) -> None:
+    """Set the user's matching preferences."""
+    query = """
+        INSERT INTO friend_preferences
+            (user_id, target_gender, min_age, max_age, same_city_only, updated_at)
+        VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP)
+        ON CONFLICT (user_id) DO UPDATE
+        SET target_gender = EXCLUDED.target_gender,
+            min_age = EXCLUDED.min_age,
+            max_age = EXCLUDED.max_age,
+            same_city_only = EXCLUDED.same_city_only,
+            updated_at = CURRENT_TIMESTAMP
+    """
+    await execute_query(query, user_id, target_gender, min_age, max_age, same_city_only)
+
+
+# ──────────────────────── Block / Report ────────────────────────
+
+async def block_user(user_id: int, blocked_user_id: int, reason: str = "block") -> None:
+    """Block another user; they won't appear in browse and vice-versa."""
+    query = """
+        INSERT INTO friend_blocks (user_id, blocked_user_id, reason)
+        VALUES ($1, $2, $3)
+        ON CONFLICT (user_id, blocked_user_id) DO NOTHING
+    """
+    await execute_query(query, user_id, blocked_user_id, reason)
+
+
+async def unblock_user(user_id: int, blocked_user_id: int) -> None:
+    """Unblock a previously blocked user."""
+    await execute_query(
+        "DELETE FROM friend_blocks WHERE user_id = $1 AND blocked_user_id = $2",
+        user_id, blocked_user_id,
+    )
+
+
+async def is_blocked(viewer_id: int, candidate_id: int) -> bool:
+    """Return True if either side has blocked the other."""
+    query = """
+        SELECT 1 FROM friend_blocks
+        WHERE (user_id = $1 AND blocked_user_id = $2)
+           OR (user_id = $2 AND blocked_user_id = $1)
+        LIMIT 1
+    """
+    return bool(await execute_fetchval(query, viewer_id, candidate_id))
+
+
+# ──────────────────────── Daily friend usage ────────────────────────
+
+async def get_friend_daily_usage(user_id: int) -> Dict[str, int]:
+    """Get today's friend-finding usage counts."""
+    query = """
+        SELECT likes_given, profiles_browsed
+        FROM daily_friend_usage
+        WHERE user_id = $1 AND usage_date = CURRENT_DATE
+    """
+    row = await execute_fetchrow(query, user_id)
+    if row:
+        return {
+            "likes_given": row["likes_given"],
+            "profiles_browsed": row["profiles_browsed"],
+        }
+    return {"likes_given": 0, "profiles_browsed": 0}
+
+
+async def increment_friend_likes(user_id: int) -> int:
+    """Increment today's like count and return the new total."""
+    query = """
+        INSERT INTO daily_friend_usage (user_id, usage_date, likes_given)
+        VALUES ($1, CURRENT_DATE, 1)
+        ON CONFLICT (user_id, usage_date) DO UPDATE
+        SET likes_given = daily_friend_usage.likes_given + 1
+        RETURNING likes_given
+    """
+    return await execute_fetchval(query, user_id)
+
+
+# ──────────────────────── Photo verification ────────────────────────
+
+async def get_photo_verification(user_id: int) -> Optional[Dict[str, Any]]:
+    """Get a user's photo verification status."""
+    query = "SELECT * FROM photo_verifications WHERE user_id = $1"
+    row = await execute_fetchrow(query, user_id)
+    return dict(row) if row else None
+
+
+async def upsert_photo_verification(
+    user_id: int,
+    is_verified: bool,
+    ai_notes: Optional[str] = None,
+) -> None:
+    """Save the result of a photo verification attempt."""
+    query = """
+        INSERT INTO photo_verifications
+            (user_id, is_verified, verified_at, last_attempt_at, attempts_count, ai_notes)
+        VALUES (
+            $1, $2,
+            CASE WHEN $2 THEN CURRENT_TIMESTAMP ELSE NULL END,
+            CURRENT_TIMESTAMP,
+            1, $3
+        )
+        ON CONFLICT (user_id) DO UPDATE
+        SET is_verified = EXCLUDED.is_verified,
+            verified_at = CASE
+                WHEN EXCLUDED.is_verified THEN CURRENT_TIMESTAMP
+                ELSE photo_verifications.verified_at
+            END,
+            last_attempt_at = CURRENT_TIMESTAMP,
+            attempts_count = photo_verifications.attempts_count + 1,
+            ai_notes = EXCLUDED.ai_notes
+    """
+    await execute_query(query, user_id, is_verified, ai_notes)

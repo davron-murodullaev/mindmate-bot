@@ -10,6 +10,10 @@ TRANSLATIONS = {
         "choose_timezone": "Please choose your timezone:",
     },
 
+    "start": {
+        "welcome_back": "👋 *Welcome back, {name}!*\n\nWhere shall we start?",
+    },
+
     "menu": {
         "main_menu": "🏠 *Main Menu*\n\nJust type or speak to me — I'll understand.\nOr use the buttons below:",
         "exam": "🎓 Exam",

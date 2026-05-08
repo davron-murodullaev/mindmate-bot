@@ -1,23 +1,20 @@
 """
-Friend-finding feature — full MVP.
+Friend-finding feature — full implementation.
 
-Flow:
-1. /friends or "💝 Do'st topish" button
-2. If no profile → setup wizard (name, age, gender, city, looking_for, interests, bio, photo)
-3. Otherwise → main friends menu (Browse, My Profile, Matches, Settings)
-
-Designed to feel premium and intentional — anketa is short but expressive,
-browsing is paced (not infinite swipe), matches lead directly to Telegram chat.
+Features:
+- Anketa wizard (name -> age -> looking_for -> gender -> city -> interests -> bio -> photo)
+- AI bio writer (auto-generates polished bio)
+- Match preferences (target gender, age range, same-city only)
+- Browse with Like/Pass + Block/Report
+- Match flow with AI-generated icebreakers
+- "Who liked you" view (premium sees names, free sees count)
+- Daily like quota (free: 5, premium: unlimited)
+- Photo verification (gpt-4o vision)
 """
 import logging
 from typing import Optional
 
-from telegram import (
-    Update,
-    InlineKeyboardButton,
-    InlineKeyboardMarkup,
-    InputMediaPhoto,
-)
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 
 from mindmate.services.user_service import user_service
@@ -31,8 +28,19 @@ from mindmate.db.queries import (
     record_friend_reaction,
     get_friend_matches,
     count_friend_likes_received,
+    get_users_who_liked_me,
+    get_friend_preferences,
+    upsert_friend_preferences,
+    block_user,
+    is_blocked,
+    get_friend_daily_usage,
+    increment_friend_likes,
+    get_photo_verification,
+    upsert_photo_verification,
     is_premium_active,
 )
+from mindmate.ai.engines.friend_finder_engine import write_bio, generate_icebreakers
+from mindmate.ai.photo_verification import verify_photos
 from mindmate.ui.keyboards import get_back_to_menu_keyboard
 from mindmate.i18n import t
 from mindmate.core.constants import (
@@ -47,6 +55,7 @@ from mindmate.core.constants import (
     FRIEND_MIN_INTERESTS,
     FRIEND_MAX_INTERESTS,
     FRIEND_BIO_MAX_LENGTH,
+    FREE_DAILY_LIKES,
 )
 
 logger = logging.getLogger(__name__)
@@ -54,13 +63,18 @@ logger = logging.getLogger(__name__)
 
 # ──────────────────────── Keyboards ────────────────────────
 
-def kb_friends_main(profile: dict, lang: str = "uz") -> InlineKeyboardMarkup:
+def kb_friends_main(profile: dict, is_verified: bool, lang: str = "uz") -> InlineKeyboardMarkup:
     """Main friends menu when profile exists."""
     is_active = profile.get("is_active", True)
     visibility_btn = (
         InlineKeyboardButton("🙈 Anketani yashirish", callback_data="friends_hide")
         if is_active else
         InlineKeyboardButton("👁 Anketani ko'rsat", callback_data="friends_show")
+    )
+    verify_btn = (
+        InlineKeyboardButton("✅ Tasdiqlangan", callback_data="friends_verified_info")
+        if is_verified else
+        InlineKeyboardButton("🛡 Anketani tasdiqlash", callback_data="friends_verify_start")
     )
     return InlineKeyboardMarkup([
         [InlineKeyboardButton("💝 Tanishuv boshlash", callback_data="friends_browse")],
@@ -69,30 +83,44 @@ def kb_friends_main(profile: dict, lang: str = "uz") -> InlineKeyboardMarkup:
             InlineKeyboardButton("💌 Match'lar", callback_data="friends_matches"),
         ],
         [
-            InlineKeyboardButton("⚙️ Anketani tahrirlash", callback_data="friends_edit"),
-            visibility_btn,
+            InlineKeyboardButton("💖 Sizni yoqtirganlar", callback_data="friends_likes"),
+            verify_btn,
         ],
-        [InlineKeyboardButton(t("buttons.back", lang), callback_data="menu_main")],
+        [
+            InlineKeyboardButton("🎯 Filtrlar", callback_data="friends_prefs"),
+            InlineKeyboardButton("⚙️ Tahrirlash", callback_data="friends_edit"),
+        ],
+        [
+            visibility_btn,
+            InlineKeyboardButton(t("buttons.back", lang), callback_data="menu_main"),
+        ],
     ])
 
 
-def kb_browse_actions() -> InlineKeyboardMarkup:
-    """Like/Pass buttons during browsing."""
+def kb_browse_actions(candidate_id: int) -> InlineKeyboardMarkup:
+    """Like/Pass + Block buttons during browsing."""
     return InlineKeyboardMarkup([
         [
             InlineKeyboardButton("❌ O'tib ketish", callback_data="friends_pass"),
             InlineKeyboardButton("❤️ Yoqdi", callback_data="friends_like"),
         ],
-        [InlineKeyboardButton("⏸ Tanishuvni to'xtatish", callback_data="friends_back")],
+        [
+            InlineKeyboardButton("🚫 Bloklash", callback_data=f"friends_block_{candidate_id}"),
+            InlineKeyboardButton("⏸ Tanishuvni to'xtatish", callback_data="friends_back"),
+        ],
     ])
 
 
 def kb_match_actions(match_user_id: int) -> InlineKeyboardMarkup:
-    """When a match is created, offer to open chat."""
+    """When a match is created, offer to open chat or get icebreakers."""
     return InlineKeyboardMarkup([
         [InlineKeyboardButton(
             "💬 Telegram'da yozish",
             url=f"tg://user?id={match_user_id}",
+        )],
+        [InlineKeyboardButton(
+            "💡 Suhbat boshlovchi savollar",
+            callback_data=f"friends_icebreakers_{match_user_id}",
         )],
         [InlineKeyboardButton("➡️ Tanishuvni davom ettirish", callback_data="friends_browse")],
     ])
@@ -137,9 +165,44 @@ def kb_interests(selected: list[str]) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(rows)
 
 
+def kb_bio_step() -> InlineKeyboardMarkup:
+    """Bio step: type your own OR let AI write."""
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton("✨ AI bio yozib bersin", callback_data="friends_bio_ai")],
+        [InlineKeyboardButton("⏭ Bio'siz davom etish", callback_data="friends_bio_skip")],
+    ])
+
+
 def kb_photo_step() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup([
         [InlineKeyboardButton("⏭ Rasmsiz davom etish", callback_data="friends_photo_skip")],
+    ])
+
+
+def kb_preferences(prefs: dict) -> InlineKeyboardMarkup:
+    """Filters keyboard."""
+    target = prefs.get("target_gender")
+    target_label = FRIEND_GENDER_LABELS_UZ.get(target, "Hammasi") if target else "Hammasi"
+    same_city = prefs.get("same_city_only", True)
+    same_city_label = "Ha" if same_city else "Yo'q"
+    age_label = f"{prefs.get('min_age', 18)}-{prefs.get('max_age', 100)}"
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton(f"👤 Jins: {target_label}", callback_data="friends_pref_gender")],
+        [InlineKeyboardButton(f"🎂 Yosh oraligi: {age_label}", callback_data="friends_pref_age")],
+        [InlineKeyboardButton(
+            f"📍 Faqat shahrim: {same_city_label}",
+            callback_data="friends_pref_city",
+        )],
+        [InlineKeyboardButton("⬅️ Orqaga", callback_data="friends_back")],
+    ])
+
+
+def kb_pref_gender_select() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton("👨 Erkak", callback_data="friends_setg_male")],
+        [InlineKeyboardButton("👩 Ayol", callback_data="friends_setg_female")],
+        [InlineKeyboardButton("🌈 Hammasi", callback_data="friends_setg_any")],
+        [InlineKeyboardButton("⬅️ Orqaga", callback_data="friends_prefs")],
     ])
 
 
@@ -186,22 +249,27 @@ async def _show_friends_main(
     visibility = "👁 Ko'rinmoqda" if profile.get("is_active") else "🙈 Yashirin"
 
     likes_received = await count_friend_likes_received(profile["user_id"])
+    is_pro = await is_premium_active(profile["user_id"])
     likes_text = (
-        f"💝 Sizni yoqtirganlar: *{likes_received}*"
-        if await is_premium_active(profile["user_id"])
-        else f"💝 Sizni yoqtirganlar: *{likes_received}* (Premium'da kim ekanligi)"
+        f"💖 Sizni yoqtirganlar: *{likes_received}*"
     )
+    if not is_pro and likes_received > 0:
+        likes_text += " _(Premium'da kim ekanligi)_"
+
+    verification = await get_photo_verification(profile["user_id"])
+    is_verified = bool(verification and verification.get("is_verified"))
+    verified_badge = "✅ Tasdiqlangan" if is_verified else "🔓 Tasdiqlanmagan"
 
     text = (
         f"💝 *Do'st topish*\n\n"
         f"👤 {name}, {age}\n"
         f"🎯 {looking}\n"
-        f"{visibility}\n\n"
+        f"{visibility} · {verified_badge}\n\n"
         f"{likes_text}\n\n"
         f"_Bugun yangi tanishuv?_"
     )
 
-    kb = kb_friends_main(profile, lang)
+    kb = kb_friends_main(profile, is_verified, lang)
     if edit_query:
         try:
             await edit_query.edit_message_text(text, reply_markup=kb, parse_mode="Markdown")
@@ -221,7 +289,7 @@ async def friends_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         lang = await user_service.get_user_language(user.id)
         data = query.data or ""
 
-        # ── Setup wizard: looking_for selection ────────────────────
+        # ── Setup wizard: looking_for ─────────────────────────────
         if data.startswith("friends_lf_"):
             looking = data.replace("friends_lf_", "")
             setup = context.user_data.get("friends_setup", {})
@@ -236,7 +304,7 @@ async def friends_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             )
             return
 
-        # ── Setup wizard: gender ───────────────────────────────────
+        # ── Setup wizard: gender ──────────────────────────────────
         if data.startswith("friends_g_"):
             tag = data.replace("friends_g_", "")
             setup = context.user_data.get("friends_setup", {})
@@ -252,7 +320,7 @@ async def friends_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             )
             return
 
-        # ── Setup wizard: interests multi-select ───────────────────
+        # ── Setup wizard: interests ───────────────────────────────
         if data.startswith("friends_i_"):
             tag = data.replace("friends_i_", "")
             setup = context.user_data.get("friends_setup", {})
@@ -269,15 +337,15 @@ async def friends_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -
                 context.user_data["friends_setup"] = setup
                 await query.edit_message_text(
                     "✨ *O'zingiz haqingizda qisqa yozing*\n\n"
-                    "1-3 jumla — kim ekanligingiz, nimaga qiziqasiz, qanday "
-                    "odamni qidirayapsiz.\n\n"
-                    f"_Maksimum {FRIEND_BIO_MAX_LENGTH} ta belgi. "
-                    "Bo'sh qoldirsangiz \"-\" deb yozing._",
+                    "1-3 jumla — kim ekanligingiz va qanday odamni qidirayapsiz.\n\n"
+                    f"_Maksimum {FRIEND_BIO_MAX_LENGTH} ta belgi._\n\n"
+                    "Yoki AI'dan yordam oling — anketa ma'lumotlaringiz asosida "
+                    "siz uchun bio yozadi:",
+                    reply_markup=kb_bio_step(),
                     parse_mode="Markdown",
                 )
                 return
 
-            # Toggle interest
             if tag in interests:
                 interests.remove(tag)
             else:
@@ -293,12 +361,48 @@ async def friends_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             await query.edit_message_reply_markup(reply_markup=kb_interests(interests))
             return
 
-        # ── Setup wizard: skip photo ───────────────────────────────
+        # ── Setup wizard: bio choice ──────────────────────────────
+        if data == "friends_bio_skip":
+            setup = context.user_data.get("friends_setup", {})
+            setup.setdefault("data", {})["bio"] = ""
+            setup["step"] = "photo"
+            context.user_data["friends_setup"] = setup
+            await query.edit_message_text(
+                "📸 *Profilingizga rasm qo'shing*\n\n"
+                "Bitta rasm yuboring (yoki rasmsiz davom eting).",
+                reply_markup=kb_photo_step(),
+                parse_mode="Markdown",
+            )
+            return
+
+        if data == "friends_bio_ai":
+            setup = context.user_data.get("friends_setup", {})
+            data_dict = setup.get("data", {})
+            await query.edit_message_text("✨ Bio yozyapman...", parse_mode="Markdown")
+            try:
+                bio = await write_bio(data_dict, lang)
+            except Exception as e:
+                logger.error(f"AI bio failed: {e}")
+                bio = ""
+            data_dict["bio"] = bio[:FRIEND_BIO_MAX_LENGTH]
+            setup["data"] = data_dict
+            setup["step"] = "photo"
+            context.user_data["friends_setup"] = setup
+            preview = bio if bio else "_Bio yaratib bo'lmadi, davom etamiz._"
+            await query.edit_message_text(
+                f"✨ *Sizning bio:*\n\n_{preview}_\n\n"
+                "Endi profilingizga rasm qo'shing:",
+                reply_markup=kb_photo_step(),
+                parse_mode="Markdown",
+            )
+            return
+
+        # ── Setup wizard: skip photo ──────────────────────────────
         if data == "friends_photo_skip":
             await _finalize_friend_setup(update, context, photo_file_id=None)
             return
 
-        # ── Main menu actions ──────────────────────────────────────
+        # ── Main menu actions ─────────────────────────────────────
         profile = await get_friend_profile(user.id)
         if not profile:
             await friends_handler(update, context)
@@ -309,11 +413,80 @@ async def friends_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             return
 
         if data == "friends_myprofile":
-            await _show_my_profile(query, profile, lang)
+            await _show_my_profile(query, profile, user.id, lang)
             return
 
         if data == "friends_matches":
             await _show_matches(query, user.id, lang)
+            return
+
+        if data == "friends_likes":
+            await _show_likes_received(query, user.id, lang)
+            return
+
+        if data == "friends_prefs":
+            prefs = await get_friend_preferences(user.id) or {}
+            await query.edit_message_text(
+                "🎯 *Filtrlar*\n\n"
+                "_Tanishuv bo'limida ko'rinadigan odamlarni cheklash uchun:_",
+                reply_markup=kb_preferences(prefs),
+                parse_mode="Markdown",
+            )
+            return
+
+        if data == "friends_pref_gender":
+            await query.edit_message_text(
+                "👤 *Kimni izlayapsiz?*",
+                reply_markup=kb_pref_gender_select(),
+                parse_mode="Markdown",
+            )
+            return
+
+        if data.startswith("friends_setg_"):
+            choice = data.replace("friends_setg_", "")
+            target = None if choice == "any" else choice
+            prefs = await get_friend_preferences(user.id) or {}
+            await upsert_friend_preferences(
+                user_id=user.id,
+                target_gender=target,
+                min_age=prefs.get("min_age", 18),
+                max_age=prefs.get("max_age", 100),
+                same_city_only=prefs.get("same_city_only", True),
+            )
+            prefs = await get_friend_preferences(user.id)
+            await query.edit_message_text(
+                "🎯 *Filtrlar*",
+                reply_markup=kb_preferences(prefs),
+                parse_mode="Markdown",
+            )
+            return
+
+        if data == "friends_pref_age":
+            context.user_data["friends_pref_age"] = True
+            await query.edit_message_text(
+                "🎂 *Yosh oralig'ini kiriting*\n\n"
+                "Format: `min-max`\n"
+                "Misol: `20-30` yoki `18-100`",
+                parse_mode="Markdown",
+            )
+            return
+
+        if data == "friends_pref_city":
+            prefs = await get_friend_preferences(user.id) or {}
+            new_value = not prefs.get("same_city_only", True)
+            await upsert_friend_preferences(
+                user_id=user.id,
+                target_gender=prefs.get("target_gender"),
+                min_age=prefs.get("min_age", 18),
+                max_age=prefs.get("max_age", 100),
+                same_city_only=new_value,
+            )
+            prefs = await get_friend_preferences(user.id)
+            await query.edit_message_text(
+                "🎯 *Filtrlar*",
+                reply_markup=kb_preferences(prefs),
+                parse_mode="Markdown",
+            )
             return
 
         if data == "friends_edit":
@@ -341,6 +514,20 @@ async def friends_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             return
 
         if data == "friends_browse":
+            # Daily quota check
+            if not await is_premium_active(user.id):
+                usage = await get_friend_daily_usage(user.id)
+                if usage["likes_given"] >= FREE_DAILY_LIKES:
+                    await query.edit_message_text(
+                        f"🚫 *Bugungi like chegarasi tugadi* ({FREE_DAILY_LIKES} ta).\n\n"
+                        "💎 *Premium*'ga o'tib cheksiz like bering!",
+                        reply_markup=InlineKeyboardMarkup([
+                            [InlineKeyboardButton("💎 Premium", callback_data="menu_premium")],
+                            [InlineKeyboardButton("⬅️ Orqaga", callback_data="friends_back")],
+                        ]),
+                        parse_mode="Markdown",
+                    )
+                    return
             await _show_next_profile(update, context, profile, lang, edit_query=query)
             return
 
@@ -352,8 +539,81 @@ async def friends_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             await _react(update, context, is_like=False)
             return
 
+        if data.startswith("friends_block_"):
+            try:
+                blocked_id = int(data.replace("friends_block_", ""))
+            except ValueError:
+                return
+            await block_user(user.id, blocked_id, reason="block")
+            await query.answer("Foydalanuvchi bloklandi", show_alert=False)
+            context.user_data.pop("browsing_candidate_id", None)
+            my_profile = await get_friend_profile(user.id)
+            await _show_next_profile(update, context, my_profile, lang, edit_query=query)
+            return
+
+        if data.startswith("friends_icebreakers_"):
+            try:
+                other_id = int(data.replace("friends_icebreakers_", ""))
+            except ValueError:
+                return
+            await query.answer("AI savollarni tayyorlayapti...", show_alert=False)
+            other = await get_friend_profile(other_id)
+            if not other:
+                return
+            try:
+                qs = await generate_icebreakers(profile, other, lang)
+            except Exception as e:
+                logger.error(f"Icebreakers gen failed: {e}")
+                qs = []
+            text = "💡 *Suhbat boshlovchi savollar:*\n\n"
+            text += "\n\n".join(f"• _{q}_" for q in qs) if qs else "Texnik xatolik."
+            await query.edit_message_text(
+                text,
+                reply_markup=InlineKeyboardMarkup([
+                    [InlineKeyboardButton(
+                        "💬 Telegram'da yozish",
+                        url=f"tg://user?id={other_id}",
+                    )],
+                    [InlineKeyboardButton("⬅️ Orqaga", callback_data="friends_back")],
+                ]),
+                parse_mode="Markdown",
+            )
+            return
+
+        # ── Photo verification ─────────────────────────────────────
+        if data == "friends_verify_start":
+            if not profile.get("photo_file_id"):
+                await query.edit_message_text(
+                    "❌ Avval profilingizga rasm qo'shing — keyin tasdiqlay olasiz.",
+                    reply_markup=InlineKeyboardMarkup([[
+                        InlineKeyboardButton("⬅️ Orqaga", callback_data="friends_back"),
+                    ]]),
+                )
+                return
+            context.user_data["friends_verify"] = True
+            await query.edit_message_text(
+                "🛡 *Anketani tasdiqlash*\n\n"
+                "Hozir bizga *yangi selfie* yuboring — yuzingizni aniq ko'rsatadigan, "
+                "yorug' joyda olingan rasm.\n\n"
+                "AI selfini sizning anketa rasmingiz bilan solishtirib, "
+                "✅ *Tasdiqlangan* belgisini beradi.\n\n"
+                "_(Tasdiqlangan profillar 3x ko'proq match oladi.)_",
+                reply_markup=InlineKeyboardMarkup([[
+                    InlineKeyboardButton("❌ Bekor qilish", callback_data="friends_back"),
+                ]]),
+                parse_mode="Markdown",
+            )
+            return
+
+        if data == "friends_verified_info":
+            await query.answer(
+                "✅ Sizning anketangiz tasdiqlangan! 3x ko'proq ko'rinadi.",
+                show_alert=True,
+            )
+            return
+
+        # legacy
         if data == "friends_waitlist":
-            # Legacy callback (from old teaser) — just open friends now
             await _show_friends_main(update, context, profile, lang, edit_query=query)
             return
 
@@ -366,17 +626,50 @@ async def friends_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 
 
 async def friends_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handle text inputs during the friend setup wizard."""
+    """Handle text inputs during the friend setup wizard or preferences edit."""
     user = update.effective_user
     message = update.message
     if not message or not message.text:
+        return
+
+    text = message.text.strip()
+
+    # ── Age range edit ────────────────────────────────────────────
+    if context.user_data.get("friends_pref_age"):
+        try:
+            parts = text.replace("–", "-").split("-")
+            if len(parts) != 2:
+                raise ValueError
+            min_age = int(parts[0].strip())
+            max_age = int(parts[1].strip())
+            if min_age < 18 or max_age > 100 or min_age >= max_age:
+                raise ValueError
+        except ValueError:
+            await message.reply_text(
+                "❌ Format noto'g'ri. Misol: `20-30` (18-100 oralig'ida)",
+                parse_mode="Markdown",
+            )
+            return
+        prefs = await get_friend_preferences(user.id) or {}
+        await upsert_friend_preferences(
+            user_id=user.id,
+            target_gender=prefs.get("target_gender"),
+            min_age=min_age,
+            max_age=max_age,
+            same_city_only=prefs.get("same_city_only", True),
+        )
+        context.user_data.pop("friends_pref_age", None)
+        prefs = await get_friend_preferences(user.id)
+        await message.reply_text(
+            "✅ Yosh oralig'i yangilandi.",
+            reply_markup=kb_preferences(prefs),
+        )
         return
 
     setup = context.user_data.get("friends_setup")
     if not setup:
         return
 
-    text = message.text.strip()
     step = setup.get("step")
     data = setup.setdefault("data", {})
 
@@ -387,8 +680,7 @@ async def friends_text_handler(update: Update, context: ContextTypes.DEFAULT_TYP
         data["display_name"] = text
         setup["step"] = "age"
         await message.reply_text(
-            "🎂 *Yoshingiz?*\n\n"
-            "Iltimos, faqat raqam yozing (masalan: `22`).\n"
+            "🎂 *Yoshingiz?*\n\nFaqat raqam yozing (masalan: `22`).\n"
             f"_Bot {FRIEND_MIN_AGE}+ yosh foydalanuvchilar uchun._",
             parse_mode="Markdown",
         )
@@ -440,8 +732,7 @@ async def friends_text_handler(update: Update, context: ContextTypes.DEFAULT_TYP
         setup["step"] = "photo"
         await message.reply_text(
             "📸 *Profilingizga rasm qo'shing*\n\n"
-            "Bitta rasm yuboring (yoki rasmsiz davom eting).\n"
-            "_Yaxshi rasm = ko'proq tanishuv!_",
+            "Bitta rasm yuboring (yoki rasmsiz davom eting).",
             reply_markup=kb_photo_step(),
             parse_mode="Markdown",
         )
@@ -449,17 +740,66 @@ async def friends_text_handler(update: Update, context: ContextTypes.DEFAULT_TYP
 
 
 async def friends_photo_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Receive a photo during the photo step of the wizard."""
+    """Receive a photo: either anketa photo OR verification selfie."""
     setup = context.user_data.get("friends_setup")
-    if not setup or setup.get("step") != "photo":
-        return
+    is_verifying = context.user_data.get("friends_verify")
 
     message = update.message
-    if not message.photo:
+    if not message or not message.photo:
         return
 
-    # Largest photo is the last entry in the photos array
     photo_file_id = message.photo[-1].file_id
+
+    # ── Verification selfie ──────────────────────────────────────
+    if is_verifying:
+        user = update.effective_user
+        chat = update.effective_chat
+        try:
+            await chat.send_action("typing")
+            profile = await get_friend_profile(user.id)
+            if not profile or not profile.get("photo_file_id"):
+                await chat.send_message("❌ Avval profil rasmini qo'shing.")
+                context.user_data.pop("friends_verify", None)
+                return
+
+            # Download both photos as bytes
+            saved_file = await context.bot.get_file(profile["photo_file_id"])
+            saved_bytes = await saved_file.download_as_bytearray()
+
+            selfie_file = await message.photo[-1].get_file()
+            selfie_bytes = await selfie_file.download_as_bytearray()
+
+            await chat.send_message("🔍 AI tasdiqlamoqda...")
+            verified, note = await verify_photos(bytes(saved_bytes), bytes(selfie_bytes))
+            await upsert_photo_verification(user.id, verified, note)
+
+            context.user_data.pop("friends_verify", None)
+
+            if verified:
+                await chat.send_message(
+                    f"✅ *Tasdiqlandi!*\n\n_{note}_\n\n"
+                    "Endi anketangizda \"✅ Tasdiqlangan\" belgisi paydo bo'ladi va "
+                    "siz 3x ko'proq ko'rinasiz.",
+                    parse_mode="Markdown",
+                )
+            else:
+                await chat.send_message(
+                    f"❌ *Tasdiqlanmadi.*\n\n_{note}_\n\n"
+                    "Yorug' joyda yangi selfie bilan qaytadan urinib ko'ring.",
+                    parse_mode="Markdown",
+                )
+
+            lang = await user_service.get_user_language(user.id)
+            profile = await get_friend_profile(user.id)
+            await _show_friends_main(update, context, profile, lang, chat=chat)
+        except Exception as e:
+            logger.error(f"Verification flow error: {e}")
+            await message.reply_text("Tasdiqlashda xatolik. Qaytadan urinib ko'ring.")
+        return
+
+    # ── Anketa photo ─────────────────────────────────────────────
+    if not setup or setup.get("step") != "photo":
+        return
     await _finalize_friend_setup(update, context, photo_file_id=photo_file_id)
 
 
@@ -499,8 +839,8 @@ async def _finalize_friend_setup(
 
     await update.effective_chat.send_message(
         "🎉 *Anketangiz tayyor!*\n\n"
-        "Endi siz boshqa foydalanuvchilarni ko'rib, ular ham sizni ko'ra oladi. "
-        "Boshlaymizmi?",
+        "Endi siz boshqalarni ko'rasiz va ular ham sizni topadi.\n"
+        "_Maslahat: anketani tasdiqlasangiz 3x ko'proq match olasiz._",
         parse_mode="Markdown",
     )
     await _show_friends_main(update, context, profile, lang, chat=update.effective_chat)
@@ -520,28 +860,41 @@ async def _show_next_profile(
     looking = my_profile.get("looking_for")
     city = my_profile.get("city")
 
+    # Apply preferences (filters)
+    prefs = await get_friend_preferences(user_id) or {}
+    target_gender = prefs.get("target_gender")
+    min_age = prefs.get("min_age", 18)
+    max_age = prefs.get("max_age", 100)
+    same_city_only = prefs.get("same_city_only", True)
+
     candidate = await get_next_browse_profile(
         viewer_id=user_id,
         looking_for=looking,
-        same_city=city,
+        same_city=city if same_city_only else None,
+        target_gender=target_gender,
+        min_age=min_age,
+        max_age=max_age,
     )
 
-    if not candidate:
-        # Fallback: drop city filter
+    # Fallback: drop city filter if nothing found
+    if not candidate and same_city_only:
         candidate = await get_next_browse_profile(
             viewer_id=user_id,
             looking_for=looking,
+            target_gender=target_gender,
+            min_age=min_age,
+            max_age=max_age,
         )
 
     if not candidate:
         text = (
             "🔍 *Hozircha mos anketalar yo'q*\n\n"
-            "Yangi foydalanuvchilar qo'shilganda sizga aytaman. "
-            "Vaqti-vaqti bilan qaytib tekshiring!"
+            "Filtrlarni kengaytirib ko'ring yoki keyinroq qaytib tekshiring."
         )
-        kb = InlineKeyboardMarkup([[
-            InlineKeyboardButton("⬅️ Orqaga", callback_data="friends_back"),
-        ]])
+        kb = InlineKeyboardMarkup([
+            [InlineKeyboardButton("🎯 Filtrlar", callback_data="friends_prefs")],
+            [InlineKeyboardButton("⬅️ Orqaga", callback_data="friends_back")],
+        ])
         if edit_query:
             try:
                 await edit_query.edit_message_text(text, reply_markup=kb, parse_mode="Markdown")
@@ -551,13 +904,16 @@ async def _show_next_profile(
         await update.effective_chat.send_message(text, reply_markup=kb, parse_mode="Markdown")
         return
 
-    # Save which candidate we're showing so the like/pass buttons know who
     context.user_data["browsing_candidate_id"] = candidate["user_id"]
 
-    card_text = _format_profile_card(candidate)
+    # Add verified badge if applicable
+    cand_verification = await get_photo_verification(candidate["user_id"])
+    is_verified = bool(cand_verification and cand_verification.get("is_verified"))
+
+    card_text = _format_profile_card(candidate, verified=is_verified)
+    kb = kb_browse_actions(candidate["user_id"])
 
     if candidate.get("photo_file_id"):
-        # Photo card — delete previous message and send fresh
         if edit_query:
             try:
                 await edit_query.delete_message()
@@ -566,29 +922,23 @@ async def _show_next_profile(
         await update.effective_chat.send_photo(
             photo=candidate["photo_file_id"],
             caption=card_text,
-            reply_markup=kb_browse_actions(),
+            reply_markup=kb,
             parse_mode="Markdown",
         )
     else:
         if edit_query:
             try:
-                await edit_query.edit_message_text(
-                    card_text,
-                    reply_markup=kb_browse_actions(),
-                    parse_mode="Markdown",
-                )
+                await edit_query.edit_message_text(card_text, reply_markup=kb, parse_mode="Markdown")
                 return
             except Exception:
                 pass
         await update.effective_chat.send_message(
-            card_text,
-            reply_markup=kb_browse_actions(),
-            parse_mode="Markdown",
+            card_text, reply_markup=kb, parse_mode="Markdown",
         )
 
 
-def _format_profile_card(profile: dict) -> str:
-    """Render a profile as a nice card."""
+def _format_profile_card(profile: dict, verified: bool = False) -> str:
+    """Render a profile card."""
     name = profile.get("display_name", "—")
     age = profile.get("age", "")
     city = profile.get("city", "")
@@ -599,7 +949,8 @@ def _format_profile_card(profile: dict) -> str:
     )
     bio = profile.get("bio") or ""
 
-    parts = [f"✨ *{name}, {age}*"]
+    badge = " ✅" if verified else ""
+    parts = [f"✨ *{name}, {age}*{badge}"]
     if city:
         parts.append(f"📍 {city}")
     parts.append(f"🎯 {looking}")
@@ -616,12 +967,29 @@ async def _react(
     context: ContextTypes.DEFAULT_TYPE,
     is_like: bool,
 ) -> None:
-    """Record a like/pass and either show match dialog or continue browsing."""
+    """Record a like/pass and show match dialog or continue."""
     query = update.callback_query
     user = query.from_user
     candidate_id = context.user_data.get("browsing_candidate_id")
     if not candidate_id:
-        # Stale state — restart browse
+        my_profile = await get_friend_profile(user.id)
+        lang = await user_service.get_user_language(user.id)
+        await _show_next_profile(update, context, my_profile, lang, edit_query=query)
+        return
+
+    # Double-check daily quota for likes
+    if is_like and not await is_premium_active(user.id):
+        usage = await get_friend_daily_usage(user.id)
+        if usage["likes_given"] >= FREE_DAILY_LIKES:
+            await query.answer(
+                f"Bugungi {FREE_DAILY_LIKES} like chegarasi tugadi. Premium'ga o'ting.",
+                show_alert=True,
+            )
+            return
+
+    # Block check (defensive)
+    if await is_blocked(user.id, candidate_id):
+        context.user_data.pop("browsing_candidate_id", None)
         my_profile = await get_friend_profile(user.id)
         lang = await user_service.get_user_language(user.id)
         await _show_next_profile(update, context, my_profile, lang, edit_query=query)
@@ -629,14 +997,16 @@ async def _react(
 
     is_match = await record_friend_reaction(user.id, candidate_id, is_like)
     context.user_data.pop("browsing_candidate_id", None)
+    if is_like:
+        await increment_friend_likes(user.id)
 
     if is_match and is_like:
-        # Show match celebration
         candidate = await get_friend_profile(candidate_id)
         text = (
             f"🎉 *Match!*\n\n"
             f"Siz va {candidate.get('display_name', '—')} bir-biringizni yoqtirdingiz!\n\n"
-            f"💬 Endi to'g'ridan-to'g'ri Telegram'da yozishingiz mumkin."
+            f"💬 To'g'ridan-to'g'ri Telegram'da yozishingiz mumkin yoki AI'dan "
+            f"suhbat boshlovchi savollarni so'rang."
         )
         try:
             await query.delete_message()
@@ -649,17 +1019,17 @@ async def _react(
         )
         return
 
-    # Otherwise continue browsing
     my_profile = await get_friend_profile(user.id)
     lang = await user_service.get_user_language(user.id)
     await _show_next_profile(update, context, my_profile, lang, edit_query=query)
 
 
-# ──────────────────────── My profile / Matches views ────────────────────────
+# ──────────────────────── My profile / Matches / Likes views ────────────────────────
 
-async def _show_my_profile(query, profile: dict, lang: str) -> None:
-    """Show the user their own profile card."""
-    text = "👤 *Mening anketam:*\n\n" + _format_profile_card(profile)
+async def _show_my_profile(query, profile: dict, user_id: int, lang: str) -> None:
+    verification = await get_photo_verification(user_id)
+    is_verified = bool(verification and verification.get("is_verified"))
+    text = "👤 *Mening anketam:*\n\n" + _format_profile_card(profile, verified=is_verified)
     kb = InlineKeyboardMarkup([
         [InlineKeyboardButton("✏️ Tahrirlash", callback_data="friends_edit")],
         [InlineKeyboardButton("⬅️ Orqaga", callback_data="friends_back")],
@@ -680,7 +1050,6 @@ async def _show_my_profile(query, profile: dict, lang: str) -> None:
 
 
 async def _show_matches(query, user_id: int, lang: str) -> None:
-    """Show the user's matches list."""
     matches = await get_friend_matches(user_id)
     if not matches:
         await query.edit_message_text(
@@ -697,13 +1066,59 @@ async def _show_matches(query, user_id: int, lang: str) -> None:
     lines = ["💌 *Sizning match'laringiz:*\n"]
     rows = []
     for m in matches[:10]:
-        lines.append(
-            f"• *{m['display_name']}*, {m['age']} — _{m.get('city', '—')}_"
-        )
+        lines.append(f"• *{m['display_name']}*, {m['age']} — _{m.get('city', '—')}_")
         rows.append([InlineKeyboardButton(
             f"💬 {m['display_name']}",
             url=f"tg://user?id={m['user_id']}",
         )])
+    rows.append([InlineKeyboardButton("⬅️ Orqaga", callback_data="friends_back")])
+    await query.edit_message_text(
+        "\n".join(lines),
+        reply_markup=InlineKeyboardMarkup(rows),
+        parse_mode="Markdown",
+    )
+
+
+async def _show_likes_received(query, user_id: int, lang: str) -> None:
+    """Show users who liked me (premium: full profiles, free: count only)."""
+    is_pro = await is_premium_active(user_id)
+    count = await count_friend_likes_received(user_id)
+
+    if count == 0:
+        await query.edit_message_text(
+            "💖 *Sizni yoqtirganlar*\n\n"
+            "Hozircha hech kim yoqtirmagan. Anketani sifatliroq qiling, "
+            "rasmni tasdiqlang — match'lar oshadi!",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("⬅️ Orqaga", callback_data="friends_back")],
+            ]),
+            parse_mode="Markdown",
+        )
+        return
+
+    if not is_pro:
+        await query.edit_message_text(
+            f"💖 *Sizni yoqtirganlar: {count}*\n\n"
+            "Kim ekanligini ko'rish va ularga match qaytarish uchun "
+            "💎 *Premium*'ga o'ting.",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("💎 Premium olish", callback_data="menu_premium")],
+                [InlineKeyboardButton("⬅️ Orqaga", callback_data="friends_back")],
+            ]),
+            parse_mode="Markdown",
+        )
+        return
+
+    # Premium: show actual profiles
+    profiles = await get_users_who_liked_me(user_id)
+    lines = [f"💖 *Sizni yoqtirganlar: {count}*\n"]
+    for p in profiles[:10]:
+        lines.append(
+            f"• *{p['display_name']}*, {p['age']} — _{p.get('city', '—')}_"
+        )
+    if not profiles:
+        lines.append("_Yangilash uchun keyinroq qayting._")
+    rows = [[InlineKeyboardButton("💝 Tanishuv boshlash", callback_data="friends_browse")]]
     rows.append([InlineKeyboardButton("⬅️ Orqaga", callback_data="friends_back")])
     await query.edit_message_text(
         "\n".join(lines),
