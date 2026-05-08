@@ -184,6 +184,12 @@ FRIEND_MIN_INTERESTS = 1
 FRIEND_MAX_INTERESTS = 6
 FRIEND_BIO_MAX_LENGTH = 300
 
+# Photo limits for friend profiles
+FRIEND_MAX_PHOTOS = 3
+FRIEND_PHOTO_MIN_FILE_SIZE = 30_000   # ~30 KB — anything smaller is too low quality
+FRIEND_PHOTO_MAX_FILE_SIZE = 8_000_000  # 8 MB — avoids huge uploads
+FRIEND_PHOTO_MIN_DIMENSION = 400  # px — applied when we have width/height info
+
 # Free-tier limits for friend finding
 FREE_DAILY_BROWSES = 10
 FREE_DAILY_LIKES = 5

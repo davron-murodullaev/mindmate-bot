@@ -21,6 +21,7 @@ from mindmate.services.user_service import user_service
 from mindmate.db.queries import (
     get_friend_profile,
     upsert_friend_profile,
+    update_friend_photos,
     deactivate_friend_profile,
     reactivate_friend_profile,
     delete_friend_profile,
@@ -41,6 +42,7 @@ from mindmate.db.queries import (
 )
 from mindmate.ai.engines.friend_finder_engine import write_bio, generate_icebreakers
 from mindmate.ai.photo_verification import verify_photos
+from mindmate.ai.moderation import moderate_image
 from mindmate.ui.keyboards import get_back_to_menu_keyboard
 from mindmate.i18n import t
 from mindmate.core.constants import (
@@ -55,8 +57,29 @@ from mindmate.core.constants import (
     FRIEND_MIN_INTERESTS,
     FRIEND_MAX_INTERESTS,
     FRIEND_BIO_MAX_LENGTH,
+    FRIEND_MAX_PHOTOS,
+    FRIEND_PHOTO_MIN_FILE_SIZE,
+    FRIEND_PHOTO_MAX_FILE_SIZE,
+    FRIEND_PHOTO_MIN_DIMENSION,
     FREE_DAILY_LIKES,
 )
+
+
+def _get_first_photo(profile: dict) -> Optional[str]:
+    """Get the first photo file_id from a profile (handles old single + new array)."""
+    photos = profile.get("photo_file_ids") or []
+    if photos:
+        return photos[0]
+    return profile.get("photo_file_id")
+
+
+def _get_all_photos(profile: dict) -> list:
+    """Get all photo file_ids."""
+    photos = profile.get("photo_file_ids") or []
+    if photos:
+        return list(photos)
+    legacy = profile.get("photo_file_id")
+    return [legacy] if legacy else []
 
 logger = logging.getLogger(__name__)
 
@@ -172,9 +195,32 @@ def kb_bio_step() -> InlineKeyboardMarkup:
     ])
 
 
-def kb_photo_step() -> InlineKeyboardMarkup:
+def kb_photo_step(count: int) -> InlineKeyboardMarkup:
+    """Photo step keyboard — adapts to how many photos the user has uploaded."""
+    rows = []
+    if count > 0:
+        rows.append([InlineKeyboardButton(
+            f"✅ Tasdiqlash ({count}/{FRIEND_MAX_PHOTOS} rasm)",
+            callback_data="friends_photos_done",
+        )])
+        rows.append([InlineKeyboardButton(
+            "🗑 Boshqatdan boshlash",
+            callback_data="friends_photos_clear",
+        )])
+    if count == 0:
+        rows.append([InlineKeyboardButton(
+            "⏭ Rasmsiz davom etish",
+            callback_data="friends_photos_skip",
+        )])
+    return InlineKeyboardMarkup(rows)
+
+
+def kb_edit_choices(lang: str = "uz") -> InlineKeyboardMarkup:
+    """Sub-menu when the user wants to edit something."""
     return InlineKeyboardMarkup([
-        [InlineKeyboardButton("⏭ Rasmsiz davom etish", callback_data="friends_photo_skip")],
+        [InlineKeyboardButton("📸 Faqat rasmlarni o'zgartirish", callback_data="friends_edit_photos")],
+        [InlineKeyboardButton("📝 Anketani to'liq qayta yozish", callback_data="friends_edit_full")],
+        [InlineKeyboardButton(t("buttons.back", lang), callback_data="friends_back")],
     ])
 
 
@@ -366,12 +412,14 @@ async def friends_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         if data == "friends_bio_skip":
             setup = context.user_data.get("friends_setup", {})
             setup.setdefault("data", {})["bio"] = ""
-            setup["step"] = "photo"
+            setup["step"] = "photos"
             context.user_data["friends_setup"] = setup
             await query.edit_message_text(
-                "📸 *Profilingizga rasm qo'shing*\n\n"
-                "Bitta rasm yuboring (yoki rasmsiz davom eting).",
-                reply_markup=kb_photo_step(),
+                f"📸 *Profilingizga rasm qo'shing*\n\n"
+                f"1 dan {FRIEND_MAX_PHOTOS} tagacha rasm yuborishingiz mumkin. "
+                "Birinchi rasm asosiy bo'ladi.\n\n"
+                "_Rasmni galereya iconi orqali yuboring (skrepka emas)._",
+                reply_markup=kb_photo_step(0),
                 parse_mode="Markdown",
             )
             return
@@ -387,20 +435,54 @@ async def friends_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -
                 bio = ""
             data_dict["bio"] = bio[:FRIEND_BIO_MAX_LENGTH]
             setup["data"] = data_dict
-            setup["step"] = "photo"
+            setup["step"] = "photos"
             context.user_data["friends_setup"] = setup
             preview = bio if bio else "_Bio yaratib bo'lmadi, davom etamiz._"
             await query.edit_message_text(
                 f"✨ *Sizning bio:*\n\n_{preview}_\n\n"
-                "Endi profilingizga rasm qo'shing:",
-                reply_markup=kb_photo_step(),
+                f"📸 Endi 1 dan {FRIEND_MAX_PHOTOS} tagacha rasm yuboring "
+                "(birinchi rasm asosiy bo'ladi):",
+                reply_markup=kb_photo_step(0),
                 parse_mode="Markdown",
             )
             return
 
-        # ── Setup wizard: skip photo ──────────────────────────────
-        if data == "friends_photo_skip":
-            await _finalize_friend_setup(update, context, photo_file_id=None)
+        # ── Setup wizard / edit photos: done / skip / clear ──────
+        if data == "friends_photos_skip":
+            # Skip only valid in initial setup, not in edit-photos flow
+            if context.user_data.get("friends_edit_photos_state"):
+                # In edit mode, "skip" doesn't make sense — treat as done
+                await _finalize_photos_edit(update, context)
+            else:
+                await _finalize_friend_setup(update, context, photo_file_ids=[])
+            return
+
+        if data == "friends_photos_done":
+            # Branch on which flow we're in
+            if context.user_data.get("friends_edit_photos_state"):
+                await _finalize_photos_edit(update, context)
+            else:
+                setup = context.user_data.get("friends_setup", {})
+                photos = setup.get("data", {}).get("photo_file_ids", [])
+                await _finalize_friend_setup(update, context, photo_file_ids=photos)
+            return
+
+        if data == "friends_photos_clear":
+            # Clear in either flow
+            if context.user_data.get("friends_edit_photos_state"):
+                context.user_data["friends_edit_photos_state"] = {"photos": []}
+            else:
+                setup = context.user_data.get("friends_setup", {})
+                data_dict = setup.setdefault("data", {})
+                data_dict["photo_file_ids"] = []
+                setup["data"] = data_dict
+                context.user_data["friends_setup"] = setup
+            await query.edit_message_text(
+                f"🗑 Hammasi tozalandi.\n\n"
+                f"📸 Yangidan 1 dan {FRIEND_MAX_PHOTOS} tagacha rasm yuboring:",
+                reply_markup=kb_photo_step(0),
+                parse_mode="Markdown",
+            )
             return
 
         # ── Main menu actions ─────────────────────────────────────
@@ -491,8 +573,33 @@ async def friends_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             return
 
         if data == "friends_edit":
+            # Show sub-menu: edit photos only, or rewrite full anketa
+            await query.edit_message_text(
+                "✏️ *Tahrirlash*\n\nNimani o'zgartirmoqchisiz?",
+                reply_markup=kb_edit_choices(lang),
+                parse_mode="Markdown",
+            )
+            return
+
+        if data == "friends_edit_photos":
+            # Start a focused photo-edit flow that ONLY replaces the photo set,
+            # preserving everything else.
+            context.user_data["friends_edit_photos_state"] = {"photos": []}
+            context.user_data.pop("friends_setup", None)
+            await query.edit_message_text(
+                f"📸 *Rasmlarni o'zgartirish*\n\n"
+                f"Yangi rasmlaringizni yuboring (1 dan {FRIEND_MAX_PHOTOS} tagacha).\n"
+                "Eski rasmlar yangilari bilan to'liq almashtiriladi.",
+                reply_markup=kb_photo_step(0),
+                parse_mode="Markdown",
+            )
+            return
+
+        if data == "friends_edit_full":
+            # Old behavior — wipe and re-run wizard
             await delete_friend_profile(user.id)
             context.user_data.pop("friends_setup", None)
+            context.user_data.pop("friends_edit_photos_state", None)
             try:
                 await query.delete_message()
             except Exception:
@@ -730,11 +837,13 @@ async def friends_text_handler(update: Update, context: ContextTypes.DEFAULT_TYP
             )
             return
         data["bio"] = bio
-        setup["step"] = "photo"
+        setup["step"] = "photos"
+        data.setdefault("photo_file_ids", [])
         await message.reply_text(
-            "📸 *Profilingizga rasm qo'shing*\n\n"
-            "Bitta rasm yuboring (yoki rasmsiz davom eting).",
-            reply_markup=kb_photo_step(),
+            f"📸 *Profilingizga rasm qo'shing*\n\n"
+            f"1 dan {FRIEND_MAX_PHOTOS} tagacha rasm yuborishingiz mumkin "
+            "(birinchi rasm asosiy bo'ladi).",
+            reply_markup=kb_photo_step(0),
             parse_mode="Markdown",
         )
         return
@@ -744,11 +853,8 @@ async def _resolve_to_photo_id(
     update: Update, context: ContextTypes.DEFAULT_TYPE, message,
 ) -> Optional[str]:
     """
-    Resolve any image submission (photo OR image-document like PNG file)
-    to a Telegram *photo* file_id we can later send via send_photo().
-
-    If the user uploaded a PNG/JPEG as a file (document), we download the
-    bytes and re-upload them as a photo to obtain a proper photo file_id.
+    Resolve any image submission (photo OR image-document) to a Telegram
+    *photo* file_id we can later send via send_photo().
     """
     if message.photo:
         return message.photo[-1].file_id
@@ -764,7 +870,6 @@ async def _resolve_to_photo_id(
                 chat_id=update.effective_chat.id,
                 photo=bytes(doc_bytes),
             )
-            # Capture the resulting photo file_id (largest size)
             return sent.photo[-1].file_id
         except Exception as e:
             logger.error(f"Failed to convert document image to photo: {e}")
@@ -778,20 +883,85 @@ async def _resolve_to_photo_id(
     return None
 
 
-async def friends_photo_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Receive a photo: either anketa photo OR verification selfie.
-
-    Accepts both regular photos and image-documents (e.g. PNG sent as file).
+def _check_photo_quality(message) -> Optional[str]:
     """
+    Run cheap pre-checks (size, dimensions) before paying for moderation API.
+    Returns a user-facing error string, or None if the photo passes.
+    """
+    file_size = None
+    width = None
+    height = None
+
+    if message.photo:
+        # Use the largest size
+        largest = message.photo[-1]
+        file_size = largest.file_size
+        width = largest.width
+        height = largest.height
+    elif message.document:
+        file_size = message.document.file_size
+        # Documents don't reliably expose dimensions; we skip that check
+        if message.document.thumbnail:
+            width = message.document.thumbnail.width
+            height = message.document.thumbnail.height
+
+    if file_size is not None:
+        if file_size < FRIEND_PHOTO_MIN_FILE_SIZE:
+            return (
+                "📐 Rasm juda kichik (sifati past). "
+                "Yaxshiroq rasm yuboring."
+            )
+        if file_size > FRIEND_PHOTO_MAX_FILE_SIZE:
+            return (
+                "📐 Rasm juda katta (8 MB dan ortiq). "
+                "Kichikroq rasm yuboring."
+            )
+
+    if width and height:
+        if min(width, height) < FRIEND_PHOTO_MIN_DIMENSION:
+            return (
+                f"📐 Rasm o'lchami juda kichik ({width}×{height}px). "
+                f"Eng kami {FRIEND_PHOTO_MIN_DIMENSION}px kerak."
+            )
+
+    return None
+
+
+async def _moderate_photo_bytes(file_id: str, context) -> tuple:
+    """Download a photo by file_id and moderate it.
+
+    Returns (approved: bool, reason: str).
+    """
+    try:
+        f = await context.bot.get_file(file_id)
+        photo_bytes = await f.download_as_bytearray()
+        result = await moderate_image(bytes(photo_bytes))
+        return result.approved, result.reason
+    except Exception as e:
+        logger.error(f"Moderation download failed: {e}")
+        # Fail-open
+        return True, ""
+
+
+async def friends_photo_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Receive a photo: either anketa photo OR verification selfie OR edit-photo flow."""
     setup = context.user_data.get("friends_setup")
     is_verifying = context.user_data.get("friends_verify")
+    is_editing_photos = context.user_data.get("friends_edit_photos_state")
 
     message = update.message
     if not message:
         return
 
     # Only run if user is in a state expecting a photo
-    if not is_verifying and (not setup or setup.get("step") != "photo"):
+    in_photo_step = bool(setup and setup.get("step") == "photos")
+    if not (is_verifying or in_photo_step or is_editing_photos):
+        return
+
+    # Cheap pre-checks
+    quality_error = _check_photo_quality(message)
+    if quality_error:
+        await message.reply_text(quality_error)
         return
 
     photo_file_id = await _resolve_to_photo_id(update, context, message)
@@ -800,59 +970,114 @@ async def friends_photo_handler(update: Update, context: ContextTypes.DEFAULT_TY
 
     # ── Verification selfie ──────────────────────────────────────
     if is_verifying:
-        user = update.effective_user
-        chat = update.effective_chat
-        try:
-            await chat.send_action("typing")
-            profile = await get_friend_profile(user.id)
-            if not profile or not profile.get("photo_file_id"):
-                await chat.send_message("❌ Avval profil rasmini qo'shing.")
-                context.user_data.pop("friends_verify", None)
-                return
-
-            # Download both photos as bytes via their photo file_ids
-            saved_file = await context.bot.get_file(profile["photo_file_id"])
-            saved_bytes = await saved_file.download_as_bytearray()
-
-            selfie_file = await context.bot.get_file(photo_file_id)
-            selfie_bytes = await selfie_file.download_as_bytearray()
-
-            await chat.send_message("🔍 AI tasdiqlamoqda...")
-            verified, note = await verify_photos(bytes(saved_bytes), bytes(selfie_bytes))
-            await upsert_photo_verification(user.id, verified, note)
-
-            context.user_data.pop("friends_verify", None)
-
-            if verified:
-                await chat.send_message(
-                    f"✅ *Tasdiqlandi!*\n\n_{note}_\n\n"
-                    "Endi anketangizda \"✅ Tasdiqlangan\" belgisi paydo bo'ladi va "
-                    "siz 3x ko'proq ko'rinasiz.",
-                    parse_mode="Markdown",
-                )
-            else:
-                await chat.send_message(
-                    f"❌ *Tasdiqlanmadi.*\n\n_{note}_\n\n"
-                    "Yorug' joyda yangi selfie bilan qaytadan urinib ko'ring.",
-                    parse_mode="Markdown",
-                )
-
-            lang = await user_service.get_user_language(user.id)
-            profile = await get_friend_profile(user.id)
-            await _show_friends_main(update, context, profile, lang, chat=chat)
-        except Exception as e:
-            logger.error(f"Verification flow error: {e}")
-            await message.reply_text("Tasdiqlashda xatolik. Qaytadan urinib ko'ring.")
+        await _handle_verification_photo(update, context, photo_file_id)
         return
 
-    # ── Anketa photo ─────────────────────────────────────────────
-    await _finalize_friend_setup(update, context, photo_file_id=photo_file_id)
+    # AI content moderation (skips if no API key)
+    await message.chat.send_action("typing")
+    approved, reason = await _moderate_photo_bytes(photo_file_id, context)
+    if not approved:
+        text = "❌ *Bu rasmni qabul qila olmayman.*"
+        if reason:
+            text += f"\n\n_{reason}_"
+        text += "\n\nIltimos, boshqa rasm yuboring."
+        await message.reply_text(text, parse_mode="Markdown")
+        return
+
+    # ── Editing photos only (post-anketa) ────────────────────────
+    if is_editing_photos:
+        photos = is_editing_photos.get("photos", [])
+        if len(photos) >= FRIEND_MAX_PHOTOS:
+            await message.reply_text(
+                f"❌ Maksimum {FRIEND_MAX_PHOTOS} ta rasm. "
+                "Tasdiqlash tugmasini bosing yoki boshqatdan boshlang."
+            )
+            return
+        photos.append(photo_file_id)
+        is_editing_photos["photos"] = photos
+        context.user_data["friends_edit_photos_state"] = is_editing_photos
+        await message.reply_text(
+            f"✅ {len(photos)}/{FRIEND_MAX_PHOTOS} rasm qabul qilindi.\n\n"
+            "Yana yuborishingiz mumkin yoki tasdiqlang:",
+            reply_markup=kb_photo_step(len(photos)),
+        )
+        return
+
+    # ── Anketa photo accumulator (multi-photo) ───────────────────
+    if in_photo_step:
+        data = setup.setdefault("data", {})
+        photos = data.setdefault("photo_file_ids", [])
+        if len(photos) >= FRIEND_MAX_PHOTOS:
+            await message.reply_text(
+                f"❌ Maksimum {FRIEND_MAX_PHOTOS} ta rasm. "
+                "Tasdiqlash tugmasini bosing yoki boshqatdan boshlang."
+            )
+            return
+        photos.append(photo_file_id)
+        data["photo_file_ids"] = photos
+        setup["data"] = data
+        context.user_data["friends_setup"] = setup
+        await message.reply_text(
+            f"✅ {len(photos)}/{FRIEND_MAX_PHOTOS} rasm qabul qilindi.\n\n"
+            "Yana yuborishingiz mumkin yoki tasdiqlang:",
+            reply_markup=kb_photo_step(len(photos)),
+        )
+        return
+
+
+async def _handle_verification_photo(
+    update: Update, context: ContextTypes.DEFAULT_TYPE, photo_file_id: str,
+) -> None:
+    """Run the photo verification flow on a freshly-uploaded selfie."""
+    user = update.effective_user
+    chat = update.effective_chat
+    try:
+        await chat.send_action("typing")
+        profile = await get_friend_profile(user.id)
+        first_photo = _get_first_photo(profile) if profile else None
+        if not first_photo:
+            await chat.send_message("❌ Avval profil rasmini qo'shing.")
+            context.user_data.pop("friends_verify", None)
+            return
+
+        saved_file = await context.bot.get_file(first_photo)
+        saved_bytes = await saved_file.download_as_bytearray()
+
+        selfie_file = await context.bot.get_file(photo_file_id)
+        selfie_bytes = await selfie_file.download_as_bytearray()
+
+        await chat.send_message("🔍 AI tasdiqlamoqda...")
+        verified, note = await verify_photos(bytes(saved_bytes), bytes(selfie_bytes))
+        await upsert_photo_verification(user.id, verified, note)
+
+        context.user_data.pop("friends_verify", None)
+
+        if verified:
+            await chat.send_message(
+                f"✅ *Tasdiqlandi!*\n\n_{note}_\n\n"
+                "Endi anketangizda \"✅ Tasdiqlangan\" belgisi paydo bo'ladi va "
+                "siz 3x ko'proq ko'rinasiz.",
+                parse_mode="Markdown",
+            )
+        else:
+            await chat.send_message(
+                f"❌ *Tasdiqlanmadi.*\n\n_{note}_\n\n"
+                "Yorug' joyda yangi selfie bilan qaytadan urinib ko'ring.",
+                parse_mode="Markdown",
+            )
+
+        lang = await user_service.get_user_language(user.id)
+        profile = await get_friend_profile(user.id)
+        await _show_friends_main(update, context, profile, lang, chat=chat)
+    except Exception as e:
+        logger.error(f"Verification flow error: {e}")
+        await chat.send_message("Tasdiqlashda xatolik. Qaytadan urinib ko'ring.")
 
 
 async def _finalize_friend_setup(
     update: Update,
     context: ContextTypes.DEFAULT_TYPE,
-    photo_file_id: Optional[str],
+    photo_file_ids: Optional[list] = None,
 ) -> None:
     """Save the assembled profile and show the dashboard."""
     user = update.effective_user
@@ -869,7 +1094,7 @@ async def _finalize_friend_setup(
             city=data.get("city"),
             interests=data.get("interests", []),
             bio=data.get("bio"),
-            photo_file_id=photo_file_id,
+            photo_file_ids=photo_file_ids or [],
             is_active=True,
         )
     except Exception as e:
@@ -887,6 +1112,33 @@ async def _finalize_friend_setup(
         "🎉 *Anketangiz tayyor!*\n\n"
         "Endi siz boshqalarni ko'rasiz va ular ham sizni topadi.\n"
         "_Maslahat: anketani tasdiqlasangiz 3x ko'proq match olasiz._",
+        parse_mode="Markdown",
+    )
+    await _show_friends_main(update, context, profile, lang, chat=update.effective_chat)
+
+
+async def _finalize_photos_edit(
+    update: Update, context: ContextTypes.DEFAULT_TYPE,
+) -> None:
+    """Save photos-only edit and show the dashboard."""
+    user = update.effective_user
+    state = context.user_data.get("friends_edit_photos_state", {})
+    photos = state.get("photos", [])
+
+    try:
+        await update_friend_photos(user.id, photos)
+    except Exception as e:
+        logger.error(f"Error updating photos: {e}")
+        await update.effective_chat.send_message(
+            "❌ Rasmlarni saqlashda xatolik. Qaytadan urinib ko'ring."
+        )
+        return
+
+    context.user_data.pop("friends_edit_photos_state", None)
+    lang = await user_service.get_user_language(user.id)
+    profile = await get_friend_profile(user.id)
+    await update.effective_chat.send_message(
+        f"✅ *{len(photos)} ta rasm saqlandi!*",
         parse_mode="Markdown",
     )
     await _show_friends_main(update, context, profile, lang, chat=update.effective_chat)
@@ -956,17 +1208,21 @@ async def _show_next_profile(
     cand_verification = await get_photo_verification(candidate["user_id"])
     is_verified = bool(cand_verification and cand_verification.get("is_verified"))
 
-    card_text = _format_profile_card(candidate, verified=is_verified)
+    photos = _get_all_photos(candidate)
+    photo_count = len(photos)
+
+    card_text = _format_profile_card(candidate, verified=is_verified, photo_count=photo_count)
     kb = kb_browse_actions(candidate["user_id"])
 
-    if candidate.get("photo_file_id"):
+    if photos:
         if edit_query:
             try:
                 await edit_query.delete_message()
             except Exception:
                 pass
+        # Show first (main) photo with the action keyboard
         await update.effective_chat.send_photo(
-            photo=candidate["photo_file_id"],
+            photo=photos[0],
             caption=card_text,
             reply_markup=kb,
             parse_mode="Markdown",
@@ -983,7 +1239,7 @@ async def _show_next_profile(
         )
 
 
-def _format_profile_card(profile: dict, verified: bool = False) -> str:
+def _format_profile_card(profile: dict, verified: bool = False, photo_count: int = 0) -> str:
     """Render a profile card."""
     name = profile.get("display_name", "—")
     age = profile.get("age", "")
@@ -1000,6 +1256,8 @@ def _format_profile_card(profile: dict, verified: bool = False) -> str:
     if city:
         parts.append(f"📍 {city}")
     parts.append(f"🎯 {looking}")
+    if photo_count > 1:
+        parts.append(f"📸 _{photo_count} ta rasm_")
     if interests_str:
         parts.append(f"\n{interests_str}")
     if bio:
@@ -1073,26 +1331,51 @@ async def _react(
 # ──────────────────────── My profile / Matches / Likes views ────────────────────────
 
 async def _show_my_profile(query, profile: dict, user_id: int, lang: str) -> None:
+    """Show the user their own profile. Sends a media-group when there are
+    multiple photos so all of them are visible at once."""
+    from telegram import InputMediaPhoto
+
     verification = await get_photo_verification(user_id)
     is_verified = bool(verification and verification.get("is_verified"))
-    text = "👤 *Mening anketam:*\n\n" + _format_profile_card(profile, verified=is_verified)
+    photos = _get_all_photos(profile)
+    text = "👤 *Mening anketam:*\n\n" + _format_profile_card(
+        profile, verified=is_verified, photo_count=len(photos),
+    )
     kb = InlineKeyboardMarkup([
-        [InlineKeyboardButton("✏️ Tahrirlash", callback_data="friends_edit")],
+        [InlineKeyboardButton("📸 Rasmlarni o'zgartirish", callback_data="friends_edit_photos")],
+        [InlineKeyboardButton("✏️ To'liq tahrirlash", callback_data="friends_edit_full")],
         [InlineKeyboardButton("⬅️ Orqaga", callback_data="friends_back")],
     ])
-    if profile.get("photo_file_id"):
+
+    if not photos:
+        await query.edit_message_text(text, reply_markup=kb, parse_mode="Markdown")
+        return
+
+    try:
+        await query.delete_message()
+    except Exception:
+        pass
+
+    chat = query.message.chat
+
+    if len(photos) > 1:
+        # Send album of all photos first (no caption — short captions can be
+        # cut off in albums and Telegram limits 1 caption per group)
+        media = [InputMediaPhoto(media=p) for p in photos[:10]]
         try:
-            await query.delete_message()
-        except Exception:
-            pass
-        await query.message.chat.send_photo(
-            photo=profile["photo_file_id"],
+            await chat.send_media_group(media=media)
+        except Exception as e:
+            logger.error(f"send_media_group failed: {e}")
+        # Then send the card text + action buttons as a separate message
+        await chat.send_message(text, reply_markup=kb, parse_mode="Markdown")
+    else:
+        # Single photo — caption + buttons together
+        await chat.send_photo(
+            photo=photos[0],
             caption=text,
             reply_markup=kb,
             parse_mode="Markdown",
         )
-    else:
-        await query.edit_message_text(text, reply_markup=kb, parse_mode="Markdown")
 
 
 async def _show_matches(query, user_id: int, lang: str) -> None:

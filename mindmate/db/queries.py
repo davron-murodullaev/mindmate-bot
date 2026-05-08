@@ -443,15 +443,23 @@ async def upsert_friend_profile(
     city: Optional[str] = None,
     interests: Optional[List[str]] = None,
     bio: Optional[str] = None,
-    photo_file_id: Optional[str] = None,
+    photo_file_ids: Optional[List[str]] = None,
     is_active: bool = True,
 ) -> None:
-    """Create or update a friend-finding profile."""
+    """Create or update a friend-finding profile.
+
+    photo_file_ids is the new multi-photo column (array of Telegram photo
+    file_ids, max 3). The legacy photo_file_id column is also kept in sync
+    with the first photo for backward compatibility.
+    """
+    photos = photo_file_ids or []
+    first_photo = photos[0] if photos else None
+
     query = """
         INSERT INTO friend_profiles
             (user_id, display_name, age, gender, city, interests,
-             looking_for, bio, photo_file_id, is_active, updated_at)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, CURRENT_TIMESTAMP)
+             looking_for, bio, photo_file_id, photo_file_ids, is_active, updated_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, CURRENT_TIMESTAMP)
         ON CONFLICT (user_id) DO UPDATE
         SET display_name = EXCLUDED.display_name,
             age = EXCLUDED.age,
@@ -461,13 +469,33 @@ async def upsert_friend_profile(
             looking_for = EXCLUDED.looking_for,
             bio = COALESCE(EXCLUDED.bio, friend_profiles.bio),
             photo_file_id = COALESCE(EXCLUDED.photo_file_id, friend_profiles.photo_file_id),
+            photo_file_ids = CASE
+                WHEN array_length(EXCLUDED.photo_file_ids, 1) IS NOT NULL
+                THEN EXCLUDED.photo_file_ids
+                ELSE friend_profiles.photo_file_ids
+            END,
             is_active = EXCLUDED.is_active,
             updated_at = CURRENT_TIMESTAMP
     """
     await execute_query(
         query, user_id, display_name, age, gender, city,
-        interests or [], looking_for, bio, photo_file_id, is_active,
+        interests or [], looking_for, bio,
+        first_photo, photos, is_active,
     )
+
+
+async def update_friend_photos(user_id: int, photo_file_ids: List[str]) -> None:
+    """Replace the photo set on an existing profile (without touching other fields)."""
+    photos = photo_file_ids or []
+    first_photo = photos[0] if photos else None
+    query = """
+        UPDATE friend_profiles
+        SET photo_file_id = $2,
+            photo_file_ids = $3,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE user_id = $1
+    """
+    await execute_query(query, user_id, first_photo, photos)
 
 
 async def deactivate_friend_profile(user_id: int) -> None:
