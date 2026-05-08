@@ -33,12 +33,18 @@ def get_setup_keyboard(lang: str = "en") -> InlineKeyboardMarkup:
 
 
 def get_main_menu_keyboard(lang: str = "en") -> InlineKeyboardMarkup:
-    """Get main menu keyboard - simplified to core features."""
+    """Main menu — 3 big categories + utilities."""
     keyboard = [
+        # Top — main value proposition
+        [
+            InlineKeyboardButton(t("menu.exam", lang), callback_data="menu_exam"),
+            InlineKeyboardButton(t("menu.career", lang), callback_data="menu_career"),
+        ],
         [
             InlineKeyboardButton(t("menu.healer", lang), callback_data="menu_healer"),
             InlineKeyboardButton(t("menu.productivity", lang), callback_data="menu_productivity"),
         ],
+        # Middle — daily companions
         [
             InlineKeyboardButton(t("menu.mood_tracking", lang), callback_data="menu_mood"),
             InlineKeyboardButton(t("menu.journal", lang), callback_data="menu_journal"),
@@ -47,6 +53,7 @@ def get_main_menu_keyboard(lang: str = "en") -> InlineKeyboardMarkup:
             InlineKeyboardButton(t("menu.reminders", lang), callback_data="menu_reminders"),
             InlineKeyboardButton(t("menu.stats", lang), callback_data="menu_stats"),
         ],
+        # Bottom — meta
         [
             InlineKeyboardButton(t("menu.premium", lang), callback_data="menu_premium"),
             InlineKeyboardButton(t("menu.settings", lang), callback_data="menu_settings"),

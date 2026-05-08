@@ -11,7 +11,9 @@ TRANSLATIONS = {
     },
 
     "menu": {
-        "main_menu": "🏠 Main Menu\n\nWhat would you like to do today?",
+        "main_menu": "🏠 *Main Menu*\n\nHow can I help you today?",
+        "exam": "🎓 Exam Mentor",
+        "career": "💼 Career Coach",
         "mood_tracking": "😊 Mood",
         "healer": "🌟 Healer",
         "journal": "📝 Journal",
