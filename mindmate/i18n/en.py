@@ -11,9 +11,11 @@ TRANSLATIONS = {
     },
 
     "menu": {
-        "main_menu": "🏠 *Main Menu*\n\nHow can I help you today?",
-        "exam": "🎓 Exam Mentor",
-        "career": "💼 Career Coach",
+        "main_menu": "🏠 *Main Menu*\n\nJust type or speak to me — I'll understand.\nOr use the buttons below:",
+        "exam": "🎓 Exam",
+        "career": "💼 Career",
+        "friends": "💝 Find friends",
+        "profile": "👤 My Profile",
         "mood_tracking": "😊 Mood",
         "healer": "🌟 Healer",
         "journal": "📝 Journal",
@@ -23,6 +25,32 @@ TRANSLATIONS = {
         "settings": "⚙️ Settings",
         "premium": "💎 Premium",
         "help": "❓ Help",
+    },
+
+    "profile": {
+        "subtitle": "Pick one of your personal tools below:",
+    },
+
+    "friends": {
+        "teaser": (
+            "💝 *Find friends — Coming soon!*\n\n"
+            "We're building MindMate's most powerful feature: AI-powered "
+            "friendship matching.\n\n"
+            "Better than LeoMatch:\n"
+            "✅ AI understands you and finds quality matches\n"
+            "✅ Verified profiles — no fakes\n"
+            "✅ AI helps start conversations\n"
+            "✅ Audio intros — meet via voice\n"
+            "✅ Interest-based groups\n\n"
+            "*Want to be first when we launch?*"
+        ),
+        "join_waitlist": "🔔 Join the waitlist",
+        "in_waitlist": "✅ You're on the list",
+        "waitlist_joined": (
+            "🎉 *You joined the waitlist!*\n\n"
+            "You'll be among the first when we launch. Until then, chat with me — "
+            "I'm a great listener!"
+        ),
     },
 
     "mood": {
@@ -69,16 +97,23 @@ TRANSLATIONS = {
     },
 
     "reminders": {
-        "welcome": "⏰ Reminders\n\nWhat would you like to do?",
+        "welcome": "⏰ *Reminders*\n\nI'll remind you on time.",
         "new": "➕ New reminder",
         "list": "📋 My reminders",
-        "set": "⏰ Set Reminder\n\nTell me when you'd like to be reminded and what for.\n\nExample: Remind me to drink water at 3pm tomorrow",
-        "created": "✅ Reminder created!\n\nI'll remind you: {text}\nAt: {time}",
+        "delete_all": "🗑 Delete all",
+        "delete_one": "🗑 Delete",
+        "delete_all_confirm": "⚠️ All active reminders will be deleted. Continue?",
+        "all_deleted": "✅ All reminders deleted.",
+        "deleted": "✅ Reminder deleted.",
+        "tap_to_delete": "_Tap a reminder above to delete it._",
+        "list_header": "📋 *Your reminders:*",
+        "set": "⏰ *Set Reminder*\n\nTell me when and what to remind you about.\n\nExample: _Remind me to drink water at 3pm tomorrow_",
+        "created": "✅ *Reminder created!*\n\n📌 _{text}_\n⏰ {time}",
         "notification": "⏰ Reminder: {text}",
-        "no_reminders": "You have no active reminders.",
-        "list_item": "• {time} — {text}",
+        "no_reminders": "📭 You have no active reminders.",
+        "list_item": "• {time} — _{text}_",
         "limit_reached": "❌ Free tier allows {limit} reminders max. Upgrade to Premium!",
-        "parse_error": "❌ I couldn't understand the time. Please try again.\n\nExample: Tomorrow at 3pm meeting",
+        "parse_error": "❌ I couldn't parse the time. Please try again.\n\nExample: _Tomorrow at 3pm meeting_",
     },
 
     "settings": {

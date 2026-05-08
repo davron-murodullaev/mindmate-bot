@@ -1,5 +1,5 @@
 """
-Menu handler with proper callback routing for every menu_* button.
+Menu handler — clean routing for the new 4-button main menu + Profile sub-menu.
 """
 import logging
 
@@ -9,6 +9,7 @@ from telegram.ext import ContextTypes
 from mindmate.services.user_service import user_service
 from mindmate.ui.keyboards import (
     get_main_menu_keyboard,
+    get_profile_menu_keyboard,
     get_mood_keyboard,
     get_journal_keyboard,
     get_reminders_keyboard,
@@ -22,19 +23,27 @@ from mindmate.i18n import t
 logger = logging.getLogger(__name__)
 
 
+def _clear_state(context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Clear all transient state when navigating menus."""
+    for key in (
+        "mode",
+        "waiting_for_journal",
+        "waiting_for_reminder",
+        "exam_setup",
+        "career_setup",
+        "career_action",
+        "interview_question",
+        "last_practice_question",
+    ):
+        context.user_data.pop(key, None)
+
+
 async def menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handle /menu command."""
+    """Handle /menu command — open main menu."""
     user = update.effective_user
     message = update.message
     try:
-        # Reset any active mode when user explicitly opens menu
-        context.user_data.pop("mode", None)
-        context.user_data.pop("waiting_for_journal", None)
-        context.user_data.pop("waiting_for_reminder", None)
-        context.user_data.pop("exam_setup", None)
-        context.user_data.pop("career_setup", None)
-        context.user_data.pop("career_action", None)
-
+        _clear_state(context)
         lang = await user_service.get_user_language(user.id)
         await message.reply_text(
             t("menu.main_menu", lang),
@@ -47,23 +56,18 @@ async def menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 
 
 async def main_menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Route every menu_* callback to the appropriate sub-screen."""
+    """Route every menu_* callback."""
     query = update.callback_query
     user = query.from_user
 
     try:
         await query.answer()
         lang = await user_service.get_user_language(user.id)
-        data = query.data  # e.g. "menu_main", "menu_mood", ...
+        data = query.data
 
-        # Always clear any waiting/mode state when navigating menus
-        context.user_data.pop("mode", None)
-        context.user_data.pop("waiting_for_journal", None)
-        context.user_data.pop("waiting_for_reminder", None)
-        context.user_data.pop("exam_setup", None)
-        context.user_data.pop("career_setup", None)
-        context.user_data.pop("career_action", None)
+        _clear_state(context)
 
+        # ── Main 4 buttons ──
         if data == "menu_main":
             await query.edit_message_text(
                 text=t("menu.main_menu", lang),
@@ -72,7 +76,6 @@ async def main_menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
             )
 
         elif data == "menu_exam":
-            # Delegate to exam handler — show dashboard or wizard
             from mindmate.handlers.exam import exam_handler
             try:
                 await query.delete_message()
@@ -88,6 +91,19 @@ async def main_menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
                 pass
             await career_handler(update, context)
 
+        elif data == "menu_friends":
+            from mindmate.handlers.friends import friends_handler
+            try:
+                await query.delete_message()
+            except Exception:
+                pass
+            await friends_handler(update, context)
+
+        elif data == "menu_profile":
+            from mindmate.handlers.profile import profile_callback
+            await profile_callback(update, context)
+
+        # ── Inside Profile ──
         elif data == "menu_mood":
             await query.edit_message_text(
                 text=t("mood.select", lang),
@@ -139,11 +155,11 @@ async def main_menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
             )
 
         else:
-            # Unknown menu_* callback — fall back to main menu
             logger.warning(f"Unknown menu callback: {data}")
             await query.edit_message_text(
                 text=t("menu.main_menu", lang),
                 reply_markup=get_main_menu_keyboard(lang),
+                parse_mode="Markdown",
             )
 
     except Exception as e:
