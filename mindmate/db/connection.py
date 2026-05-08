@@ -185,11 +185,24 @@ async def init_db() -> None:
                 looking_for VARCHAR(50) NOT NULL,
                 bio TEXT,
                 photo_file_id VARCHAR(255),
+                photo_file_ids TEXT[] DEFAULT '{}',
                 is_verified BOOLEAN DEFAULT false,
                 is_active BOOLEAN DEFAULT true,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
+        """)
+        # Migration: add photo_file_ids column to existing tables and backfill
+        # from the legacy photo_file_id column.
+        await conn.execute(
+            "ALTER TABLE friend_profiles "
+            "ADD COLUMN IF NOT EXISTS photo_file_ids TEXT[] DEFAULT '{}'"
+        )
+        await conn.execute("""
+            UPDATE friend_profiles
+            SET photo_file_ids = ARRAY[photo_file_id]
+            WHERE photo_file_id IS NOT NULL
+              AND (photo_file_ids IS NULL OR array_length(photo_file_ids, 1) IS NULL)
         """)
 
         # Friend-finding: likes (each row = one user's reaction to another)
