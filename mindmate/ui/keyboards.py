@@ -33,18 +33,23 @@ def get_setup_keyboard(lang: str = "en") -> InlineKeyboardMarkup:
 
 
 def get_main_menu_keyboard(lang: str = "en") -> InlineKeyboardMarkup:
-    """Main menu — 3 big categories + utilities."""
+    """Main menu — only 4 big categories. Everything else lives inside Profile."""
     keyboard = [
-        # Top — main value proposition
         [
             InlineKeyboardButton(t("menu.exam", lang), callback_data="menu_exam"),
             InlineKeyboardButton(t("menu.career", lang), callback_data="menu_career"),
         ],
         [
-            InlineKeyboardButton(t("menu.healer", lang), callback_data="menu_healer"),
-            InlineKeyboardButton(t("menu.productivity", lang), callback_data="menu_productivity"),
+            InlineKeyboardButton(t("menu.friends", lang), callback_data="menu_friends"),
+            InlineKeyboardButton(t("menu.profile", lang), callback_data="menu_profile"),
         ],
-        # Middle — daily companions
+    ]
+    return InlineKeyboardMarkup(keyboard)
+
+
+def get_profile_menu_keyboard(lang: str = "en") -> InlineKeyboardMarkup:
+    """Profile sub-menu — personal tools (mood, journal, reminders, etc.)."""
+    keyboard = [
         [
             InlineKeyboardButton(t("menu.mood_tracking", lang), callback_data="menu_mood"),
             InlineKeyboardButton(t("menu.journal", lang), callback_data="menu_journal"),
@@ -53,10 +58,16 @@ def get_main_menu_keyboard(lang: str = "en") -> InlineKeyboardMarkup:
             InlineKeyboardButton(t("menu.reminders", lang), callback_data="menu_reminders"),
             InlineKeyboardButton(t("menu.stats", lang), callback_data="menu_stats"),
         ],
-        # Bottom — meta
+        [
+            InlineKeyboardButton(t("menu.healer", lang), callback_data="menu_healer"),
+            InlineKeyboardButton(t("menu.productivity", lang), callback_data="menu_productivity"),
+        ],
         [
             InlineKeyboardButton(t("menu.premium", lang), callback_data="menu_premium"),
             InlineKeyboardButton(t("menu.settings", lang), callback_data="menu_settings"),
+        ],
+        [
+            InlineKeyboardButton(t("buttons.back", lang), callback_data="menu_main"),
         ],
     ]
     return InlineKeyboardMarkup(keyboard)
@@ -113,11 +124,23 @@ def get_journal_keyboard(lang: str = "en") -> InlineKeyboardMarkup:
 
 
 def get_reminders_keyboard(lang: str = "en") -> InlineKeyboardMarkup:
-    """Get reminders menu keyboard."""
+    """Reminders menu keyboard."""
     keyboard = [
         [InlineKeyboardButton(t("reminders.new", lang), callback_data="reminder_new")],
         [InlineKeyboardButton(t("reminders.list", lang), callback_data="reminder_list")],
-        [InlineKeyboardButton(t("buttons.back", lang), callback_data="menu_main")],
+        [InlineKeyboardButton(t("reminders.delete_all", lang), callback_data="reminder_delete_all")],
+        [InlineKeyboardButton(t("buttons.back", lang), callback_data="menu_profile")],
+    ]
+    return InlineKeyboardMarkup(keyboard)
+
+
+def get_reminder_item_keyboard(reminder_id: int, lang: str = "en") -> InlineKeyboardMarkup:
+    """Per-reminder action keyboard (delete)."""
+    keyboard = [
+        [InlineKeyboardButton(
+            t("reminders.delete_one", lang),
+            callback_data=f"reminder_del_{reminder_id}",
+        )],
     ]
     return InlineKeyboardMarkup(keyboard)
 

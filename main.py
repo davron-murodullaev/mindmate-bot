@@ -1,5 +1,9 @@
 """
 MindMate Bot - Main Entry Point
+
+Conversational-first design: every text and voice message is routed
+through the AI router first (which can call tools like create_reminder).
+Wizards (exam/career setup, journal entry) take priority when active.
 """
 from telegram.ext import (
     Application,
@@ -14,7 +18,7 @@ from mindmate.core.logger import setup_logger
 from mindmate.db.connection import init_db, close_pool
 from mindmate.reminders.scheduler import start_scheduler, stop_scheduler
 
-# Handlers (simplified set — fitness/finance/meditation removed)
+# Handlers
 from mindmate.handlers.start import start_handler, language_callback, setup_callback
 from mindmate.handlers.menu import menu_handler, main_menu_callback
 from mindmate.handlers.mood import mood_handler, mood_callback, save_mood_handler
@@ -31,16 +35,30 @@ from mindmate.handlers.settings import settings_handler, settings_callback
 from mindmate.handlers.premium import premium_handler, premium_callback
 from mindmate.handlers.exam import exam_handler, exam_callback, exam_text_handler
 from mindmate.handlers.career import career_handler, career_callback, career_text_handler
+from mindmate.handlers.profile import profile_handler, profile_callback
+from mindmate.handlers.friends import friends_handler, friends_callback
+
+# AI router (the conversational brain)
+from mindmate.ai.router import route_message
+from mindmate.ai.memory import ConversationMemory
+from mindmate.ai.transcription import transcribe_voice
+from mindmate.services.user_service import user_service
+from mindmate.db.queries import (
+    increment_ai_usage,
+    get_daily_usage,
+    is_premium_active,
+)
+from mindmate.core.constants import FREE_DAILY_AI_MESSAGES
+from mindmate.i18n import t
 
 logger = setup_logger(__name__)
+_router_memory = ConversationMemory()
 
 
 async def post_init(application: Application) -> None:
-    """Initialize components after application startup."""
     try:
         await init_db()
         logger.info("Database initialized successfully")
-
         await start_scheduler(application.bot)
         logger.info("Reminder scheduler started")
     except Exception as e:
@@ -49,11 +67,9 @@ async def post_init(application: Application) -> None:
 
 
 async def post_stop(application: Application) -> None:
-    """Clean up components on application shutdown."""
     try:
         await stop_scheduler()
         logger.info("Reminder scheduler stopped")
-
         await close_pool()
         logger.info("Database pool closed")
     except Exception as e:
@@ -61,44 +77,120 @@ async def post_stop(application: Application) -> None:
 
 
 # ──────────────────────────────────────────────────────────────────────
-# Single dispatcher MessageHandler — replaces the 5 conflicting groups.
-# Order: mood emoji → reminder text → journal text → healer mode → productivity mode
+# Conversational AI dispatcher
 # ──────────────────────────────────────────────────────────────────────
 
+async def _route_via_ai(update, context, user_text: str) -> None:
+    """Send a free-text message through the AI router and handle the response."""
+    user = update.effective_user
+    chat = update.effective_chat
+    lang = await user_service.get_user_language(user.id)
+
+    # Free-tier daily limit
+    if not await is_premium_active(user.id):
+        usage = await get_daily_usage(user.id)
+        if usage["ai_messages"] >= FREE_DAILY_AI_MESSAGES:
+            await chat.send_message(
+                t("premium.limit_reached", lang).format(limit=FREE_DAILY_AI_MESSAGES),
+            )
+            return
+
+    try:
+        # Show "typing..." indicator while AI thinks
+        await chat.send_action("typing")
+
+        history = await _router_memory.get_history(user.id, "router")
+        await _router_memory.add_message(user.id, "router", "user", user_text)
+
+        result = await route_message(
+            user_id=user.id,
+            message=user_text,
+            history=history,
+            lang=lang,
+            user_first_name=user.first_name,
+        )
+
+        msg_text = result.get("message", "")
+        open_menu = result.get("open_menu")
+
+        if msg_text:
+            await _router_memory.add_message(user.id, "router", "assistant", msg_text)
+            await chat.send_message(msg_text, parse_mode="Markdown")
+
+        # If AI wants to open a menu, fire the corresponding callback
+        if open_menu:
+            await _open_menu_for_user(update, context, open_menu)
+
+        await increment_ai_usage(user.id)
+
+    except Exception as e:
+        logger.error(f"AI router error: {e}")
+        await chat.send_message("Texnik xatolik. Qayta urinib ko'ring.")
+
+
+async def _open_menu_for_user(update, context, menu: str) -> None:
+    """Open a specific menu when the AI signals via the open_menu tool."""
+    try:
+        if menu == "exam":
+            await exam_handler(update, context)
+        elif menu == "career":
+            await career_handler(update, context)
+        elif menu == "friends":
+            await friends_handler(update, context)
+        elif menu == "profile":
+            await profile_handler(update, context)
+        elif menu == "mood":
+            await mood_handler(update, context)
+        elif menu == "journal":
+            await journal_handler(update, context)
+        elif menu == "reminders":
+            await reminders_handler(update, context)
+        elif menu == "stats":
+            await stats_handler(update, context)
+        elif menu == "healer":
+            await healer_handler(update, context)
+        elif menu == "productivity":
+            await productivity_handler(update, context)
+        elif menu == "settings":
+            await settings_handler(update, context)
+        elif menu == "premium":
+            await premium_handler(update, context)
+        else:
+            await menu_handler(update, context)
+    except Exception as e:
+        logger.error(f"Error opening menu '{menu}': {e}")
+
+
 async def text_dispatcher(update, context):
-    """Dispatch a free-text message to the right handler based on user_data state."""
+    """Dispatch a text message to the right handler."""
     if not update.message or not update.message.text:
         return
 
     text = update.message.text.strip()
 
-    # 1) Quick mood log via leading emoji (😊 😢 😠 😰 😴 🤗)
-    first = text[:1]
-    if first in {"😊", "😢", "😠", "😰", "😴", "🤗"}:
+    # 1) Mood emoji shortcut
+    if text[:1] in {"😊", "😢", "😠", "😰", "😴", "🤗"}:
         await save_mood_handler(update, context)
         return
 
-    # 2) Pending exam wizard / chat (highest priority for exam users)
+    # 2) Active wizards (highest priority — they need exact input)
     if context.user_data.get("exam_setup") or context.user_data.get("mode") == "exam":
         await exam_text_handler(update, context)
         return
 
-    # 3) Pending career wizard / chat
     if context.user_data.get("career_setup") or context.user_data.get("mode") == "career":
         await career_text_handler(update, context)
         return
 
-    # 4) Pending reminder text
     if context.user_data.get("waiting_for_reminder"):
         await reminder_text_handler(update, context)
         return
 
-    # 5) Pending journal entry
     if context.user_data.get("waiting_for_journal"):
         await save_journal_handler(update, context)
         return
 
-    # 6) Active AI mode (healer / productivity)
+    # 3) Specific AI modes (healer/productivity)
     mode = context.user_data.get("mode")
     if mode == "healer":
         await healer_message_handler(update, context)
@@ -107,24 +199,44 @@ async def text_dispatcher(update, context):
         await productivity_message_handler(update, context)
         return
 
-    # 7) Otherwise — gentle nudge to use the menu
-    try:
-        from mindmate.services.user_service import user_service
-        from mindmate.ui.keyboards import get_main_menu_keyboard
-        from mindmate.i18n import t
+    # 4) DEFAULT: Route through AI brain (conversational entry)
+    await _route_via_ai(update, context, text)
 
-        lang = await user_service.get_user_language(update.effective_user.id)
-        await update.message.reply_text(
-            t("menu.main_menu", lang),
-            reply_markup=get_main_menu_keyboard(lang),
-            parse_mode="Markdown",
-        )
+
+async def voice_dispatcher(update, context):
+    """Handle voice messages — transcribe and route through AI."""
+    if not update.message or not update.message.voice:
+        return
+
+    user = update.effective_user
+    chat = update.effective_chat
+
+    try:
+        await chat.send_action("typing")
+
+        voice = update.message.voice
+        voice_file = await voice.get_file()
+        audio_bytes = await voice_file.download_as_bytearray()
+
+        text = await transcribe_voice(bytes(audio_bytes), filename="voice.ogg")
+        if not text:
+            await chat.send_message(
+                "🎙 Ovozli xabarni tushunolmadim. Iltimos, matn ko'rinishida yozib yuboring."
+            )
+            return
+
+        # Show user what we heard
+        await chat.send_message(f"🎙 _Eshitganim:_ {text}", parse_mode="Markdown")
+
+        # Now route as if it were a text message
+        await _route_via_ai(update, context, text)
+
     except Exception as e:
-        logger.error(f"Error in text_dispatcher fallback: {e}")
+        logger.error(f"Voice dispatcher error: {e}")
+        await chat.send_message("🎙 Ovozni o'qishda xatolik. Matn ko'rinishida yozib yuboring.")
 
 
 def main():
-    """Main function to run the bot."""
     logger.info("Starting MindMate Bot...")
 
     application = (
@@ -135,7 +247,7 @@ def main():
         .build()
     )
 
-    # ── Command handlers ──────────────────────────────────────────────
+    # ── Commands ──────────────────────────────────────────────────────
     application.add_handler(CommandHandler("start", start_handler))
     application.add_handler(CommandHandler("menu", menu_handler))
     application.add_handler(CommandHandler("mood", mood_handler))
@@ -148,8 +260,10 @@ def main():
     application.add_handler(CommandHandler("premium", premium_handler))
     application.add_handler(CommandHandler("exam", exam_handler))
     application.add_handler(CommandHandler("career", career_handler))
+    application.add_handler(CommandHandler("profile", profile_handler))
+    application.add_handler(CommandHandler("friends", friends_handler))
 
-    # ── Callback query handlers ───────────────────────────────────────
+    # ── Callback queries ──────────────────────────────────────────────
     application.add_handler(CallbackQueryHandler(language_callback, pattern="^lang_"))
     application.add_handler(CallbackQueryHandler(setup_callback, pattern="^setup_"))
     application.add_handler(CallbackQueryHandler(main_menu_callback, pattern="^menu_"))
@@ -161,11 +275,11 @@ def main():
     application.add_handler(CallbackQueryHandler(premium_callback, pattern="^premium_"))
     application.add_handler(CallbackQueryHandler(exam_callback, pattern="^exam_"))
     application.add_handler(CallbackQueryHandler(career_callback, pattern="^career_"))
+    application.add_handler(CallbackQueryHandler(friends_callback, pattern="^friends_"))
 
-    # ── Single text dispatcher (replaces 5 conflicting groups) ────────
-    application.add_handler(
-        MessageHandler(filters.TEXT & ~filters.COMMAND, text_dispatcher)
-    )
+    # ── Text + voice dispatcher ───────────────────────────────────────
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, text_dispatcher))
+    application.add_handler(MessageHandler(filters.VOICE, voice_dispatcher))
 
     logger.info("Bot started successfully. Polling for updates...")
     application.run_polling(allowed_updates=["message", "callback_query"])

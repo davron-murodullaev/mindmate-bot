@@ -3,7 +3,7 @@ Uzbek translations
 """
 
 TRANSLATIONS = {
-    "welcome": "👋 MindMate'ga xush kelibsiz!\n\nMen sizning ruhiy salomatlik va samaradorlik uchun AI yordamchingizman.\n\nIltimos, tilingizni tanlang:",
+    "welcome": "👋 *Salom! Men — MindMate.*\n\nMen sizning AI do'stingizman:\n🎓 Imtihonga tayyorgarlik\n💼 Karyera maslahati\n💬 Suhbat va ruhiy yordam\n⏰ Eslatmalar va kundalik\n\n_Menyudan tanlang yoki shunchaki yozing/gapiring — men sizni tushunaman._\n\nAvval tilni tanlang:",
 
     "setup": {
         "complete": "✅ Sozlash tugallandi! Endi barcha funksiyalardan foydalanishingiz mumkin.",
@@ -11,9 +11,11 @@ TRANSLATIONS = {
     },
 
     "menu": {
-        "main_menu": "🏠 *Asosiy menyu*\n\nBugun sizga qanday yordam beraman?",
-        "exam": "🎓 Imtihon Mentor",
-        "career": "💼 Karyera Coach",
+        "main_menu": "🏠 *Bosh menyu*\n\nMenga shunchaki yozing yoki gapiring — men tushunaman.\nYoki quyidagi tugmalarni ishlating:",
+        "exam": "🎓 Imtihon",
+        "career": "💼 Karyera",
+        "friends": "💝 Do'st topish",
+        "profile": "👤 Mening profilim",
         "mood_tracking": "😊 Kayfiyat",
         "healer": "🌟 Shifokor",
         "journal": "📝 Kundalik",
@@ -23,6 +25,33 @@ TRANSLATIONS = {
         "settings": "⚙️ Sozlamalar",
         "premium": "💎 Premium",
         "help": "❓ Yordam",
+    },
+
+    "profile": {
+        "subtitle": "Quyidagi vositalardan birini tanlang:",
+    },
+
+    "friends": {
+        "teaser": (
+            "💝 *Do'st topish — Tez orada!*\n\n"
+            "MindMate'ning eng kuchli xususiyati ustida ishlayapmiz: "
+            "*AI yordamida* haqiqiy do'stlar topish.\n\n"
+            "Bu LeoMatch'dan farq qilib:\n"
+            "✅ AI sizni tushunadi va sifatli mos kelishlarni topadi\n"
+            "✅ Verifikatsiya — fake profillar yo'q\n"
+            "✅ Suhbat boshlashga AI yordam beradi\n"
+            "✅ Audio tanishuv — ovoz orqali tanish\n"
+            "✅ Qiziqishlar bo'yicha guruhlar\n\n"
+            "*Chiqarilganda birinchi bo'lib bilmoqchimisiz?*"
+        ),
+        "join_waitlist": "🔔 Kutish ro'yxatiga qo'shilish",
+        "in_waitlist": "✅ Siz ro'yxatdasiz",
+        "waitlist_joined": (
+            "🎉 *Kutish ro'yxatiga qo'shildingiz!*\n\n"
+            "Tayyor bo'lganda birinchilardan biri bo'lasiz. "
+            "Vaqtincha bot orqali do'st topa olmasangiz, men bilan suhbatlashing — "
+            "men ham yaxshi suhbatdoshman!"
+        ),
     },
 
     "mood": {
@@ -69,16 +98,23 @@ TRANSLATIONS = {
     },
 
     "reminders": {
-        "welcome": "⏰ Eslatmalar\n\nNima qilmoqchisiz?",
+        "welcome": "⏰ *Eslatmalar*\n\nMen sizga vaqtida eslatib turaman.",
         "new": "➕ Yangi eslatma",
         "list": "📋 Mening eslatmalarim",
-        "set": "⏰ Eslatma o'rnatish\n\nMenga qachon va nima haqida eslatishim kerakligini ayting.\n\nMisol: Ertaga soat 15:00 da suv ichishni eslatib tur",
-        "created": "✅ Eslatma yaratildi!\n\nMen sizga eslataman: {text}\nVaqt: {time}",
+        "delete_all": "🗑 Barchasini o'chirish",
+        "delete_one": "🗑 O'chirish",
+        "delete_all_confirm": "⚠️ Barcha faol eslatmalar o'chiriladi. Davom etamizmi?",
+        "all_deleted": "✅ Barcha eslatmalar o'chirildi.",
+        "deleted": "✅ Eslatma o'chirildi.",
+        "tap_to_delete": "_O'chirish uchun yuqoridagi tugmalarni bosing._",
+        "list_header": "📋 *Sizning eslatmalaringiz:*",
+        "set": "⏰ *Eslatma o'rnatish*\n\nMenga qachon va nima haqida eslatishim kerakligini ayting.\n\nMisol: _Ertaga soat 15:00 da suv ichishni eslatib tur_",
+        "created": "✅ *Eslatma yaratildi!*\n\n📌 _{text}_\n⏰ {time}",
         "notification": "⏰ Eslatma: {text}",
-        "no_reminders": "Sizda faol eslatmalar yo'q.",
-        "list_item": "• {time} — {text}",
+        "no_reminders": "📭 Sizda faol eslatmalar yo'q.",
+        "list_item": "• {time} — _{text}_",
         "limit_reached": "❌ Bepul rejimda maksimum {limit} eslatma mumkin. Premium'ga o'ting!",
-        "parse_error": "❌ Vaqtni tushunmadim. Iltimos, qayta urinib ko'ring.\n\nMisol: Ertaga 15:00 da yig'ilish",
+        "parse_error": "❌ Vaqtni tushunmadim. Iltimos, qayta urinib ko'ring.\n\nMisol: _Ertaga 15:00 da yig'ilish_",
     },
 
     "settings": {
