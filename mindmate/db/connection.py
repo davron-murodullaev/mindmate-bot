@@ -173,6 +173,47 @@ async def init_db() -> None:
             )
         """)
 
+        # Friend-finding: profiles
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS friend_profiles (
+                user_id BIGINT PRIMARY KEY REFERENCES users(user_id) ON DELETE CASCADE,
+                display_name VARCHAR(100) NOT NULL,
+                age INT NOT NULL,
+                gender VARCHAR(20),
+                city VARCHAR(100),
+                interests TEXT[] DEFAULT '{}',
+                looking_for VARCHAR(50) NOT NULL,
+                bio TEXT,
+                photo_file_id VARCHAR(255),
+                is_verified BOOLEAN DEFAULT false,
+                is_active BOOLEAN DEFAULT true,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+
+        # Friend-finding: likes (each row = one user's reaction to another)
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS friend_likes (
+                from_user_id BIGINT REFERENCES users(user_id) ON DELETE CASCADE,
+                to_user_id BIGINT REFERENCES users(user_id) ON DELETE CASCADE,
+                is_like BOOLEAN NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (from_user_id, to_user_id)
+            )
+        """)
+
+        # Friend-finding: matches (mutual likes; user1_id < user2_id always)
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS friend_matches (
+                user1_id BIGINT REFERENCES users(user_id) ON DELETE CASCADE,
+                user2_id BIGINT REFERENCES users(user_id) ON DELETE CASCADE,
+                matched_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (user1_id, user2_id),
+                CHECK (user1_id < user2_id)
+            )
+        """)
+
         # Indexes
         await conn.execute("CREATE INDEX IF NOT EXISTS idx_moods_user_id ON moods(user_id)")
         await conn.execute("CREATE INDEX IF NOT EXISTS idx_moods_created_at ON moods(created_at)")
@@ -182,6 +223,10 @@ async def init_db() -> None:
         await conn.execute("CREATE INDEX IF NOT EXISTS idx_reminders_pending ON reminders(is_sent, reminder_time) WHERE is_sent = false")
         await conn.execute("CREATE INDEX IF NOT EXISTS idx_conversations_user_mode ON conversations(user_id, mode)")
         await conn.execute("CREATE INDEX IF NOT EXISTS idx_conversations_created ON conversations(created_at DESC)")
+        await conn.execute("CREATE INDEX IF NOT EXISTS idx_friend_profiles_active ON friend_profiles(is_active, city) WHERE is_active = true")
+        await conn.execute("CREATE INDEX IF NOT EXISTS idx_friend_likes_to ON friend_likes(to_user_id)")
+        await conn.execute("CREATE INDEX IF NOT EXISTS idx_friend_matches_user1 ON friend_matches(user1_id)")
+        await conn.execute("CREATE INDEX IF NOT EXISTS idx_friend_matches_user2 ON friend_matches(user2_id)")
 
         logger.info("Database schema initialized successfully")
 

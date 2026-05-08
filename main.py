@@ -36,7 +36,12 @@ from mindmate.handlers.premium import premium_handler, premium_callback
 from mindmate.handlers.exam import exam_handler, exam_callback, exam_text_handler
 from mindmate.handlers.career import career_handler, career_callback, career_text_handler
 from mindmate.handlers.profile import profile_handler, profile_callback
-from mindmate.handlers.friends import friends_handler, friends_callback
+from mindmate.handlers.friends import (
+    friends_handler,
+    friends_callback,
+    friends_text_handler,
+    friends_photo_handler,
+)
 
 # AI router (the conversational brain)
 from mindmate.ai.router import route_message
@@ -182,6 +187,10 @@ async def text_dispatcher(update, context):
         await career_text_handler(update, context)
         return
 
+    if context.user_data.get("friends_setup"):
+        await friends_text_handler(update, context)
+        return
+
     if context.user_data.get("waiting_for_reminder"):
         await reminder_text_handler(update, context)
         return
@@ -214,18 +223,29 @@ async def voice_dispatcher(update, context):
     try:
         await chat.send_action("typing")
 
+        # Use the user's selected language as a transcription hint.
+        # Better accuracy than auto-detect for short voice messages.
+        lang = await user_service.get_user_language(user.id)
+        # Whisper supports "uz" but understands UZ better when hinted "uz".
+        language_hint = lang if lang in ("uz", "ru", "en") else None
+
         voice = update.message.voice
         voice_file = await voice.get_file()
         audio_bytes = await voice_file.download_as_bytearray()
 
-        text = await transcribe_voice(bytes(audio_bytes), filename="voice.ogg")
+        text = await transcribe_voice(
+            bytes(audio_bytes),
+            filename="voice.ogg",
+            language_hint=language_hint,
+        )
         if not text:
             await chat.send_message(
-                "🎙 Ovozli xabarni tushunolmadim. Iltimos, matn ko'rinishida yozib yuboring."
+                "🎙 Ovozli xabarni tushunolmadim. Iltimos, sekinroq va aniqroq "
+                "qayta ayting yoki matn ko'rinishida yozib yuboring."
             )
             return
 
-        # Show user what we heard
+        # Show user what we heard so they can verify/correct
         await chat.send_message(f"🎙 _Eshitganim:_ {text}", parse_mode="Markdown")
 
         # Now route as if it were a text message
@@ -277,9 +297,10 @@ def main():
     application.add_handler(CallbackQueryHandler(career_callback, pattern="^career_"))
     application.add_handler(CallbackQueryHandler(friends_callback, pattern="^friends_"))
 
-    # ── Text + voice dispatcher ───────────────────────────────────────
+    # ── Text + voice + photo dispatcher ───────────────────────────────
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, text_dispatcher))
     application.add_handler(MessageHandler(filters.VOICE, voice_dispatcher))
+    application.add_handler(MessageHandler(filters.PHOTO, friends_photo_handler))
 
     logger.info("Bot started successfully. Polling for updates...")
     application.run_polling(allowed_updates=["message", "callback_query"])
