@@ -1,5 +1,9 @@
 """
-Start command handler
+Start command handler.
+
+Behavior:
+- New user (no language set yet) → ask to choose language
+- Returning user → greet and open the main menu directly
 """
 import logging
 
@@ -7,6 +11,7 @@ from telegram import Update
 from telegram.ext import ContextTypes
 
 from mindmate.services.user_service import user_service
+from mindmate.db.queries import get_user
 from mindmate.ui.keyboards import (
     get_language_keyboard,
     get_setup_keyboard,
@@ -19,12 +24,16 @@ logger = logging.getLogger(__name__)
 
 
 async def start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handle /start command."""
+    """Handle /start — greet returning users; onboard new users."""
     user = update.effective_user
     message = update.message
 
     try:
-        # Create or get user
+        # Check whether the user already exists in the DB
+        existing = await get_user(user.id)
+        is_returning = bool(existing)
+
+        # Always upsert (refresh names) but pass existing language if any
         await user_service.get_or_create_user(
             user_id=user.id,
             username=user.username,
@@ -32,13 +41,29 @@ async def start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
             last_name=user.last_name,
         )
 
-        # Get user language (falls back to default if missing)
-        lang = await user_service.get_user_language(user.id)
+        if is_returning and existing.get("language_code") in SUPPORTED_LANGUAGES:
+            # Returning user — straight to main menu in their language
+            lang = existing["language_code"]
+            name = user.first_name or ""
+            greeting_key = "start.welcome_back"
+            try:
+                greeting = t(greeting_key, lang).format(name=name)
+            except Exception:
+                greeting = f"👋 {name}, qaytib kelganingizdan xursandman!"
 
-        # Send welcome message with language selection
+            await message.reply_text(
+                greeting,
+                reply_markup=get_main_menu_keyboard(lang),
+                parse_mode="Markdown",
+            )
+            return
+
+        # New user (or unknown language) — ask to pick a language
+        lang = (existing or {}).get("language_code") or DEFAULT_LANGUAGE
         await message.reply_text(
             t("welcome", lang),
             reply_markup=get_language_keyboard(),
+            parse_mode="Markdown",
         )
 
     except Exception as e:
@@ -56,12 +81,9 @@ async def language_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) 
 
     try:
         await query.answer()
-
-        # Extract & validate language
         raw_lang = (query.data or "").replace("lang_", "").strip().lower()
         lang = raw_lang if raw_lang in SUPPORTED_LANGUAGES else DEFAULT_LANGUAGE
 
-        # Persist
         await user_service.set_user_language(user.id, lang)
 
         await query.edit_message_text(
@@ -84,12 +106,12 @@ async def setup_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
     try:
         await query.answer()
-
         lang = await user_service.get_user_language(user.id)
 
         await query.edit_message_text(
             text=t("menu.main_menu", lang),
             reply_markup=get_main_menu_keyboard(lang),
+            parse_mode="Markdown",
         )
 
     except Exception as e:
