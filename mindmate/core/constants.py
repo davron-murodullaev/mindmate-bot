@@ -92,7 +92,55 @@ CACHE_TTL_SHORT = 300  # 5 minutes
 CACHE_TTL_MEDIUM = 1800  # 30 minutes
 CACHE_TTL_LONG = 3600  # 1 hour
 
-# Subscription / Premium
+# ── Exam Mentor ─────────────────────────────────────────────────────
+EXAM_TYPES = ["dtm", "ielts", "sat", "magistratura", "cefr"]
+EXAM_TYPE_LABELS_UZ = {
+    "dtm": "📚 DTM (UZ universiteti)",
+    "ielts": "🌍 IELTS (ingliz tili)",
+    "sat": "🇺🇸 SAT (chet el)",
+    "magistratura": "🎓 Magistratura",
+    "cefr": "📜 CEFR sertifikati",
+}
+
+DTM_SUBJECTS = [
+    "matematika", "fizika", "kimyo", "biologiya",
+    "tarix", "geografiya", "adabiyot", "ona_tili",
+    "ingliz_tili", "rus_tili", "huquq", "informatika", "iqtisod",
+]
+DTM_SUBJECT_LABELS_UZ = {
+    "matematika": "📐 Matematika",
+    "fizika": "⚛️ Fizika",
+    "kimyo": "🧪 Kimyo",
+    "biologiya": "🧬 Biologiya",
+    "tarix": "📜 Tarix",
+    "geografiya": "🌍 Geografiya",
+    "adabiyot": "📖 Adabiyot",
+    "ona_tili": "🇺🇿 Ona tili",
+    "ingliz_tili": "🇬🇧 Ingliz tili",
+    "rus_tili": "🇷🇺 Rus tili",
+    "huquq": "⚖️ Huquq",
+    "informatika": "💻 Informatika",
+    "iqtisod": "💰 Iqtisod",
+}
+
+EXAM_LEVELS = ["beginner", "intermediate", "advanced"]
+EXAM_LEVEL_LABELS_UZ = {
+    "beginner": "🌱 Boshlovchi",
+    "intermediate": "🌿 O'rta",
+    "advanced": "🌳 Yuqori",
+}
+
+# ── Career Coach ────────────────────────────────────────────────────
+CAREER_STATUS_OPTIONS = ["student", "graduate", "employed", "switching", "freelance"]
+CAREER_STATUS_LABELS_UZ = {
+    "student": "🎓 Talaba",
+    "graduate": "🎯 Bitiruvchi (ish izlamoqdaman)",
+    "employed": "💼 Hozir ishlayapman",
+    "switching": "🔄 Ish o'zgartirmoqchiman",
+    "freelance": "🚀 Freelancer / Biznes",
+}
+
+# ── Subscription / Premium ──────────────────────────────────────────
 SUB_TIER_FREE = "free"
 SUB_TIER_PREMIUM = "premium"
 SUB_TIERS = [SUB_TIER_FREE, SUB_TIER_PREMIUM]

@@ -15,6 +15,8 @@ from mindmate.handlers.reminders import (
 )
 from mindmate.handlers.settings import settings_handler, settings_callback
 from mindmate.handlers.premium import premium_handler, premium_callback
+from mindmate.handlers.exam import exam_handler, exam_callback, exam_text_handler
+from mindmate.handlers.career import career_handler, career_callback, career_text_handler
 
 __all__ = [
     "start_handler",
@@ -41,4 +43,10 @@ __all__ = [
     "settings_callback",
     "premium_handler",
     "premium_callback",
+    "exam_handler",
+    "exam_callback",
+    "exam_text_handler",
+    "career_handler",
+    "career_callback",
+    "career_text_handler",
 ]

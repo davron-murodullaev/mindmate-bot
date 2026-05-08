@@ -11,7 +11,9 @@ TRANSLATIONS = {
     },
 
     "menu": {
-        "main_menu": "🏠 Asosiy menyu\n\nBugun nima qilmoqchisiz?",
+        "main_menu": "🏠 *Asosiy menyu*\n\nBugun sizga qanday yordam beraman?",
+        "exam": "🎓 Imtihon Mentor",
+        "career": "💼 Karyera Coach",
         "mood_tracking": "😊 Kayfiyat",
         "healer": "🌟 Shifokor",
         "journal": "📝 Kundalik",

@@ -31,11 +31,15 @@ async def menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         context.user_data.pop("mode", None)
         context.user_data.pop("waiting_for_journal", None)
         context.user_data.pop("waiting_for_reminder", None)
+        context.user_data.pop("exam_setup", None)
+        context.user_data.pop("career_setup", None)
+        context.user_data.pop("career_action", None)
 
         lang = await user_service.get_user_language(user.id)
         await message.reply_text(
             t("menu.main_menu", lang),
             reply_markup=get_main_menu_keyboard(lang),
+            parse_mode="Markdown",
         )
     except Exception as e:
         logger.error(f"Error in menu_handler: {e}")
@@ -56,12 +60,33 @@ async def main_menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
         context.user_data.pop("mode", None)
         context.user_data.pop("waiting_for_journal", None)
         context.user_data.pop("waiting_for_reminder", None)
+        context.user_data.pop("exam_setup", None)
+        context.user_data.pop("career_setup", None)
+        context.user_data.pop("career_action", None)
 
         if data == "menu_main":
             await query.edit_message_text(
                 text=t("menu.main_menu", lang),
                 reply_markup=get_main_menu_keyboard(lang),
+                parse_mode="Markdown",
             )
+
+        elif data == "menu_exam":
+            # Delegate to exam handler — show dashboard or wizard
+            from mindmate.handlers.exam import exam_handler
+            try:
+                await query.delete_message()
+            except Exception:
+                pass
+            await exam_handler(update, context)
+
+        elif data == "menu_career":
+            from mindmate.handlers.career import career_handler
+            try:
+                await query.delete_message()
+            except Exception:
+                pass
+            await career_handler(update, context)
 
         elif data == "menu_mood":
             await query.edit_message_text(

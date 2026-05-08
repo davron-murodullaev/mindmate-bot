@@ -29,6 +29,8 @@ from mindmate.handlers.reminders import (
 )
 from mindmate.handlers.settings import settings_handler, settings_callback
 from mindmate.handlers.premium import premium_handler, premium_callback
+from mindmate.handlers.exam import exam_handler, exam_callback, exam_text_handler
+from mindmate.handlers.career import career_handler, career_callback, career_text_handler
 
 logger = setup_logger(__name__)
 
@@ -76,17 +78,27 @@ async def text_dispatcher(update, context):
         await save_mood_handler(update, context)
         return
 
-    # 2) Pending reminder text
+    # 2) Pending exam wizard / chat (highest priority for exam users)
+    if context.user_data.get("exam_setup") or context.user_data.get("mode") == "exam":
+        await exam_text_handler(update, context)
+        return
+
+    # 3) Pending career wizard / chat
+    if context.user_data.get("career_setup") or context.user_data.get("mode") == "career":
+        await career_text_handler(update, context)
+        return
+
+    # 4) Pending reminder text
     if context.user_data.get("waiting_for_reminder"):
         await reminder_text_handler(update, context)
         return
 
-    # 3) Pending journal entry
+    # 5) Pending journal entry
     if context.user_data.get("waiting_for_journal"):
         await save_journal_handler(update, context)
         return
 
-    # 4) Active AI mode
+    # 6) Active AI mode (healer / productivity)
     mode = context.user_data.get("mode")
     if mode == "healer":
         await healer_message_handler(update, context)
@@ -95,7 +107,7 @@ async def text_dispatcher(update, context):
         await productivity_message_handler(update, context)
         return
 
-    # 5) Otherwise — gentle nudge to use the menu
+    # 7) Otherwise — gentle nudge to use the menu
     try:
         from mindmate.services.user_service import user_service
         from mindmate.ui.keyboards import get_main_menu_keyboard
@@ -105,6 +117,7 @@ async def text_dispatcher(update, context):
         await update.message.reply_text(
             t("menu.main_menu", lang),
             reply_markup=get_main_menu_keyboard(lang),
+            parse_mode="Markdown",
         )
     except Exception as e:
         logger.error(f"Error in text_dispatcher fallback: {e}")
@@ -133,6 +146,8 @@ def main():
     application.add_handler(CommandHandler("stats", stats_handler))
     application.add_handler(CommandHandler("settings", settings_handler))
     application.add_handler(CommandHandler("premium", premium_handler))
+    application.add_handler(CommandHandler("exam", exam_handler))
+    application.add_handler(CommandHandler("career", career_handler))
 
     # ── Callback query handlers ───────────────────────────────────────
     application.add_handler(CallbackQueryHandler(language_callback, pattern="^lang_"))
@@ -144,6 +159,8 @@ def main():
     application.add_handler(CallbackQueryHandler(stats_callback, pattern="^stats_"))
     application.add_handler(CallbackQueryHandler(settings_callback, pattern="^settings_"))
     application.add_handler(CallbackQueryHandler(premium_callback, pattern="^premium_"))
+    application.add_handler(CallbackQueryHandler(exam_callback, pattern="^exam_"))
+    application.add_handler(CallbackQueryHandler(career_callback, pattern="^career_"))
 
     # ── Single text dispatcher (replaces 5 conflicting groups) ────────
     application.add_handler(

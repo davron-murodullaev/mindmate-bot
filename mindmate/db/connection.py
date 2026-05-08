@@ -142,6 +142,37 @@ async def init_db() -> None:
             )
         """)
 
+        # Exam profiles (DTM/IELTS/SAT/Magistratura)
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS exam_profiles (
+                user_id BIGINT PRIMARY KEY REFERENCES users(user_id) ON DELETE CASCADE,
+                exam_type VARCHAR(20) NOT NULL,
+                subjects TEXT[] DEFAULT '{}',
+                exam_date DATE,
+                target_score VARCHAR(20),
+                current_level VARCHAR(20) DEFAULT 'intermediate',
+                daily_study_hours INT DEFAULT 4,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+
+        # Career profiles
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS career_profiles (
+                user_id BIGINT PRIMARY KEY REFERENCES users(user_id) ON DELETE CASCADE,
+                status VARCHAR(50) NOT NULL,
+                target_role TEXT,
+                industry TEXT,
+                experience_years INT DEFAULT 0,
+                skills TEXT[] DEFAULT '{}',
+                languages TEXT[] DEFAULT '{}',
+                resume_text TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+
         # Indexes
         await conn.execute("CREATE INDEX IF NOT EXISTS idx_moods_user_id ON moods(user_id)")
         await conn.execute("CREATE INDEX IF NOT EXISTS idx_moods_created_at ON moods(created_at)")

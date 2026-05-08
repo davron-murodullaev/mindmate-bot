@@ -333,3 +333,93 @@ async def increment_journal_usage(user_id: int) -> int:
         RETURNING journal_entries
     """
     return await execute_fetchval(query, user_id)
+
+
+# ──────────────────────── Exam Profile Queries ────────────────────────
+
+async def get_exam_profile(user_id: int) -> Optional[Dict[str, Any]]:
+    """Get a user's exam profile."""
+    query = "SELECT * FROM exam_profiles WHERE user_id = $1"
+    row = await execute_fetchrow(query, user_id)
+    return dict(row) if row else None
+
+
+async def upsert_exam_profile(
+    user_id: int,
+    exam_type: str,
+    subjects: Optional[List[str]] = None,
+    exam_date: Optional[date] = None,
+    target_score: Optional[str] = None,
+    current_level: str = "intermediate",
+    daily_study_hours: int = 4,
+) -> None:
+    """Create or update a user's exam profile."""
+    query = """
+        INSERT INTO exam_profiles
+            (user_id, exam_type, subjects, exam_date, target_score,
+             current_level, daily_study_hours, updated_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, CURRENT_TIMESTAMP)
+        ON CONFLICT (user_id) DO UPDATE
+        SET exam_type = EXCLUDED.exam_type,
+            subjects = EXCLUDED.subjects,
+            exam_date = EXCLUDED.exam_date,
+            target_score = EXCLUDED.target_score,
+            current_level = EXCLUDED.current_level,
+            daily_study_hours = EXCLUDED.daily_study_hours,
+            updated_at = CURRENT_TIMESTAMP
+    """
+    await execute_query(
+        query, user_id, exam_type, subjects or [], exam_date,
+        target_score, current_level, daily_study_hours,
+    )
+
+
+async def delete_exam_profile(user_id: int) -> None:
+    """Delete a user's exam profile."""
+    await execute_query("DELETE FROM exam_profiles WHERE user_id = $1", user_id)
+
+
+# ──────────────────────── Career Profile Queries ────────────────────────
+
+async def get_career_profile(user_id: int) -> Optional[Dict[str, Any]]:
+    """Get a user's career profile."""
+    query = "SELECT * FROM career_profiles WHERE user_id = $1"
+    row = await execute_fetchrow(query, user_id)
+    return dict(row) if row else None
+
+
+async def upsert_career_profile(
+    user_id: int,
+    status: str,
+    target_role: Optional[str] = None,
+    industry: Optional[str] = None,
+    experience_years: int = 0,
+    skills: Optional[List[str]] = None,
+    languages: Optional[List[str]] = None,
+    resume_text: Optional[str] = None,
+) -> None:
+    """Create or update a user's career profile."""
+    query = """
+        INSERT INTO career_profiles
+            (user_id, status, target_role, industry, experience_years,
+             skills, languages, resume_text, updated_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, CURRENT_TIMESTAMP)
+        ON CONFLICT (user_id) DO UPDATE
+        SET status = EXCLUDED.status,
+            target_role = COALESCE(EXCLUDED.target_role, career_profiles.target_role),
+            industry = COALESCE(EXCLUDED.industry, career_profiles.industry),
+            experience_years = EXCLUDED.experience_years,
+            skills = EXCLUDED.skills,
+            languages = EXCLUDED.languages,
+            resume_text = COALESCE(EXCLUDED.resume_text, career_profiles.resume_text),
+            updated_at = CURRENT_TIMESTAMP
+    """
+    await execute_query(
+        query, user_id, status, target_role, industry,
+        experience_years, skills or [], languages or [], resume_text,
+    )
+
+
+async def delete_career_profile(user_id: int) -> None:
+    """Delete a user's career profile."""
+    await execute_query("DELETE FROM career_profiles WHERE user_id = $1", user_id)
