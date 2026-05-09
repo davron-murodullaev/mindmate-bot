@@ -150,18 +150,22 @@ def kb_match_actions(match_user_id: int) -> InlineKeyboardMarkup:
 
 
 def kb_looking_for() -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup([
+    rows = [
         [InlineKeyboardButton(FRIEND_LOOKING_LABELS_UZ[lf], callback_data=f"friends_lf_{lf}")]
         for lf in FRIEND_LOOKING_OPTIONS
-    ])
+    ]
+    rows.append([InlineKeyboardButton("❌ Bekor qilish", callback_data="friends_wizard_cancel")])
+    return InlineKeyboardMarkup(rows)
 
 
 def kb_gender() -> InlineKeyboardMarkup:
     """Gender is required so users can be matched correctly — no skip option."""
-    return InlineKeyboardMarkup([
+    rows = [
         [InlineKeyboardButton(FRIEND_GENDER_LABELS_UZ[g], callback_data=f"friends_g_{g}")]
         for g in FRIEND_GENDER_OPTIONS
-    ])
+    ]
+    rows.append([InlineKeyboardButton("❌ Bekor qilish", callback_data="friends_wizard_cancel")])
+    return InlineKeyboardMarkup(rows)
 
 
 def kb_interests(selected: list[str]) -> InlineKeyboardMarkup:
@@ -184,6 +188,7 @@ def kb_interests(selected: list[str]) -> InlineKeyboardMarkup:
         f"✅ Tasdiqlash ({len(selected)} tanlandi)",
         callback_data="friends_i_done",
     )])
+    rows.append([InlineKeyboardButton("❌ Bekor qilish", callback_data="friends_wizard_cancel")])
     return InlineKeyboardMarkup(rows)
 
 
@@ -212,6 +217,7 @@ def kb_photo_step(count: int) -> InlineKeyboardMarkup:
             "⏭ Rasmsiz davom etish",
             callback_data="friends_photos_skip",
         )])
+    rows.append([InlineKeyboardButton("❌ Bekor qilish", callback_data="friends_wizard_cancel")])
     return InlineKeyboardMarkup(rows)
 
 
@@ -254,7 +260,11 @@ def kb_pref_gender_select() -> InlineKeyboardMarkup:
 # ──────────────────────── Handlers ────────────────────────
 
 async def friends_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Entry point — /friends or menu button."""
+    """Entry point — /friends or menu button.
+
+    For NEW users: show the teaser with [Anketa yaratish] / [Orqaga] buttons.
+    Wizard only starts when user explicitly chooses to start it.
+    """
     user = update.effective_user
     chat = update.effective_chat
     try:
@@ -262,21 +272,40 @@ async def friends_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         profile = await get_friend_profile(user.id)
 
         if not profile:
-            await chat.send_message(t("friends.teaser", lang), parse_mode="Markdown")
+            # Show teaser with action buttons — DO NOT auto-start wizard
             await chat.send_message(
-                "✨ *Anketa yaratish*\n\n"
-                "Avval ismingizni kiriting (Telegram'dagi ismingiz yoki taxallus):",
+                t("friends.teaser", lang),
+                reply_markup=kb_teaser(lang),
                 parse_mode="Markdown",
             )
-            context.user_data["friends_setup"] = {
-                "step": "name",
-                "data": {},
-            }
         else:
             await _show_friends_main(update, context, profile, lang, chat=chat)
     except Exception as e:
         logger.error(f"Error in friends_handler: {e}")
         await chat.send_message("Do'st topish")
+
+
+def kb_teaser(lang: str = "uz") -> InlineKeyboardMarkup:
+    """Initial 'Do'st topish' teaser keyboard — opt-in to wizard."""
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton("✨ Anketa yaratish", callback_data="friends_start_setup")],
+        [InlineKeyboardButton("⬅️ Orqaga", callback_data="menu_main")],
+    ])
+
+
+def kb_wizard_cancel(lang: str = "uz") -> InlineKeyboardMarkup:
+    """Cancel-only keyboard for wizard text-input steps."""
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton("❌ Bekor qilish", callback_data="friends_wizard_cancel")],
+    ])
+
+
+def kb_wizard_back_cancel(back_callback: str, lang: str = "uz") -> InlineKeyboardMarkup:
+    """Back-to-previous-step + cancel for wizard text steps."""
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton("⬅️ Orqaga", callback_data=back_callback)],
+        [InlineKeyboardButton("❌ Bekor qilish", callback_data="friends_wizard_cancel")],
+    ])
 
 
 async def _show_friends_main(
@@ -333,6 +362,33 @@ async def friends_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         await query.answer()
         lang = await user_service.get_user_language(user.id)
         data = query.data or ""
+
+        # ── Start wizard (opt-in from teaser) ─────────────────────
+        if data == "friends_start_setup":
+            context.user_data["friends_setup"] = {"step": "name", "data": {}}
+            await query.edit_message_text(
+                "✨ *Anketa yaratish*\n\n"
+                "Avval ismingizni kiriting (Telegram'dagi ismingiz yoki taxallus):",
+                reply_markup=kb_wizard_cancel(lang),
+                parse_mode="Markdown",
+            )
+            return
+
+        # ── Cancel wizard ─────────────────────────────────────────
+        if data == "friends_wizard_cancel":
+            context.user_data.pop("friends_setup", None)
+            context.user_data.pop("friends_edit_photos_state", None)
+            # Show teaser again (clean exit)
+            existing = await get_friend_profile(user.id)
+            if existing:
+                await _show_friends_main(update, context, existing, lang, edit_query=query)
+            else:
+                await query.edit_message_text(
+                    t("friends.teaser", lang),
+                    reply_markup=kb_teaser(lang),
+                    parse_mode="Markdown",
+                )
+            return
 
         # ── Setup wizard: looking_for ─────────────────────────────
         if data.startswith("friends_lf_"):
@@ -783,13 +839,17 @@ async def friends_text_handler(update: Update, context: ContextTypes.DEFAULT_TYP
 
     if step == "name":
         if len(text) < 2 or len(text) > 50:
-            await message.reply_text("❌ Ism 2-50 ta belgi bo'lishi kerak.")
+            await message.reply_text(
+                "❌ Ism 2-50 ta belgi bo'lishi kerak.",
+                reply_markup=kb_wizard_cancel(),
+            )
             return
         data["display_name"] = text
         setup["step"] = "age"
         await message.reply_text(
             "🎂 *Yoshingiz?*\n\nFaqat raqam yozing (masalan: `22`).\n"
             f"_Bot {FRIEND_MIN_AGE}+ yosh foydalanuvchilar uchun._",
+            reply_markup=kb_wizard_cancel(),
             parse_mode="Markdown",
         )
         return
@@ -801,7 +861,8 @@ async def friends_text_handler(update: Update, context: ContextTypes.DEFAULT_TYP
                 raise ValueError
         except ValueError:
             await message.reply_text(
-                f"❌ Yoshi {FRIEND_MIN_AGE} dan {FRIEND_MAX_AGE} gacha bo'lishi kerak."
+                f"❌ Yoshi {FRIEND_MIN_AGE} dan {FRIEND_MAX_AGE} gacha bo'lishi kerak.",
+                reply_markup=kb_wizard_cancel(),
             )
             return
         data["age"] = age
@@ -815,7 +876,10 @@ async def friends_text_handler(update: Update, context: ContextTypes.DEFAULT_TYP
 
     if step == "city":
         if len(text) < 2 or len(text) > 100:
-            await message.reply_text("❌ Shahar nomi 2-100 ta belgi bo'lishi kerak.")
+            await message.reply_text(
+                "❌ Shahar nomi 2-100 ta belgi bo'lishi kerak.",
+                reply_markup=kb_wizard_cancel(),
+            )
             return
         data["city"] = text
         setup["step"] = "interests"
@@ -833,7 +897,8 @@ async def friends_text_handler(update: Update, context: ContextTypes.DEFAULT_TYP
         if len(bio) > FRIEND_BIO_MAX_LENGTH:
             await message.reply_text(
                 f"❌ Bio juda uzun ({len(bio)} ta belgi). "
-                f"Maksimum {FRIEND_BIO_MAX_LENGTH} ta."
+                f"Maksimum {FRIEND_BIO_MAX_LENGTH} ta.",
+                reply_markup=kb_wizard_cancel(),
             )
             return
         data["bio"] = bio

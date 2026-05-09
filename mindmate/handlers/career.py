@@ -63,9 +63,18 @@ def kb_career_main(lang: str = "uz") -> InlineKeyboardMarkup:
 
 def kb_career_status() -> InlineKeyboardMarkup:
     """Career status selection."""
-    return InlineKeyboardMarkup([
+    rows = [
         [InlineKeyboardButton(CAREER_STATUS_LABELS_UZ[s], callback_data=f"career_st_{s}")]
         for s in CAREER_STATUS_OPTIONS
+    ]
+    rows.append([InlineKeyboardButton("❌ Bekor qilish", callback_data="career_wizard_cancel")])
+    return InlineKeyboardMarkup(rows)
+
+
+def kb_career_cancel() -> InlineKeyboardMarkup:
+    """Cancel keyboard for text-input steps in the career wizard."""
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton("❌ Bekor qilish", callback_data="career_wizard_cancel")],
     ])
 
 
@@ -82,7 +91,11 @@ def kb_interview_type() -> InlineKeyboardMarkup:
 # ──────────────────────── Handlers ────────────────────────
 
 async def career_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Entry point — /career command or menu button."""
+    """Entry point — /career command or menu button.
+
+    For NEW users: show teaser with [Boshlash] / [Orqaga] buttons.
+    Wizard only starts when user explicitly opts in.
+    """
     user = update.effective_user
     chat = update.effective_chat
     try:
@@ -91,17 +104,19 @@ async def career_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
         if not profile or not profile.get("status"):
             await chat.send_message(
-                "💼 *Karyera Coach'ga xush kelibsiz!*\n\n"
+                "💼 *Karyera Coach*\n\n"
                 "Men sizga yaxshi ish topish va karyerada o'sishda yordam beraman:\n\n"
                 "📝 ATS-friendly resume yaratish\n"
                 "🎤 Intervyuga tayyorgarlik\n"
                 "💰 Maoshni qanday so'rashni o'rganish\n"
                 "📈 6 oylik karyera rejasi\n\n"
-                "Boshlash uchun — *hozirgi holatingizni tanlang:*",
-                reply_markup=kb_career_status(),
+                "Boshlash uchun anketani to'ldiring (1 daqiqa).",
+                reply_markup=InlineKeyboardMarkup([
+                    [InlineKeyboardButton("✨ Boshlash", callback_data="career_start_setup")],
+                    [InlineKeyboardButton("⬅️ Orqaga", callback_data="menu_main")],
+                ]),
                 parse_mode="Markdown",
             )
-            context.user_data["career_setup"] = {"step": "status"}
         else:
             await _show_career_dashboard(update, context, profile, lang, chat=chat)
     except Exception as e:
@@ -152,6 +167,30 @@ async def career_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         lang = await user_service.get_user_language(user.id)
         data = query.data or ""
 
+        # ── Start wizard (opt-in from teaser) ─────────────────────
+        if data == "career_start_setup":
+            context.user_data["career_setup"] = {"step": "status"}
+            await query.edit_message_text(
+                "💼 *Hozirgi holatingizni tanlang:*",
+                reply_markup=kb_career_status(),
+                parse_mode="Markdown",
+            )
+            return
+
+        if data == "career_wizard_cancel":
+            context.user_data.pop("career_setup", None)
+            context.user_data.pop("career_action", None)
+            existing = await get_career_profile(user.id)
+            if existing and existing.get("status"):
+                await _show_career_dashboard(update, context, existing, lang, edit_query=query)
+            else:
+                try:
+                    await query.delete_message()
+                except Exception:
+                    pass
+                await career_handler(update, context)
+            return
+
         # ── Setup wizard ───────────────────────────────────────────
         if data.startswith("career_st_"):
             status = data.replace("career_st_", "")
@@ -169,6 +208,7 @@ async def career_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 "• Sotuv menejeri\n"
                 "• Buxgalter\n\n"
                 "Yozing:",
+                reply_markup=kb_career_cancel(),
                 parse_mode="Markdown",
             )
             return
@@ -348,6 +388,7 @@ async def career_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
             "⏱ *Tajribangiz necha yil?*\n\n"
             "Faqat raqam kiriting (masalan: `0`, `2`, `5`).\n"
             "Talaba yoki bitiruvchi bo'lsangiz `0` yozing.",
+            reply_markup=kb_career_cancel(),
             parse_mode="Markdown",
         )
         return
@@ -358,7 +399,10 @@ async def career_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
             if exp < 0 or exp > 60:
                 raise ValueError
         except ValueError:
-            await message.reply_text("❌ Iltimos, 0 dan 60 gacha bo'lgan raqam kiriting.")
+            await message.reply_text(
+                "❌ Iltimos, 0 dan 60 gacha bo'lgan raqam kiriting.",
+                reply_markup=kb_career_cancel(),
+            )
             return
 
         # Save profile

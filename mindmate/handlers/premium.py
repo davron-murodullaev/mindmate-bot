@@ -43,7 +43,7 @@ async def premium_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
 
 async def premium_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handle premium_* callbacks. Real payment flow to be implemented."""
+    """Handle premium_* callbacks — opens the Stars plan picker."""
     query = update.callback_query
     user = query.from_user
     try:
@@ -52,23 +52,26 @@ async def premium_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         data = query.data or ""
 
         if data == "premium_stars":
-            # TODO: integrate Telegram Stars invoice via send_invoice / XTR currency
+            # Show the Stars plan picker (1m / 3m / 12m)
+            from mindmate.handlers.payments import kb_plan_select
             await query.edit_message_text(
                 text=(
-                    "⭐ Telegram Stars payment coming soon!\n\n"
-                    "Contact @your_admin to upgrade manually for now."
+                    "⭐ *Telegram Stars to'lov*\n\n"
+                    "Rejani tanlang:"
                 ),
-                reply_markup=get_back_to_menu_keyboard(lang),
+                reply_markup=kb_plan_select(),
+                parse_mode="Markdown",
             )
 
         elif data == "premium_card":
-            # TODO: integrate Click / Payme / Stripe
             await query.edit_message_text(
                 text=(
-                    "💳 Card payment coming soon!\n\n"
-                    "Contact @your_admin to upgrade manually for now."
+                    "💳 *Karta orqali to'lov tez orada qo'shiladi.*\n\n"
+                    "Hozirgi vaqtda ⭐ Telegram Stars orqali to'lay olasiz — "
+                    "tez, sertifikatsiz, xavfsiz."
                 ),
                 reply_markup=get_back_to_menu_keyboard(lang),
+                parse_mode="Markdown",
             )
 
     except Exception as e:
