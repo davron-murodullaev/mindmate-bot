@@ -23,10 +23,37 @@ from mindmate.core.constants import SUPPORTED_LANGUAGES, DEFAULT_LANGUAGE
 logger = logging.getLogger(__name__)
 
 
+def _clear_all_wizard_state(context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Clear every transient wizard/mode state from user_data.
+
+    Called by /start and /cancel so commands always reset the user back to
+    a clean main-menu state regardless of where they were stuck.
+    """
+    for key in (
+        "mode",
+        "waiting_for_journal",
+        "waiting_for_reminder",
+        "exam_setup",
+        "career_setup",
+        "career_action",
+        "interview_question",
+        "last_practice_question",
+        "friends_setup",
+        "friends_edit_photos_state",
+        "friends_pref_age",
+        "friends_verify",
+        "browsing_candidate_id",
+    ):
+        context.user_data.pop(key, None)
+
+
 async def start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle /start — greet returning users; onboard new users."""
     user = update.effective_user
     message = update.message
+
+    # /start always resets — users use it as an "escape hatch"
+    _clear_all_wizard_state(context)
 
     try:
         # Check whether the user already exists in the DB
@@ -120,3 +147,20 @@ async def setup_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             await query.edit_message_text("Welcome! What would you like to do?")
         except Exception:
             pass
+
+
+async def cancel_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle /cancel — escape hatch from any wizard back to the main menu."""
+    user = update.effective_user
+    message = update.message
+    try:
+        _clear_all_wizard_state(context)
+        lang = await user_service.get_user_language(user.id)
+        await message.reply_text(
+            "✅ Bekor qilindi.\n\n" + t("menu.main_menu", lang),
+            reply_markup=get_main_menu_keyboard(lang),
+            parse_mode="Markdown",
+        )
+    except Exception as e:
+        logger.error(f"Error in cancel_handler: {e}")
+        await message.reply_text("Bekor qilindi.")

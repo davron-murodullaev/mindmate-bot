@@ -3,7 +3,7 @@ Uzbek translations
 """
 
 TRANSLATIONS = {
-    "welcome": "👋 *Salom! Men — MindMate.*\n\nMen sizning AI do'stingizman:\n🎓 Imtihonga tayyorgarlik\n💼 Karyera maslahati\n💬 Suhbat va ruhiy yordam\n⏰ Eslatmalar va kundalik\n\n_Menyudan tanlang yoki shunchaki yozing/gapiring — men sizni tushunaman._\n\nAvval tilni tanlang:",
+    "welcome": "👋 *Salom! Men — MindMate.*\n\nMen sizning AI do'stingizman:\n🎓 Imtihonga tayyorgarlik\n💼 Karyera maslahati\n💬 Suhbat va ruhiy yordam\n⏰ Eslatmalar va kundalik\n\n_Menyudan tanlang yoki shunchaki yozing/gapiring — men sizni tushunaman._\n\nDavom etish bilan /privacy va /terms ga rozilik bildirasiz.\n\nAvval tilni tanlang:",
 
     "start": {
         "welcome_back": "👋 *Qaytib kelganingizdan xursandman, {name}!*\n\nNimadan boshlaymiz?",

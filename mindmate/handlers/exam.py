@@ -117,7 +117,11 @@ def kb_practice_subjects(profile_subjects: list[str]) -> InlineKeyboardMarkup:
 # ──────────────────────── Handlers ────────────────────────
 
 async def exam_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Entry point — /exam or menu button."""
+    """Entry point — /exam or menu button.
+
+    For NEW users: show teaser with [Boshlash] / [Orqaga] buttons.
+    Wizard only starts when user explicitly opts in.
+    """
     user = update.effective_user
     chat = update.effective_chat
     try:
@@ -125,19 +129,22 @@ async def exam_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         profile = await get_exam_profile(user.id)
 
         if not profile or not profile.get("exam_type"):
-            # New user — start setup wizard
+            # Show teaser with action buttons — DO NOT auto-start wizard
             await chat.send_message(
-                "🎓 *Imtihon Mentorga xush kelibsiz!*\n\n"
-                "Men sizga DTM, IELTS yoki magistraturaga puxta tayyorlanishda yordam beraman:\n\n"
+                "🎓 *Imtihon Mentor*\n\n"
+                "Men sizga DTM, IELTS yoki magistraturaga puxta tayyorlanishda "
+                "yordam beraman:\n\n"
                 "🎯 Shaxsiy o'qish rejasi\n"
                 "📚 Har fan bo'yicha savol-javob\n"
                 "🧪 Test mashqlari\n"
                 "💪 Stressni boshqarish\n\n"
-                "Avval qaysi imtihonga tayyorlanyapsiz?",
-                reply_markup=kb_exam_type_select(),
+                "Boshlash uchun anketangizni to'ldiring (1 daqiqa).",
+                reply_markup=InlineKeyboardMarkup([
+                    [InlineKeyboardButton("✨ Boshlash", callback_data="exam_start_setup")],
+                    [InlineKeyboardButton("⬅️ Orqaga", callback_data="menu_main")],
+                ]),
                 parse_mode="Markdown",
             )
-            context.user_data["exam_setup"] = {"step": "exam_type"}
         else:
             # Returning user — show main menu
             await _show_exam_dashboard(update, context, profile, lang, chat=chat)
@@ -202,6 +209,29 @@ async def exam_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         await query.answer()
         lang = await user_service.get_user_language(user.id)
         data = query.data or ""
+
+        # ── Start wizard (opt-in from teaser) ─────────────────────
+        if data == "exam_start_setup":
+            context.user_data["exam_setup"] = {"step": "exam_type"}
+            await query.edit_message_text(
+                "🎓 *Qaysi imtihonga tayyorlanyapsiz?*",
+                reply_markup=kb_exam_type_select(),
+                parse_mode="Markdown",
+            )
+            return
+
+        if data == "exam_wizard_cancel":
+            context.user_data.pop("exam_setup", None)
+            existing = await get_exam_profile(user.id)
+            if existing and existing.get("exam_type"):
+                await _show_exam_dashboard(update, context, existing, lang, edit_query=query)
+            else:
+                try:
+                    await query.delete_message()
+                except Exception:
+                    pass
+                await exam_handler(update, context)
+            return
 
         # ── Setup wizard ───────────────────────────────────────────
         if data.startswith("exam_t_"):

@@ -10,6 +10,7 @@ from telegram.ext import (
     CommandHandler,
     MessageHandler,
     CallbackQueryHandler,
+    PreCheckoutQueryHandler,
     filters,
 )
 
@@ -19,7 +20,12 @@ from mindmate.db.connection import init_db, close_pool
 from mindmate.reminders.scheduler import start_scheduler, stop_scheduler
 
 # Handlers
-from mindmate.handlers.start import start_handler, language_callback, setup_callback
+from mindmate.handlers.start import (
+    start_handler,
+    language_callback,
+    setup_callback,
+    cancel_handler,
+)
 from mindmate.handlers.menu import menu_handler, main_menu_callback
 from mindmate.handlers.mood import mood_handler, mood_callback, save_mood_handler
 from mindmate.handlers.healer import healer_handler, healer_message_handler
@@ -41,6 +47,14 @@ from mindmate.handlers.friends import (
     friends_callback,
     friends_text_handler,
     friends_photo_handler,
+)
+from mindmate.handlers.legal import privacy_handler, terms_handler, legal_callback
+from mindmate.handlers.admin import stats_admin_handler
+from mindmate.handlers.payments import (
+    buy_premium_handler,
+    buy_callback,
+    precheckout_handler,
+    successful_payment_handler,
 )
 
 # AI router (the conversational brain)
@@ -282,6 +296,11 @@ def main():
     application.add_handler(CommandHandler("career", career_handler))
     application.add_handler(CommandHandler("profile", profile_handler))
     application.add_handler(CommandHandler("friends", friends_handler))
+    application.add_handler(CommandHandler("cancel", cancel_handler))
+    application.add_handler(CommandHandler("privacy", privacy_handler))
+    application.add_handler(CommandHandler("terms", terms_handler))
+    application.add_handler(CommandHandler("stats_admin", stats_admin_handler))
+    application.add_handler(CommandHandler("buy_premium", buy_premium_handler))
 
     # ── Callback queries ──────────────────────────────────────────────
     application.add_handler(CallbackQueryHandler(language_callback, pattern="^lang_"))
@@ -296,6 +315,15 @@ def main():
     application.add_handler(CallbackQueryHandler(exam_callback, pattern="^exam_"))
     application.add_handler(CallbackQueryHandler(career_callback, pattern="^career_"))
     application.add_handler(CallbackQueryHandler(friends_callback, pattern="^friends_"))
+    application.add_handler(CallbackQueryHandler(legal_callback, pattern="^legal_"))
+    application.add_handler(CallbackQueryHandler(buy_callback, pattern="^buy_"))
+
+    # ── Telegram Stars payments ───────────────────────────────────────
+    application.add_handler(PreCheckoutQueryHandler(precheckout_handler))
+    application.add_handler(MessageHandler(
+        filters.SUCCESSFUL_PAYMENT,
+        successful_payment_handler,
+    ))
 
     # ── Text + voice + photo dispatcher ───────────────────────────────
     # Photo handler covers BOTH wizard photos AND verification selfies,
