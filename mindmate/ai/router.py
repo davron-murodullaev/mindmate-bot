@@ -10,14 +10,32 @@ this router:
 This is what makes the bot feel like a real friend — the user doesn't need to
 navigate menus; they just say what they want.
 """
+import asyncio
 import json
 import logging
 from typing import List, Dict, Any, Optional
 
 from mindmate.ai.tools import TOOLS, TOOL_FUNCTIONS
 from mindmate.core.config import settings
+from mindmate.i18n import t
 
 logger = logging.getLogger(__name__)
+
+_RETRY_DELAYS = (1, 2, 4)  # seconds between retries (3 attempts total)
+
+
+async def _call_with_retry(coro_fn, *args, **kwargs):
+    """Call an async factory function up to 3 times with exponential backoff."""
+    last_exc: Exception = RuntimeError("unreachable")
+    for delay in (0, *_RETRY_DELAYS):
+        if delay:
+            await asyncio.sleep(delay)
+        try:
+            return await coro_fn(*args, **kwargs)
+        except Exception as exc:
+            last_exc = exc
+            logger.warning("AI API call failed (retrying): %s", exc)
+    raise last_exc
 
 
 SYSTEM_PROMPT = """Sen — MindMate, foydalanuvchining shaxsiy AI yordamchisi va do'sti.
@@ -102,7 +120,8 @@ async def _route_openai(
                 messages.append({"role": role, "content": content})
         messages.append({"role": "user", "content": message})
 
-        response = await client.chat.completions.create(
+        response = await _call_with_retry(
+            client.chat.completions.create,
             model=ai_core.model,
             messages=messages,
             tools=TOOLS,
@@ -125,7 +144,7 @@ async def _route_openai(
             fn = TOOL_FUNCTIONS.get(fn_name)
             if not fn:
                 return {
-                    "message": "Texnik xatolik (notanish vosita).",
+                    "message": t("errors.generic", lang),
                     "tool_called": fn_name,
                 }
 
@@ -134,13 +153,13 @@ async def _route_openai(
             except TypeError as e:
                 logger.error(f"Tool argument error for {fn_name}: {e}")
                 return {
-                    "message": "Iltimos, qaytadan ayting — tushuna olmadim.",
+                    "message": t("errors.invalid_input", lang),
                     "tool_called": fn_name,
                 }
             except Exception as e:
                 logger.error(f"Tool execution error for {fn_name}: {e}")
                 return {
-                    "message": "Texnik xatolik. Qayta urinib ko'ring.",
+                    "message": t("errors.generic", lang),
                     "tool_called": fn_name,
                 }
 
@@ -158,13 +177,7 @@ async def _route_openai(
 
     except Exception as e:
         logger.error(f"OpenAI router error: {e}")
-        return {
-            "message": (
-                "Hozir javob bera olmayapman, tarmoqda muammo bor. "
-                "Bir oz kutib qaytadan urinib ko'ring."
-            ),
-            "tool_called": None,
-        }
+        return {"message": t("errors.ai_error", lang), "tool_called": None}
 
 
 # ──────────────────────── Anthropic ────────────────────────
@@ -202,7 +215,8 @@ async def _route_anthropic(
                 messages.append({"role": role, "content": content})
         messages.append({"role": "user", "content": message})
 
-        response = await client.messages.create(
+        response = await _call_with_retry(
+            client.messages.create,
             model=ai_core.model,
             system=system,
             messages=messages,
@@ -218,12 +232,12 @@ async def _route_anthropic(
                 args = block.input or {}
                 fn = TOOL_FUNCTIONS.get(fn_name)
                 if not fn:
-                    return {"message": "Texnik xatolik.", "tool_called": fn_name}
+                    return {"message": t("errors.generic", lang), "tool_called": fn_name}
                 try:
                     result = await fn(user_id=user_id, lang=lang, **args)
                 except Exception as e:
                     logger.error(f"Tool exec error {fn_name}: {e}")
-                    return {"message": "Texnik xatolik.", "tool_called": fn_name}
+                    return {"message": t("errors.generic", lang), "tool_called": fn_name}
                 return {
                     "message": result.get("message", ""),
                     "open_menu": result.get("open_menu"),
@@ -239,7 +253,4 @@ async def _route_anthropic(
 
     except Exception as e:
         logger.error(f"Anthropic router error: {e}")
-        return {
-            "message": "Hozir javob bera olmayapman, qayta urining.",
-            "tool_called": None,
-        }
+        return {"message": t("errors.ai_error", lang), "tool_called": None}

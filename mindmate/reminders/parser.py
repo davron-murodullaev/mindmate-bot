@@ -6,10 +6,23 @@ from datetime import datetime, timedelta
 from typing import Optional, Tuple
 import logging
 
+import pytz
+
 logger = logging.getLogger(__name__)
 
 
-def parse_reminder(text: str) -> Optional[Tuple[str, datetime, str]]:
+def _now_for_tz(tz_name: Optional[str]) -> datetime:
+    """Return current datetime in user's timezone (naive, for local comparisons)."""
+    if tz_name:
+        try:
+            tz = pytz.timezone(tz_name)
+            return datetime.now(tz).replace(tzinfo=None)
+        except pytz.UnknownTimeZoneError:
+            pass
+    return datetime.now()
+
+
+def parse_reminder(text: str, user_timezone: Optional[str] = None) -> Optional[Tuple[str, datetime, str]]:
     """
     Parse natural language reminder text.
 
@@ -21,6 +34,7 @@ def parse_reminder(text: str) -> Optional[Tuple[str, datetime, str]]:
     """
     try:
         text = text.lower().strip()
+        now = _now_for_tz(user_timezone)
 
         # Extract time-related patterns
         reminder_text = text
@@ -42,15 +56,12 @@ def parse_reminder(text: str) -> Optional[Tuple[str, datetime, str]]:
             elif am_pm == 'am' and hour == 12:
                 hour = 0
 
-            # Determine the day
-            now = datetime.now()
             reminder_time = now.replace(hour=hour, minute=minute, second=0, microsecond=0)
 
             # Check for "tomorrow"
             if 'tomorrow' in text:
                 reminder_time += timedelta(days=1)
             elif 'today' in text or reminder_time <= now:
-                # If time has passed today, schedule for tomorrow
                 if reminder_time <= now:
                     reminder_time += timedelta(days=1)
 
@@ -66,7 +77,6 @@ def parse_reminder(text: str) -> Optional[Tuple[str, datetime, str]]:
             amount = int(relative_match.group(1))
             unit = relative_match.group(2)
 
-            now = datetime.now()
             if unit == 'minute':
                 reminder_time = now + timedelta(minutes=amount)
             elif unit == 'hour':
@@ -88,7 +98,7 @@ def parse_reminder(text: str) -> Optional[Tuple[str, datetime, str]]:
 
         # Default to 1 hour from now if no time specified
         if not reminder_time:
-            reminder_time = datetime.now() + timedelta(hours=1)
+            reminder_time = now + timedelta(hours=1)
 
         # Clean up reminder text
         reminder_text = re.sub(r'(every day|daily|every week|weekly|every month|monthly)', '', reminder_text)
@@ -104,40 +114,21 @@ def parse_reminder(text: str) -> Optional[Tuple[str, datetime, str]]:
         return None
 
 
-def format_reminder_time(dt: datetime) -> str:
-    """
-    Format reminder time for display.
+def format_reminder_time(dt: datetime, user_timezone: Optional[str] = None) -> str:
+    """Format reminder time for display."""
+    now = _now_for_tz(user_timezone)
 
-    Args:
-        dt: Datetime object
-
-    Returns:
-        Formatted time string
-    """
-    now = datetime.now()
-
-    # Check if it's today
     if dt.date() == now.date():
-        return f"Today at {dt.strftime('%I:%M %p')}"
-    # Check if it's tomorrow
+        return f"Bugun soat {dt.strftime('%H:%M')}"
     elif dt.date() == (now + timedelta(days=1)).date():
-        return f"Tomorrow at {dt.strftime('%I:%M %p')}"
-    # Otherwise show full date
+        return f"Ertaga soat {dt.strftime('%H:%M')}"
     else:
-        return dt.strftime('%Y-%m-%d at %I:%M %p')
+        return dt.strftime('%Y-%m-%d %H:%M')
 
 
-def validate_reminder_time(dt: datetime) -> bool:
-    """
-    Validate that reminder time is in the future.
-
-    Args:
-        dt: Datetime object
-
-    Returns:
-        True if valid, False otherwise
-    """
-    return dt > datetime.now()
+def validate_reminder_time(dt: datetime, user_timezone: Optional[str] = None) -> bool:
+    """Validate that reminder time is in the future."""
+    return dt > _now_for_tz(user_timezone)
 
 
 def get_next_occurrence(dt: datetime, repeat_type: str) -> datetime:

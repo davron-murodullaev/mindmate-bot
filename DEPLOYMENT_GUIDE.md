@@ -47,16 +47,15 @@ All components have been verified and the bot is ready to deploy!
 
 2. **Verify Your Bot Token**
    ```bash
-   # Your current bot token in .env:
-   TELEGRAM_BOT_TOKEN=8321854805:AAHcNQHMnvlewDfXnkHM1CyTCS8HWSinMw0
-
-   # If needed, get a new one from @BotFather on Telegram
+   # Get your bot token from @BotFather on Telegram
+   # /mybots → select bot → API Token
+   TELEGRAM_BOT_TOKEN=<your-bot-token-here>
    ```
 
 3. **Database is Already Configured**
    ```bash
-   # Your Render PostgreSQL database:
-   DATABASE_URL=postgresql://mindmate_db_l6n0_user:...@dpg-d4kc472dbo4c73csoa10-a.oregon-postgres.render.com/mindmate_db_l6n0
+   # Your Render PostgreSQL database (copy from Render dashboard):
+   DATABASE_URL=postgresql://<user>:<password>@<host>/<dbname>
    ```
 
 ---
@@ -221,8 +220,8 @@ These are already in your `.env` file:
 
 ```bash
 # Bot Configuration
-TELEGRAM_BOT_TOKEN=8321854805:AAHcNQHMnvlewDfXnkHM1CyTCS8HWSinMw0
-ADMIN_USER_IDS=123456789
+TELEGRAM_BOT_TOKEN=<your-telegram-bot-token>
+ADMIN_USER_IDS=<your-telegram-user-id>
 
 # AI Configuration (⚠️ REPLACE WITH REAL KEY)
 ANTHROPIC_API_KEY=sk-ant-api03-your-key-here  # ← UPDATE THIS

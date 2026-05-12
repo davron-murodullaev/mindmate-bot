@@ -73,6 +73,16 @@ from mindmate.i18n import t
 logger = setup_logger(__name__)
 _router_memory = ConversationMemory()
 
+_CACHE_LANG_KEY = "_cached_lang"
+_CACHE_PREMIUM_KEY = "_cached_premium"
+
+
+async def _get_lang(user_id: int, context) -> str:
+    """Return user language, using context.user_data as a session cache."""
+    if _CACHE_LANG_KEY not in context.user_data:
+        context.user_data[_CACHE_LANG_KEY] = await user_service.get_user_language(user_id)
+    return context.user_data[_CACHE_LANG_KEY]
+
 
 async def post_init(application: Application) -> None:
     try:
@@ -103,7 +113,7 @@ async def _route_via_ai(update, context, user_text: str) -> None:
     """Send a free-text message through the AI router and handle the response."""
     user = update.effective_user
     chat = update.effective_chat
-    lang = await user_service.get_user_language(user.id)
+    lang = await _get_lang(user.id, context)
 
     # Free-tier daily limit
     if not await is_premium_active(user.id):
@@ -144,7 +154,7 @@ async def _route_via_ai(update, context, user_text: str) -> None:
 
     except Exception as e:
         logger.error(f"AI router error: {e}")
-        await chat.send_message("Texnik xatolik. Qayta urinib ko'ring.")
+        await chat.send_message(t("errors.generic", lang))
 
 
 async def _open_menu_for_user(update, context, menu: str) -> None:
@@ -239,11 +249,17 @@ async def voice_dispatcher(update, context):
 
         # Use the user's selected language as a transcription hint.
         # Better accuracy than auto-detect for short voice messages.
-        lang = await user_service.get_user_language(user.id)
-        # Whisper supports "uz" but understands UZ better when hinted "uz".
+        lang = await _get_lang(user.id, context)
         language_hint = lang if lang in ("uz", "ru", "en") else None
 
         voice = update.message.voice
+        # Reject files larger than 25 MB (Whisper API limit)
+        if voice.file_size and voice.file_size > 25 * 1024 * 1024:
+            await chat.send_message(
+                "🎙 Ovozli xabar juda katta (25 MB dan oshiq). "
+                "Iltimos, qisqaroq xabar yuboring."
+            )
+            return
         voice_file = await voice.get_file()
         audio_bytes = await voice_file.download_as_bytearray()
 
