@@ -354,6 +354,25 @@ async def _show_friends_main(
         await chat.send_message(text, reply_markup=kb, parse_mode="Markdown")
 
 
+async def friends_show_edit_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Show the friends edit choices menu (called from profile hub)."""
+    query = update.callback_query
+    user = query.from_user
+    try:
+        try:
+            await query.answer()
+        except Exception:
+            pass
+        lang = await user_service.get_user_language(user.id)
+        await query.edit_message_text(
+            "✏️ *Tahrirlash*\n\nNimani o'zgartirmoqchisiz?",
+            reply_markup=kb_edit_choices(lang),
+            parse_mode="Markdown",
+        )
+    except Exception as e:
+        logger.error(f"friends_show_edit_menu error: {e}")
+
+
 async def friends_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle friends_* callbacks."""
     query = update.callback_query

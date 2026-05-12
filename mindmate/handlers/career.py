@@ -234,6 +234,7 @@ async def career_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
         if data == "career_wizard_cancel":
             context.user_data.pop("career_setup", None)
+            context.user_data.pop("career_edit", None)
             context.user_data.pop("career_action", None)
             existing = await get_career_profile(user.id)
             if existing and existing.get("status"):

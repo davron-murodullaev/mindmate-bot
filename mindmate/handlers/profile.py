@@ -325,9 +325,7 @@ async def profile_action_callback(update: Update, context: ContextTypes.DEFAULT_
         from mindmate.handlers.career import _start_edit_mode
         await _start_edit_mode(update, context)
     elif data == "profile_edit_friends":
-        # Redirect to friends edit
-        query.data = "friends_edit"
-        from mindmate.handlers.friends import friends_callback
-        await friends_callback(update, context)
+        from mindmate.handlers.friends import friends_show_edit_menu
+        await friends_show_edit_menu(update, context)
     elif data == "menu_profile":
         await profile_callback(update, context)

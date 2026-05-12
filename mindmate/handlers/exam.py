@@ -310,6 +310,7 @@ async def exam_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 
         if data == "exam_wizard_cancel":
             context.user_data.pop("exam_setup", None)
+            context.user_data.pop("exam_edit", None)
             existing = await get_exam_profile(user.id)
             if existing and existing.get("exam_type"):
                 await _show_exam_dashboard(update, context, existing, lang, edit_query=query)
