@@ -56,20 +56,16 @@ async def premium_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             from mindmate.handlers.payments import kb_plan_select
             await query.edit_message_text(
                 text=(
-                    "⭐ *Telegram Stars to'lov*\n\n"
-                    "Rejani tanlang:"
+                    f"{t('payments.stars_payment_title', lang)}\n\n"
+                    f"{t('payments.stars_payment_prompt', lang)}"
                 ),
-                reply_markup=kb_plan_select(),
+                reply_markup=kb_plan_select(lang),
                 parse_mode="Markdown",
             )
 
         elif data == "premium_card":
             await query.edit_message_text(
-                text=(
-                    "💳 *Karta orqali to'lov tez orada qo'shiladi.*\n\n"
-                    "Hozirgi vaqtda ⭐ Telegram Stars orqali to'lay olasiz — "
-                    "tez, sertifikatsiz, xavfsiz."
-                ),
+                text=t("payments.card_coming_soon", lang),
                 reply_markup=get_back_to_menu_keyboard(lang),
                 parse_mode="Markdown",
             )

@@ -28,7 +28,7 @@ async def mood_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         )
     except Exception as e:
         logger.error(f"Error in mood_handler: {e}")
-        await message.reply_text("How are you feeling today?")
+        await message.reply_text(t("mood.select", "en"))
 
 
 async def mood_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -55,7 +55,7 @@ async def mood_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     except Exception as e:
         logger.error(f"Error in mood_callback: {e}")
         try:
-            await query.edit_message_text("Mood logged successfully!")
+            await query.edit_message_text(t("mood.logged", "en"))
         except Exception:
             pass
 

@@ -76,7 +76,7 @@ async def start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
             try:
                 greeting = t(greeting_key, lang).format(name=name)
             except Exception:
-                greeting = f"👋 {name}, qaytib kelganingizdan xursandman!"
+                greeting = f"👋 {name}!"
 
             await message.reply_text(
                 greeting,
