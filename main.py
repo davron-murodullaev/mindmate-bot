@@ -221,10 +221,7 @@ async def voice_dispatcher(update, context):
         voice = update.message.voice
         # Reject files larger than 25 MB (Whisper API limit)
         if voice.file_size and voice.file_size > 25 * 1024 * 1024:
-            await chat.send_message(
-                "🎙 Ovozli xabar juda katta (25 MB dan oshiq). "
-                "Iltimos, qisqaroq xabar yuboring."
-            )
+            await chat.send_message(t("voice.too_large", lang))
             return
         voice_file = await voice.get_file()
         audio_bytes = await voice_file.download_as_bytearray()
@@ -235,18 +232,16 @@ async def voice_dispatcher(update, context):
             language_hint=language_hint,
         )
         if not text:
-            await chat.send_message(
-                "🎙 Ovozli xabarni tushunolmadim. Iltimos, sekinroq va aniqroq "
-                "qayta ayting yoki matn ko'rinishida yozib yuboring."
-            )
+            await chat.send_message(t("voice.not_understood", lang))
             return
 
-        await chat.send_message(f"🎙 _Eshitganim:_ {text}", parse_mode="Markdown")
+        await chat.send_message(t("voice.heard", lang).format(text=text), parse_mode="Markdown")
         await _route_via_ai(update, context, text)
 
     except Exception as e:
         logger.error(f"Voice dispatcher error: {e}")
-        await chat.send_message("🎙 Ovozni o'qishda xatolik. Matn ko'rinishida yozib yuboring.")
+        _err_lang = context.user_data.get(_CACHE_LANG_KEY, "en")
+        await chat.send_message(t("voice.error", _err_lang))
 
 
 def main():

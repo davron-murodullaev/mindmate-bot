@@ -18,12 +18,7 @@ from mindmate.db.queries import (
 )
 from mindmate.ui.keyboards import get_profile_menu_keyboard
 from mindmate.i18n import t
-from mindmate.core.constants import (
-    EXAM_TYPE_LABELS_UZ,
-    EXAM_LEVEL_LABELS_UZ,
-    CAREER_STATUS_LABELS_UZ,
-    DTM_SUBJECT_LABELS_UZ,
-)
+from mindmate.core.constants import DTM_SUBJECT_LABELS_UZ
 
 logger = logging.getLogger(__name__)
 
@@ -32,34 +27,30 @@ def _profile_keyboard(lang: str, has_exam: bool, has_career: bool, has_friends: 
     """Build profile keyboard with edit buttons for each configured section."""
     rows = []
 
-    # Exam section
     if has_exam:
         rows.append([
-            InlineKeyboardButton("🎓 Imtihon sozlamalari", callback_data="profile_view_exam"),
-            InlineKeyboardButton("✏️ Tahrirlash", callback_data="profile_edit_exam"),
+            InlineKeyboardButton(t("profile.exam_view_btn", lang), callback_data="profile_view_exam"),
+            InlineKeyboardButton(t("profile.edit_btn", lang), callback_data="profile_edit_exam"),
         ])
     else:
-        rows.append([InlineKeyboardButton("🎓 Imtihon Mentor — Sozlash", callback_data="menu_exam")])
+        rows.append([InlineKeyboardButton(t("profile.exam_setup_btn", lang), callback_data="menu_exam")])
 
-    # Career section
     if has_career:
         rows.append([
-            InlineKeyboardButton("💼 Karyera sozlamalari", callback_data="profile_view_career"),
-            InlineKeyboardButton("✏️ Tahrirlash", callback_data="profile_edit_career"),
+            InlineKeyboardButton(t("profile.career_view_btn", lang), callback_data="profile_view_career"),
+            InlineKeyboardButton(t("profile.edit_btn", lang), callback_data="profile_edit_career"),
         ])
     else:
-        rows.append([InlineKeyboardButton("💼 Karyera Coach — Sozlash", callback_data="menu_career")])
+        rows.append([InlineKeyboardButton(t("profile.career_setup_btn", lang), callback_data="menu_career")])
 
-    # Friends section
     if has_friends:
         rows.append([
-            InlineKeyboardButton("💝 Do'stlik profili", callback_data="profile_view_friends"),
-            InlineKeyboardButton("✏️ Tahrirlash", callback_data="profile_edit_friends"),
+            InlineKeyboardButton(t("profile.friends_view_btn", lang), callback_data="profile_view_friends"),
+            InlineKeyboardButton(t("profile.edit_btn", lang), callback_data="profile_edit_friends"),
         ])
     else:
-        rows.append([InlineKeyboardButton("💝 Do'st topish — Sozlash", callback_data="menu_friends")])
+        rows.append([InlineKeyboardButton(t("profile.friends_setup_btn", lang), callback_data="menu_friends")])
 
-    # Spacer
     rows.append([
         InlineKeyboardButton(t("menu.healer", lang), callback_data="menu_healer"),
         InlineKeyboardButton(t("menu.productivity", lang), callback_data="menu_productivity"),
@@ -80,44 +71,51 @@ async def _build_profile_text(user_id: int, first_name: str, lang: str) -> str:
     career = await get_career_profile(user_id)
     friends = await get_friend_profile(user_id)
 
-    name = first_name or "Do'st"
-    badge = "💎 Premium" if is_pro else "🆓 Bepul"
+    name = first_name or t("menu.friends", lang)
+    badge = t("profile.badge_premium", lang) if is_pro else t("profile.badge_free", lang)
+    no_entry = t("profile.no_entry", lang)
 
-    lines = [f"👤 *{name}ning profili* — {badge}\n"]
+    title_tpl = t("profile.title", lang)
+    lines = [f"👤 *{title_tpl.format(name=name)}* — {badge}\n"]
 
     # Exam section
     if exam and exam.get("exam_type"):
-        exam_type = EXAM_TYPE_LABELS_UZ.get(exam["exam_type"], exam["exam_type"])
-        level = EXAM_LEVEL_LABELS_UZ.get(exam.get("current_level", ""), "–")
+        exam_type = t(f"exam.type.{exam['exam_type']}", lang)
+        level_key = exam.get("current_level", "")
+        level = t(f"exam.level.{level_key}", lang) if level_key else "–"
         subjects = exam.get("subjects") or []
         subj_str = ", ".join(DTM_SUBJECT_LABELS_UZ.get(s, s) for s in subjects[:3])
         if len(subjects) > 3:
             subj_str += f" +{len(subjects)-3}"
-        lines.append(f"🎓 *Imtihon:* {exam_type} · {level}")
+        lines.append(f"🎓 *{t('menu.exam', lang)}:* {exam_type} · {level}")
         if subj_str:
-            lines.append(f"   Fanlar: {subj_str}")
+            lines.append(f"   {subj_str}")
         if exam.get("exam_date"):
             from datetime import date
             delta = (exam["exam_date"] - date.today()).days
-            lines.append(f"   Sanasi: {exam['exam_date']} ({delta} kun qoldi)" if delta > 0 else f"   Sanasi: {exam['exam_date']}")
+            if delta > 0:
+                days_left = t("profile.days_left", lang).format(delta=delta)
+                lines.append(f"   📅 {exam['exam_date']} ({days_left})")
+            else:
+                lines.append(f"   📅 {exam['exam_date']}")
 
     # Career section
     if career and career.get("status"):
-        status = CAREER_STATUS_LABELS_UZ.get(career["status"], career["status"])
+        status = t(f"career.status.{career['status']}", lang)
         role = career.get("target_role") or "–"
-        lines.append(f"💼 *Karyera:* {status}")
+        lines.append(f"💼 *{t('menu.career', lang)}:* {status}")
         if career.get("target_role"):
-            lines.append(f"   Maqsad: {role}")
+            lines.append(f"   {t('profile.career_detail.role', lang)}: {role}")
 
     # Friends section
     if friends and friends.get("display_name"):
         looking = friends.get("looking_for", "–")
-        verified = "✅ Tasdiqlangan" if friends.get("is_verified") else "⏳ Tasdiqlanmagan"
-        lines.append(f"💝 *Do'stlik:* {friends['display_name']} · {verified}")
-        lines.append(f"   Maqsad: {looking}")
+        verified_str = t("profile.verified", lang) if friends.get("is_verified") else t("profile.pending_verify", lang)
+        lines.append(f"💝 *{t('menu.friends', lang)}:* {friends['display_name']} · {verified_str}")
+        lines.append(f"   {t('profile.friends_detail.goal', lang)}: {looking}")
 
     if len(lines) == 2:
-        lines.append("_Hali hech narsa sozlanmagan. Quyidagi tugmalardan birini tanlang._")
+        lines.append(t("profile.empty_hint", lang))
 
     return "\n".join(lines)
 
@@ -185,33 +183,41 @@ async def profile_view_exam(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         lang = await user_service.get_user_language(user.id)
         exam = await get_exam_profile(user.id)
         if not exam:
-            await query.answer("Imtihon profili topilmadi.", show_alert=True)
+            await query.answer(t("profile.exam_not_found", lang), show_alert=True)
             return
 
         from datetime import date
-        exam_type = EXAM_TYPE_LABELS_UZ.get(exam.get("exam_type", ""), "–")
-        level = EXAM_LEVEL_LABELS_UZ.get(exam.get("current_level", ""), "–")
+        exam_type = t(f"exam.type.{exam.get('exam_type', '')}", lang)
+        level_key = exam.get("current_level", "")
+        level = t(f"exam.level.{level_key}", lang) if level_key else "–"
         subjects = exam.get("subjects") or []
-        subj_str = "\n   ".join(f"• {DTM_SUBJECT_LABELS_UZ.get(s, s)}" for s in subjects) or "kiritilmagan"
+        no_entry = t("profile.no_entry", lang)
+        subj_str = "\n   ".join(f"• {DTM_SUBJECT_LABELS_UZ.get(s, s)}" for s in subjects) or no_entry
         exam_date = exam.get("exam_date")
-        date_str = str(exam_date) if exam_date else "kiritilmagan"
         if exam_date:
             delta = (exam_date - date.today()).days
-            date_str += f" ({delta} kun qoldi)" if delta > 0 else " (o'tgan)"
+            if delta > 0:
+                days_left = t("profile.days_left", lang).format(delta=delta)
+                date_str = f"{exam_date} ({days_left})"
+            else:
+                date_str = f"{exam_date} ({t('profile.exam_passed', lang)})"
+        else:
+            date_str = no_entry
         hours = exam.get("daily_study_hours", 4)
 
+        d = "profile.exam_detail"
         text = (
-            f"🎓 *Imtihon Profili*\n\n"
-            f"📌 Imtihon turi: {exam_type}\n"
-            f"🎯 Daraja: {level}\n"
-            f"📚 Fanlar:\n   {subj_str}\n"
-            f"📅 Imtihon sanasi: {date_str}\n"
-            f"⏱ Kunlik o'qish: {hours} soat"
+            f"{t(f'{d}.title', lang)}\n\n"
+            f"{t(f'{d}.exam_type', lang)}: {exam_type}\n"
+            f"{t(f'{d}.level', lang)}: {level}\n"
+            f"{t(f'{d}.subjects', lang)}:\n   {subj_str}\n"
+            f"{t(f'{d}.date', lang)}: {date_str}\n"
+            f"{t(f'{d}.daily_hours', lang).format(hours=hours)}"
         )
         await query.edit_message_text(
             text,
             reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("✏️ Tahrirlash", callback_data="profile_edit_exam")],
+                [InlineKeyboardButton(t("profile.edit_btn", lang), callback_data="profile_edit_exam")],
                 [InlineKeyboardButton(t("buttons.back", lang), callback_data="menu_profile")],
             ]),
             parse_mode="Markdown",
@@ -229,28 +235,30 @@ async def profile_view_career(update: Update, context: ContextTypes.DEFAULT_TYPE
         lang = await user_service.get_user_language(user.id)
         career = await get_career_profile(user.id)
         if not career:
-            await query.answer("Karyera profili topilmadi.", show_alert=True)
+            await query.answer(t("profile.career_not_found", lang), show_alert=True)
             return
 
-        status = CAREER_STATUS_LABELS_UZ.get(career.get("status", ""), "–")
-        role = career.get("target_role") or "kiritilmagan"
-        industry = career.get("industry") or "kiritilmagan"
+        no_entry = t("profile.no_entry", lang)
+        status = t(f"career.status.{career.get('status', '')}", lang)
+        role = career.get("target_role") or no_entry
+        industry = career.get("industry") or no_entry
         exp = career.get("experience_years", 0)
         skills = career.get("skills") or []
-        skills_str = ", ".join(skills[:5]) if skills else "kiritilmagan"
+        skills_str = ", ".join(skills[:5]) if skills else no_entry
 
+        d = "profile.career_detail"
         text = (
-            f"💼 *Karyera Profili*\n\n"
-            f"📊 Holat: {status}\n"
-            f"🎯 Maqsad lavozim: {role}\n"
-            f"🏭 Soha: {industry}\n"
-            f"⏱ Tajriba: {exp} yil\n"
-            f"🛠 Ko'nikmalar: {skills_str}"
+            f"{t(f'{d}.title', lang)}\n\n"
+            f"{t(f'{d}.status', lang)}: {status}\n"
+            f"{t(f'{d}.role', lang)}: {role}\n"
+            f"{t(f'{d}.industry', lang)}: {industry}\n"
+            f"{t(f'{d}.experience', lang).format(exp=exp)}\n"
+            f"{t(f'{d}.skills', lang)}: {skills_str}"
         )
         await query.edit_message_text(
             text,
             reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("✏️ Tahrirlash", callback_data="profile_edit_career")],
+                [InlineKeyboardButton(t("profile.edit_btn", lang), callback_data="profile_edit_career")],
                 [InlineKeyboardButton(t("buttons.back", lang), callback_data="menu_profile")],
             ]),
             parse_mode="Markdown",
@@ -268,36 +276,38 @@ async def profile_view_friends(update: Update, context: ContextTypes.DEFAULT_TYP
         lang = await user_service.get_user_language(user.id)
         friends = await get_friend_profile(user.id)
         if not friends:
-            await query.answer("Do'stlik profili topilmadi.", show_alert=True)
+            await query.answer(t("profile.friends_not_found", lang), show_alert=True)
             return
 
         from mindmate.core.constants import FRIEND_LOOKING_LABELS_UZ, FRIEND_INTERESTS_LABELS_UZ
+        no_entry = t("profile.no_entry", lang)
         name = friends.get("display_name", "–")
         age = friends.get("age", "–")
         gender = friends.get("gender", "–")
-        city = friends.get("city") or "kiritilmagan"
+        city = friends.get("city") or no_entry
         looking = FRIEND_LOOKING_LABELS_UZ.get(friends.get("looking_for", ""), friends.get("looking_for", "–"))
         interests = friends.get("interests") or []
         interests_str = ", ".join(FRIEND_INTERESTS_LABELS_UZ.get(i, i) for i in interests[:5])
-        bio = friends.get("bio") or "kiritilmagan"
-        verified = "✅ Tasdiqlangan" if friends.get("is_verified") else "⏳ Tasdiqlanmagan"
-        active = "👁 Ko'rinmoqda" if friends.get("is_active") else "🙈 Yashirilgan"
+        bio = friends.get("bio") or no_entry
+        verified = t("profile.verified", lang) if friends.get("is_verified") else t("profile.pending_verify", lang)
+        active = t("profile.visible", lang) if friends.get("is_active") else t("profile.hidden", lang)
 
+        d = "profile.friends_detail"
         text = (
-            f"💝 *Do'stlik Profili*\n\n"
-            f"👤 Ism: {name}\n"
-            f"🎂 Yosh: {age}\n"
-            f"👥 Jins: {gender}\n"
-            f"📍 Shahar: {city}\n"
-            f"🎯 Maqsad: {looking}\n"
-            f"🎵 Qiziqishlar: {interests_str or 'kiritilmagan'}\n"
-            f"📝 Bio: _{bio}_\n"
-            f"🛡 Holat: {verified} · {active}"
+            f"{t(f'{d}.title', lang)}\n\n"
+            f"{t(f'{d}.name', lang)}: {name}\n"
+            f"{t(f'{d}.age', lang)}: {age}\n"
+            f"{t(f'{d}.gender', lang)}: {gender}\n"
+            f"{t(f'{d}.city', lang)}: {city}\n"
+            f"{t(f'{d}.goal', lang)}: {looking}\n"
+            f"{t(f'{d}.interests', lang)}: {interests_str or no_entry}\n"
+            f"{t(f'{d}.bio', lang)}: _{bio}_\n"
+            f"{t(f'{d}.status', lang)}: {verified} · {active}"
         )
         await query.edit_message_text(
             text,
             reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("✏️ Tahrirlash", callback_data="profile_edit_friends")],
+                [InlineKeyboardButton(t("profile.edit_btn", lang), callback_data="profile_edit_friends")],
                 [InlineKeyboardButton(t("buttons.back", lang), callback_data="menu_profile")],
             ]),
             parse_mode="Markdown",
@@ -318,7 +328,6 @@ async def profile_action_callback(update: Update, context: ContextTypes.DEFAULT_
     elif data == "profile_view_friends":
         await profile_view_friends(update, context)
     elif data == "profile_edit_exam":
-        # Redirect to exam handler edit mode
         from mindmate.handlers.exam import _start_edit_mode
         await _start_edit_mode(update, context)
     elif data == "profile_edit_career":
