@@ -21,7 +21,7 @@ from mindmate.i18n import t
 
 logger = logging.getLogger(__name__)
 
-_RETRY_DELAYS = (1, 2, 4)  # seconds between retries (3 attempts total)
+_RETRY_DELAYS = (1, 2)  # wait between attempts; total = 3 attempts (0s, 1s, 2s)
 
 
 async def _call_with_retry(coro_fn, *args, **kwargs):

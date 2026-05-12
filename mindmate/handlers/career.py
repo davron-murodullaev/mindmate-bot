@@ -88,7 +88,62 @@ def kb_interview_type() -> InlineKeyboardMarkup:
     ])
 
 
+def kb_career_status_edit() -> InlineKeyboardMarkup:
+    """Status selection for edit mode."""
+    rows = [
+        [InlineKeyboardButton(CAREER_STATUS_LABELS_UZ[s], callback_data=f"career_est_{s}")]
+        for s in CAREER_STATUS_OPTIONS
+    ]
+    rows.append([InlineKeyboardButton("⬅️ Orqaga", callback_data="career_edit_back")])
+    return InlineKeyboardMarkup(rows)
+
+
+def kb_career_edit_menu(lang: str) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton("📊 Holat", callback_data="career_edit_status")],
+        [InlineKeyboardButton("🎯 Maqsad lavozim", callback_data="career_edit_role")],
+        [InlineKeyboardButton("⏱ Tajriba yillari", callback_data="career_edit_experience")],
+        [InlineKeyboardButton(t("buttons.back", lang), callback_data="menu_profile")],
+    ])
+
+
 # ──────────────────────── Handlers ────────────────────────
+
+async def _start_edit_mode(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Show career profile with per-field edit buttons (non-destructive)."""
+    query = update.callback_query
+    user = query.from_user
+    try:
+        try:
+            await query.answer()
+        except Exception:
+            pass
+        lang = await user_service.get_user_language(user.id)
+        profile = await get_career_profile(user.id)
+        if not profile or not profile.get("status"):
+            context.user_data["career_setup"] = {"step": "status"}
+            await query.edit_message_text(
+                "💼 *Hozirgi holatingizni tanlang:*",
+                reply_markup=kb_career_status(),
+                parse_mode="Markdown",
+            )
+            return
+
+        status = CAREER_STATUS_LABELS_UZ.get(profile.get("status", ""), "–")
+        role = profile.get("target_role") or "kiritilmagan"
+        exp = profile.get("experience_years", 0)
+
+        text = (
+            f"💼 *Karyera profilini tahrirlash*\n\n"
+            f"📊 Holat: {status}\n"
+            f"🎯 Maqsad lavozim: {role}\n"
+            f"⏱ Tajriba: {exp} yil\n\n"
+            "Qaysi ma'lumotni o'zgartirmoqchisiz?"
+        )
+        await query.edit_message_text(text, reply_markup=kb_career_edit_menu(lang), parse_mode="Markdown")
+    except Exception as e:
+        logger.error(f"career _start_edit_mode error: {e}")
+
 
 async def career_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Entry point — /career command or menu button.
@@ -189,6 +244,48 @@ async def career_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 except Exception:
                     pass
                 await career_handler(update, context)
+            return
+
+        # ── Per-field edit mode ────────────────────────────────────
+        if data == "career_edit_back":
+            await _start_edit_mode(update, context)
+            return
+
+        if data == "career_edit_status":
+            await query.edit_message_text(
+                "📊 *Hozirgi holatni o'zgartiring:*",
+                reply_markup=kb_career_status_edit(),
+                parse_mode="Markdown",
+            )
+            return
+
+        if data.startswith("career_est_"):
+            new_status = data.replace("career_est_", "")
+            existing = await get_career_profile(user.id)
+            if existing:
+                await upsert_career_profile(
+                    user_id=user.id,
+                    status=new_status,
+                    target_role=existing.get("target_role"),
+                    experience_years=existing.get("experience_years", 0),
+                )
+            await _start_edit_mode(update, context)
+            return
+
+        if data == "career_edit_role":
+            context.user_data["career_edit"] = {"field": "role"}
+            await query.edit_message_text(
+                "🎯 *Maqsad lavozimni o'zgartiring:*\n\nYangi lavozimni yozing:",
+                parse_mode="Markdown",
+            )
+            return
+
+        if data == "career_edit_experience":
+            context.user_data["career_edit"] = {"field": "experience"}
+            await query.edit_message_text(
+                "⏱ *Tajribani o'zgartiring:*\n\nNecha yil tajribangiz bor? (raqam yozing)",
+                parse_mode="Markdown",
+            )
             return
 
         # ── Setup wizard ───────────────────────────────────────────
@@ -379,6 +476,47 @@ async def career_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
     setup = context.user_data.get("career_setup")
     text = message.text.strip()
 
+    # ── Edit mode: individual field text input ─────────────────────
+    career_edit = context.user_data.get("career_edit", {})
+    if career_edit.get("field") == "role":
+        profile = await get_career_profile(user.id)
+        if profile:
+            await upsert_career_profile(
+                user_id=user.id,
+                status=profile["status"],
+                target_role=text,
+                experience_years=profile.get("experience_years", 0),
+            )
+        context.user_data.pop("career_edit", None)
+        lang = await user_service.get_user_language(user.id)
+        await message.reply_text("✅ Maqsad lavozim yangilandi!")
+        profile = await get_career_profile(user.id)
+        await _show_career_dashboard(update, context, profile, lang, chat=update.effective_chat)
+        return
+
+    if career_edit.get("field") == "experience":
+        try:
+            exp = int(text)
+            if exp < 0 or exp > 60:
+                raise ValueError
+        except ValueError:
+            await message.reply_text("❌ Iltimos, 0 dan 60 gacha bo'lgan raqam kiriting.")
+            return
+        profile = await get_career_profile(user.id)
+        if profile:
+            await upsert_career_profile(
+                user_id=user.id,
+                status=profile["status"],
+                target_role=profile.get("target_role"),
+                experience_years=exp,
+            )
+        context.user_data.pop("career_edit", None)
+        lang = await user_service.get_user_language(user.id)
+        await message.reply_text("✅ Tajriba yangilandi!")
+        profile = await get_career_profile(user.id)
+        await _show_career_dashboard(update, context, profile, lang, chat=update.effective_chat)
+        return
+
     # ── Wizard: target_role step ───────────────────────────────────
     if setup and setup.get("step") == "target_role":
         setup["target_role"] = text
@@ -510,4 +648,5 @@ async def career_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
         await increment_ai_usage(user.id)
     except Exception as e:
         logger.error(f"Career action error: {e}")
-        await message.reply_text("Texnik xatolik. Qaytadan urinib ko'ring.")
+        lang = await user_service.get_user_language(user.id)
+        await message.reply_text(t("errors.generic", lang))

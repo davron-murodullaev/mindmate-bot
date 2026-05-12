@@ -6,18 +6,26 @@ import logging
 from datetime import datetime, timedelta
 
 from telegram import Bot
+from telegram.error import Forbidden, BadRequest
 
 from mindmate.core.config import settings
 from mindmate.db.queries import (
     get_pending_reminders,
     mark_reminder_sent,
     update_reminder_time,
+    update_user_active_status,
+    get_user,
 )
 
 logger = logging.getLogger(__name__)
 
-# Global scheduler task
 _scheduler_task = None
+
+_REMINDER_MESSAGES = {
+    "uz": "⏰ Eslatma: {text}",
+    "ru": "⏰ Напоминание: {text}",
+    "en": "⏰ Reminder: {text}",
+}
 
 
 def _next_occurrence(current: datetime, repeat_type: str) -> datetime:
@@ -27,9 +35,8 @@ def _next_occurrence(current: datetime, repeat_type: str) -> datetime:
     if repeat_type == "weekly":
         return current + timedelta(weeks=1)
     if repeat_type == "monthly":
-        # Approximate a month as 30 days (sufficient for casual reminders)
         return current + timedelta(days=30)
-    return current  # 'once' or unknown — caller should not use
+    return current
 
 
 async def check_and_send_reminders(bot: Bot) -> None:
@@ -39,37 +46,48 @@ async def check_and_send_reminders(bot: Bot) -> None:
         pending = await get_pending_reminders(current_time)
 
         for reminder in pending:
+            reminder_id = reminder.get("id")
+            user_id = reminder["user_id"]
             try:
-                user_id = reminder["user_id"]
                 text = reminder["text"]
-                reminder_id = reminder["id"]
                 repeat_type = reminder.get("repeat_type", "once")
                 reminder_time = reminder["reminder_time"]
 
-                # Send reminder to user
-                message = f"⏰ Reminder: {text}"
+                # Use user's language for the message
+                user = await get_user(user_id)
+                lang = (user or {}).get("language_code", "uz")
+                template = _REMINDER_MESSAGES.get(lang, _REMINDER_MESSAGES["uz"])
+                message = template.format(text=text)
+
                 await bot.send_message(chat_id=user_id, text=message)
 
                 if repeat_type and repeat_type != "once":
-                    # Reschedule the same row to next occurrence
                     next_time = _next_occurrence(reminder_time, repeat_type)
-                    # Make sure the rescheduled time is in the future even if we
-                    # missed several intervals (e.g. bot was offline)
                     while next_time <= current_time:
                         next_time = _next_occurrence(next_time, repeat_type)
                     await update_reminder_time(reminder_id, next_time)
                     logger.info(
-                        f"Rescheduled repeating reminder {reminder_id} "
-                        f"({repeat_type}) to {next_time.isoformat()}"
+                        f"Rescheduled reminder {reminder_id} ({repeat_type}) → {next_time.isoformat()}"
                     )
                 else:
-                    # One-shot reminder — mark sent so it won't fire again
                     await mark_reminder_sent(reminder_id)
 
                 logger.info(f"Sent reminder {reminder_id} to user {user_id}")
 
+            except Forbidden:
+                # User blocked the bot — deactivate them and mark reminder sent
+                logger.warning(f"User {user_id} blocked the bot; deactivating.")
+                await update_user_active_status(user_id, False)
+                if reminder_id:
+                    await mark_reminder_sent(reminder_id)
+
+            except BadRequest as e:
+                logger.error(f"BadRequest sending reminder {reminder_id} to {user_id}: {e}")
+                if reminder_id:
+                    await mark_reminder_sent(reminder_id)
+
             except Exception as e:
-                logger.error(f"Error sending reminder {reminder.get('id')}: {e}")
+                logger.error(f"Error sending reminder {reminder_id}: {e}")
 
     except Exception as e:
         logger.error(f"Error checking reminders: {e}")
@@ -88,7 +106,6 @@ async def reminder_scheduler_loop(bot: Bot) -> None:
             break
         except Exception as e:
             logger.error(f"Error in reminder scheduler loop: {e}")
-            # Backoff before retrying
             await asyncio.sleep(60)
 
 

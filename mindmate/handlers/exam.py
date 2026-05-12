@@ -114,7 +114,95 @@ def kb_practice_subjects(profile_subjects: list[str]) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(rows)
 
 
+def kb_exam_type_edit() -> InlineKeyboardMarkup:
+    """Type selection for edit mode — adds back button."""
+    rows = [
+        [InlineKeyboardButton(EXAM_TYPE_LABELS_UZ.get(et, et), callback_data=f"exam_et_{et}")]
+        for et in EXAM_TYPES
+    ]
+    rows.append([InlineKeyboardButton("⬅️ Orqaga", callback_data="exam_edit_back")])
+    return InlineKeyboardMarkup(rows)
+
+
+def kb_exam_edit_subjects(selected: list[str]) -> InlineKeyboardMarkup:
+    """Multi-select subject keyboard for edit mode."""
+    rows = []
+    row = []
+    for subj in DTM_SUBJECTS:
+        mark = "✅" if subj in selected else ""
+        label = DTM_SUBJECT_LABELS_UZ.get(subj, subj)
+        row.append(InlineKeyboardButton(f"{mark}{label}".strip(), callback_data=f"exam_es_{subj}"))
+        if len(row) == 2:
+            rows.append(row)
+            row = []
+    if row:
+        rows.append(row)
+    rows.append([InlineKeyboardButton("✅ Saqlash", callback_data="exam_es_done")])
+    rows.append([InlineKeyboardButton("⬅️ Orqaga", callback_data="exam_edit_back")])
+    return InlineKeyboardMarkup(rows)
+
+
+def kb_exam_edit_level() -> InlineKeyboardMarkup:
+    """Level selection for edit mode — adds back button."""
+    rows = [
+        [InlineKeyboardButton(EXAM_LEVEL_LABELS_UZ[lv], callback_data=f"exam_el_{lv}")]
+        for lv in EXAM_LEVELS
+    ]
+    rows.append([InlineKeyboardButton("⬅️ Orqaga", callback_data="exam_edit_back")])
+    return InlineKeyboardMarkup(rows)
+
+
+def kb_exam_edit_menu(lang: str) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton("📌 Imtihon turi", callback_data="exam_edit_type")],
+        [InlineKeyboardButton("📚 Fanlar", callback_data="exam_edit_subjects")],
+        [InlineKeyboardButton("🎯 Daraja", callback_data="exam_edit_level")],
+        [InlineKeyboardButton("📅 Imtihon sanasi", callback_data="exam_edit_date")],
+        [InlineKeyboardButton(t("buttons.back", lang), callback_data="menu_profile")],
+    ])
+
+
 # ──────────────────────── Handlers ────────────────────────
+
+async def _start_edit_mode(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Show exam profile with per-field edit buttons (non-destructive)."""
+    query = update.callback_query
+    user = query.from_user
+    try:
+        try:
+            await query.answer()
+        except Exception:
+            pass
+        lang = await user_service.get_user_language(user.id)
+        profile = await get_exam_profile(user.id)
+        if not profile or not profile.get("exam_type"):
+            context.user_data["exam_setup"] = {"step": "exam_type"}
+            await query.edit_message_text(
+                "🎓 *Qaysi imtihonga tayyorlanyapsiz?*",
+                reply_markup=kb_exam_type_select(),
+                parse_mode="Markdown",
+            )
+            return
+
+        exam_type = EXAM_TYPE_LABELS_UZ.get(profile.get("exam_type", ""), "–")
+        level = EXAM_LEVEL_LABELS_UZ.get(profile.get("current_level", ""), "–")
+        subjects = profile.get("subjects") or []
+        subj_str = ", ".join(DTM_SUBJECT_LABELS_UZ.get(s, s) for s in subjects) or "kiritilmagan"
+        exam_date = profile.get("exam_date")
+        date_str = str(exam_date) if exam_date else "kiritilmagan"
+
+        text = (
+            f"🎓 *Imtihon profilini tahrirlash*\n\n"
+            f"📌 Imtihon turi: {exam_type}\n"
+            f"🎯 Daraja: {level}\n"
+            f"📚 Fanlar: {subj_str}\n"
+            f"📅 Sana: {date_str}\n\n"
+            "Qaysi ma'lumotni o'zgartirmoqchisiz?"
+        )
+        await query.edit_message_text(text, reply_markup=kb_exam_edit_menu(lang), parse_mode="Markdown")
+    except Exception as e:
+        logger.error(f"_start_edit_mode error: {e}")
+
 
 async def exam_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Entry point — /exam or menu button.
@@ -231,6 +319,107 @@ async def exam_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
                 except Exception:
                     pass
                 await exam_handler(update, context)
+            return
+
+        # ── Per-field edit mode ────────────────────────────────────
+        if data == "exam_edit_back":
+            await _start_edit_mode(update, context)
+            return
+
+        if data == "exam_edit_type":
+            await query.edit_message_text(
+                "🎓 *Imtihon turini o'zgartiring:*",
+                reply_markup=kb_exam_type_edit(),
+                parse_mode="Markdown",
+            )
+            return
+
+        if data.startswith("exam_et_"):
+            new_type = data.replace("exam_et_", "")
+            existing = await get_exam_profile(user.id)
+            if existing:
+                await upsert_exam_profile(
+                    user_id=user.id,
+                    exam_type=new_type,
+                    subjects=existing.get("subjects") or [],
+                    exam_date=existing.get("exam_date"),
+                    current_level=existing.get("current_level", "intermediate"),
+                )
+            await _start_edit_mode(update, context)
+            return
+
+        if data == "exam_edit_subjects":
+            existing = await get_exam_profile(user.id)
+            current_subjects = (existing or {}).get("subjects") or []
+            context.user_data["exam_edit"] = {"field": "subjects", "subjects": current_subjects}
+            await query.edit_message_text(
+                "📚 *Fanlarni o'zgartiring:*\n\nKerakli fanlarni tanlang, so'ng Saqlash.",
+                reply_markup=kb_exam_edit_subjects(current_subjects),
+                parse_mode="Markdown",
+            )
+            return
+
+        if data.startswith("exam_es_"):
+            tag = data.replace("exam_es_", "")
+            edit = context.user_data.get("exam_edit", {})
+            subjects = list(edit.get("subjects", []))
+
+            if tag == "done":
+                if not subjects:
+                    await query.answer("Kamida 1 ta fan tanlang!", show_alert=True)
+                    return
+                existing = await get_exam_profile(user.id)
+                if existing:
+                    await upsert_exam_profile(
+                        user_id=user.id,
+                        exam_type=existing["exam_type"],
+                        subjects=subjects,
+                        exam_date=existing.get("exam_date"),
+                        current_level=existing.get("current_level", "intermediate"),
+                    )
+                context.user_data.pop("exam_edit", None)
+                await _start_edit_mode(update, context)
+                return
+
+            if tag in subjects:
+                subjects.remove(tag)
+            else:
+                subjects.append(tag)
+            edit["subjects"] = subjects
+            context.user_data["exam_edit"] = edit
+            await query.edit_message_reply_markup(reply_markup=kb_exam_edit_subjects(subjects))
+            return
+
+        if data == "exam_edit_level":
+            await query.edit_message_text(
+                "🎯 *Darajangizni o'zgartiring:*",
+                reply_markup=kb_exam_edit_level(),
+                parse_mode="Markdown",
+            )
+            return
+
+        if data.startswith("exam_el_"):
+            new_level = data.replace("exam_el_", "")
+            existing = await get_exam_profile(user.id)
+            if existing:
+                await upsert_exam_profile(
+                    user_id=user.id,
+                    exam_type=existing["exam_type"],
+                    subjects=existing.get("subjects") or [],
+                    exam_date=existing.get("exam_date"),
+                    current_level=new_level,
+                )
+            await _start_edit_mode(update, context)
+            return
+
+        if data == "exam_edit_date":
+            context.user_data["exam_edit"] = {"field": "date"}
+            await query.edit_message_text(
+                "📅 *Imtihon sanasini kiriting:*\n\n"
+                "Format: `2026-06-15` (Yil-Oy-Kun)\n"
+                "O'chirish uchun `o'chir` deb yozing.",
+                parse_mode="Markdown",
+            )
             return
 
         # ── Setup wizard ───────────────────────────────────────────
@@ -449,6 +638,43 @@ async def exam_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     setup = context.user_data.get("exam_setup")
     text = message.text.strip()
 
+    # ── Edit mode: date field text input ──────────────────────────
+    if context.user_data.get("exam_edit", {}).get("field") == "date":
+        profile = await get_exam_profile(user.id)
+        if not profile:
+            context.user_data.pop("exam_edit", None)
+            return
+        exam_date = None
+        if text.lower() not in ("o'chir", "ochir", "clear", "skip", "keyin"):
+            try:
+                exam_date = datetime.strptime(text, "%Y-%m-%d").date()
+                if exam_date < date.today():
+                    await message.reply_text(
+                        "❌ Sana o'tgan. Kelajakdagi sanani kiriting (`2026-06-15`).",
+                        parse_mode="Markdown",
+                    )
+                    return
+            except ValueError:
+                await message.reply_text(
+                    "❌ Noto'g'ri format. Misol: `2026-06-15`\n"
+                    "Yoki o'chirish uchun `o'chir` deb yozing.",
+                    parse_mode="Markdown",
+                )
+                return
+        await upsert_exam_profile(
+            user_id=user.id,
+            exam_type=profile["exam_type"],
+            subjects=profile.get("subjects") or [],
+            exam_date=exam_date,
+            current_level=profile.get("current_level", "intermediate"),
+        )
+        context.user_data.pop("exam_edit", None)
+        lang = await user_service.get_user_language(user.id)
+        await message.reply_text("✅ Imtihon sanasi yangilandi!")
+        profile = await get_exam_profile(user.id)
+        await _show_exam_dashboard(update, context, profile, lang, chat=update.effective_chat)
+        return
+
     # ── Wizard: exam_date step ─────────────────────────────────────
     if setup and setup.get("step") == "exam_date":
         exam_date = None
@@ -525,4 +751,5 @@ async def exam_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         await message.reply_text(format_response(response, mode="exam"))
     except Exception as e:
         logger.error(f"Exam chat error: {e}")
-        await message.reply_text("Texnik xatolik. Qaytadan urinib ko'ring.")
+        lang = await user_service.get_user_language(user.id)
+        await message.reply_text(t("errors.generic", lang))

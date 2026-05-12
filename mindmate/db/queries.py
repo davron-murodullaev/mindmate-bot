@@ -51,6 +51,12 @@ async def update_user_timezone(user_id: int, timezone: str) -> None:
     await execute_query(query, timezone, user_id)
 
 
+async def update_user_active_status(user_id: int, is_active: bool) -> None:
+    """Mark a user as active or inactive (e.g. when they block the bot)."""
+    query = "UPDATE users SET is_active = $1 WHERE user_id = $2"
+    await execute_query(query, is_active, user_id)
+
+
 async def delete_user_data(user_id: int) -> None:
     """Delete all user-related data (CASCADE handles related tables)."""
     query = "DELETE FROM users WHERE user_id = $1"

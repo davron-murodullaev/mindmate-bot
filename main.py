@@ -3,7 +3,7 @@ MindMate Bot - Main Entry Point
 
 Conversational-first design: every text and voice message is routed
 through the AI router first (which can call tools like create_reminder).
-Wizards (exam/career setup, journal entry) take priority when active.
+Wizards (exam/career/friends setup) take priority when active.
 """
 from telegram.ext import (
     Application,
@@ -27,21 +27,13 @@ from mindmate.handlers.start import (
     cancel_handler,
 )
 from mindmate.handlers.menu import menu_handler, main_menu_callback
-from mindmate.handlers.mood import mood_handler, mood_callback, save_mood_handler
 from mindmate.handlers.healer import healer_handler, healer_message_handler
-from mindmate.handlers.journal import journal_handler, journal_callback, save_journal_handler
 from mindmate.handlers.productivity import productivity_handler, productivity_message_handler
-from mindmate.handlers.stats import stats_handler, stats_callback
-from mindmate.handlers.reminders import (
-    reminders_handler,
-    reminders_callback,
-    reminder_text_handler,
-)
 from mindmate.handlers.settings import settings_handler, settings_callback
 from mindmate.handlers.premium import premium_handler, premium_callback
 from mindmate.handlers.exam import exam_handler, exam_callback, exam_text_handler
 from mindmate.handlers.career import career_handler, career_callback, career_text_handler
-from mindmate.handlers.profile import profile_handler, profile_callback
+from mindmate.handlers.profile import profile_handler, profile_callback, profile_action_callback
 from mindmate.handlers.friends import (
     friends_handler,
     friends_callback,
@@ -57,7 +49,7 @@ from mindmate.handlers.payments import (
     successful_payment_handler,
 )
 
-# AI router (the conversational brain)
+# AI router
 from mindmate.ai.router import route_message
 from mindmate.ai.memory import ConversationMemory
 from mindmate.ai.transcription import transcribe_voice
@@ -74,7 +66,6 @@ logger = setup_logger(__name__)
 _router_memory = ConversationMemory()
 
 _CACHE_LANG_KEY = "_cached_lang"
-_CACHE_PREMIUM_KEY = "_cached_premium"
 
 
 async def _get_lang(user_id: int, context) -> str:
@@ -125,7 +116,6 @@ async def _route_via_ai(update, context, user_text: str) -> None:
             return
 
     try:
-        # Show "typing..." indicator while AI thinks
         await chat.send_action("typing")
 
         history = await _router_memory.get_history(user.id, "router")
@@ -146,7 +136,6 @@ async def _route_via_ai(update, context, user_text: str) -> None:
             await _router_memory.add_message(user.id, "router", "assistant", msg_text)
             await chat.send_message(msg_text, parse_mode="Markdown")
 
-        # If AI wants to open a menu, fire the corresponding callback
         if open_menu:
             await _open_menu_for_user(update, context, open_menu)
 
@@ -168,18 +157,10 @@ async def _open_menu_for_user(update, context, menu: str) -> None:
             await friends_handler(update, context)
         elif menu == "profile":
             await profile_handler(update, context)
-        elif menu == "mood":
-            await mood_handler(update, context)
-        elif menu == "journal":
-            await journal_handler(update, context)
-        elif menu == "reminders":
-            await reminders_handler(update, context)
-        elif menu == "stats":
-            await stats_handler(update, context)
         elif menu == "healer":
-            await healer_handler(update, context)
+            context.user_data["mode"] = "healer"
         elif menu == "productivity":
-            await productivity_handler(update, context)
+            context.user_data["mode"] = "productivity"
         elif menu == "settings":
             await settings_handler(update, context)
         elif menu == "premium":
@@ -197,17 +178,12 @@ async def text_dispatcher(update, context):
 
     text = update.message.text.strip()
 
-    # 1) Mood emoji shortcut
-    if text[:1] in {"😊", "😢", "😠", "😰", "😴", "🤗"}:
-        await save_mood_handler(update, context)
-        return
-
-    # 2) Active wizards (highest priority — they need exact input)
-    if context.user_data.get("exam_setup") or context.user_data.get("mode") == "exam":
+    # Active wizards (highest priority — they need exact input)
+    if context.user_data.get("exam_setup") or context.user_data.get("exam_edit") or context.user_data.get("mode") == "exam":
         await exam_text_handler(update, context)
         return
 
-    if context.user_data.get("career_setup") or context.user_data.get("mode") == "career":
+    if context.user_data.get("career_setup") or context.user_data.get("career_edit") or context.user_data.get("mode") == "career":
         await career_text_handler(update, context)
         return
 
@@ -215,15 +191,7 @@ async def text_dispatcher(update, context):
         await friends_text_handler(update, context)
         return
 
-    if context.user_data.get("waiting_for_reminder"):
-        await reminder_text_handler(update, context)
-        return
-
-    if context.user_data.get("waiting_for_journal"):
-        await save_journal_handler(update, context)
-        return
-
-    # 3) Specific AI modes (healer/productivity)
+    # Specific AI modes (healer/productivity)
     mode = context.user_data.get("mode")
     if mode == "healer":
         await healer_message_handler(update, context)
@@ -232,7 +200,7 @@ async def text_dispatcher(update, context):
         await productivity_message_handler(update, context)
         return
 
-    # 4) DEFAULT: Route through AI brain (conversational entry)
+    # DEFAULT: Route through AI router
     await _route_via_ai(update, context, text)
 
 
@@ -247,8 +215,6 @@ async def voice_dispatcher(update, context):
     try:
         await chat.send_action("typing")
 
-        # Use the user's selected language as a transcription hint.
-        # Better accuracy than auto-detect for short voice messages.
         lang = await _get_lang(user.id, context)
         language_hint = lang if lang in ("uz", "ru", "en") else None
 
@@ -275,10 +241,7 @@ async def voice_dispatcher(update, context):
             )
             return
 
-        # Show user what we heard so they can verify/correct
         await chat.send_message(f"🎙 _Eshitganim:_ {text}", parse_mode="Markdown")
-
-        # Now route as if it were a text message
         await _route_via_ai(update, context, text)
 
     except Exception as e:
@@ -300,12 +263,8 @@ def main():
     # ── Commands ──────────────────────────────────────────────────────
     application.add_handler(CommandHandler("start", start_handler))
     application.add_handler(CommandHandler("menu", menu_handler))
-    application.add_handler(CommandHandler("mood", mood_handler))
     application.add_handler(CommandHandler("healer", healer_handler))
-    application.add_handler(CommandHandler("journal", journal_handler))
     application.add_handler(CommandHandler("productivity", productivity_handler))
-    application.add_handler(CommandHandler("reminders", reminders_handler))
-    application.add_handler(CommandHandler("stats", stats_handler))
     application.add_handler(CommandHandler("settings", settings_handler))
     application.add_handler(CommandHandler("premium", premium_handler))
     application.add_handler(CommandHandler("exam", exam_handler))
@@ -322,14 +281,11 @@ def main():
     application.add_handler(CallbackQueryHandler(language_callback, pattern="^lang_"))
     application.add_handler(CallbackQueryHandler(setup_callback, pattern="^setup_"))
     application.add_handler(CallbackQueryHandler(main_menu_callback, pattern="^menu_"))
-    application.add_handler(CallbackQueryHandler(mood_callback, pattern="^mood_"))
-    application.add_handler(CallbackQueryHandler(journal_callback, pattern="^journal_"))
-    application.add_handler(CallbackQueryHandler(reminders_callback, pattern="^reminder_"))
-    application.add_handler(CallbackQueryHandler(stats_callback, pattern="^stats_"))
     application.add_handler(CallbackQueryHandler(settings_callback, pattern="^settings_"))
     application.add_handler(CallbackQueryHandler(premium_callback, pattern="^premium_"))
     application.add_handler(CallbackQueryHandler(exam_callback, pattern="^exam_"))
     application.add_handler(CallbackQueryHandler(career_callback, pattern="^career_"))
+    application.add_handler(CallbackQueryHandler(profile_action_callback, pattern="^profile_"))
     application.add_handler(CallbackQueryHandler(friends_callback, pattern="^friends_"))
     application.add_handler(CallbackQueryHandler(legal_callback, pattern="^legal_"))
     application.add_handler(CallbackQueryHandler(buy_callback, pattern="^buy_"))
@@ -341,10 +297,7 @@ def main():
         successful_payment_handler,
     ))
 
-    # ── Text + voice + photo dispatcher ───────────────────────────────
-    # Photo handler covers BOTH wizard photos AND verification selfies,
-    # for both regular photos AND image-files (PNG/JPEG sent as document).
-    # The handler decides what to do based on user_data state.
+    # ── Text + voice + photo dispatcher ──────────────────────────────
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, text_dispatcher))
     application.add_handler(MessageHandler(filters.VOICE, voice_dispatcher))
     application.add_handler(MessageHandler(
