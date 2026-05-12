@@ -86,6 +86,16 @@ async def get_user_moods(user_id: int, limit: int = 10) -> List[Dict[str, Any]]:
     return [dict(row) for row in rows]
 
 
+async def count_today_moods(user_id: int) -> int:
+    """Count mood entries logged today (UTC)."""
+    query = """
+        SELECT COUNT(*) FROM moods
+        WHERE user_id = $1
+          AND created_at >= CURRENT_DATE
+    """
+    return await execute_fetchval(query, user_id) or 0
+
+
 async def get_mood_stats(user_id: int, days: int = 7) -> Dict[str, int]:
     """Get mood statistics for the past N days (parameterized — safe)."""
     query = """

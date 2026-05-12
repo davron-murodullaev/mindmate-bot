@@ -17,8 +17,10 @@ from mindmate.db.queries import (
     create_journal,
     get_mood_stats,
     count_user_journals,
+    count_today_moods,
     is_premium_active,
     count_active_reminders,
+    get_user,
 )
 from mindmate.reminders.parser import parse_reminder, format_reminder_time
 from mindmate.core.constants import (
@@ -26,7 +28,10 @@ from mindmate.core.constants import (
     EMOJI_TO_MOOD,
     MOOD_EMOJIS,
     FREE_MAX_REMINDERS,
+    FREE_MAX_JOURNAL_ENTRIES_PER_DAY,
 )
+
+FREE_MAX_DAILY_MOODS = 10  # max mood logs per day for free users
 
 logger = logging.getLogger(__name__)
 
@@ -208,9 +213,13 @@ async def tool_create_reminder(
                 ),
             }
 
+    # Get user's timezone for accurate time parsing
+    user = await get_user(user_id)
+    user_tz = (user or {}).get("timezone") or None
+
     # Parse the natural-language time using our existing parser
     full_text = f"{text} {when}".strip()
-    parsed = parse_reminder(full_text)
+    parsed = parse_reminder(full_text, user_timezone=user_tz)
     if not parsed:
         return {
             "message": (
@@ -222,7 +231,8 @@ async def tool_create_reminder(
     parsed_text, parsed_time, parsed_repeat = parsed
     repeat_final = repeat if repeat != "once" else parsed_repeat
 
-    if parsed_time <= datetime.now():
+    from mindmate.reminders.parser import validate_reminder_time
+    if not validate_reminder_time(parsed_time, user_tz):
         return {"message": "❌ Vaqt o'tgan. Kelajakdagi vaqt kerak."}
 
     await create_reminder(user_id, parsed_text or text, parsed_time, repeat_final)
@@ -230,7 +240,7 @@ async def tool_create_reminder(
         "message": (
             f"✅ Eslatma o'rnatildi:\n"
             f"📌 _{parsed_text or text}_\n"
-            f"⏰ {format_reminder_time(parsed_time)}"
+            f"⏰ {format_reminder_time(parsed_time, user_tz)}"
         ),
     }
 
@@ -292,6 +302,15 @@ async def tool_log_mood(
     """Save a mood entry."""
     if mood not in MOOD_TYPES:
         return {"message": f"❌ Notanish kayfiyat: {mood}"}
+    if not await is_premium_active(user_id):
+        today_count = await count_today_moods(user_id)
+        if today_count >= FREE_MAX_DAILY_MOODS:
+            return {
+                "message": (
+                    f"❌ Bugun {FREE_MAX_DAILY_MOODS} ta kayfiyat yozuvi limitiga yetdingiz. "
+                    "Premium'ga o'ting yoki ertaga qaytib keling."
+                ),
+            }
     await create_mood(user_id, mood, notes=note)
     emoji = MOOD_EMOJIS.get(mood, "")
     return {"message": f"✅ Kayfiyat saqlandi: {emoji} {mood.capitalize()}"}
@@ -301,6 +320,15 @@ async def tool_save_journal(
     user_id: int, content: str, lang: str = "uz"
 ) -> Dict[str, Any]:
     """Save a journal entry."""
+    if not await is_premium_active(user_id):
+        today_count = await count_user_journals(user_id, days=1)
+        if today_count >= FREE_MAX_JOURNAL_ENTRIES_PER_DAY:
+            return {
+                "message": (
+                    f"❌ Bugun {FREE_MAX_JOURNAL_ENTRIES_PER_DAY} ta kundalik yozuvi limitiga yetdingiz. "
+                    "Premium'ga o'ting yoki ertaga qaytib keling."
+                ),
+            }
     await create_journal(user_id, content)
     return {"message": "📝 Kundalik yozuvi saqlandi."}
 
