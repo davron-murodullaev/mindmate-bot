@@ -539,6 +539,11 @@ async def career_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
             await upsert_career_profile(
                 user_id=user.id,
                 status=profile["status"],
+                target_role=profile.get("target_role"),
+                industry=profile.get("industry"),
+                experience_years=profile.get("experience_years", 0),
+                skills=profile.get("skills"),
+                languages=profile.get("languages"),
                 resume_text=response,
             )
             await message.reply_text(
