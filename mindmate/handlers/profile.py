@@ -109,7 +109,9 @@ async def _build_profile_text(user_id: int, first_name: str, lang: str) -> str:
 
     # Friends section
     if friends and friends.get("display_name"):
-        looking = friends.get("looking_for", "–")
+        from mindmate.core.constants import FRIEND_LOOKING_OPTIONS
+        lf_key = friends.get("looking_for", "")
+        looking = t(f"friends.looking_for.{lf_key}", lang) if lf_key in FRIEND_LOOKING_OPTIONS else "–"
         verified_str = t("profile.verified", lang) if friends.get("is_verified") else t("profile.pending_verify", lang)
         lines.append(f"💝 *{t('menu.friends', lang)}:* {friends['display_name']} · {verified_str}")
         lines.append(f"   {t('profile.friends_detail.goal', lang)}: {looking}")
@@ -279,15 +281,24 @@ async def profile_view_friends(update: Update, context: ContextTypes.DEFAULT_TYP
             await query.answer(t("profile.friends_not_found", lang), show_alert=True)
             return
 
-        from mindmate.core.constants import FRIEND_LOOKING_LABELS_UZ, FRIEND_INTERESTS_LABELS_UZ
+        from mindmate.core.constants import (
+            FRIEND_LOOKING_OPTIONS,
+            FRIEND_GENDER_OPTIONS,
+            FRIEND_INTERESTS as _FRIEND_INTERESTS,
+        )
         no_entry = t("profile.no_entry", lang)
         name = friends.get("display_name", "–")
         age = friends.get("age", "–")
-        gender = friends.get("gender", "–")
+        gender_key = friends.get("gender", "")
+        gender = t(f"friends.gender.{gender_key}", lang) if gender_key in FRIEND_GENDER_OPTIONS else "–"
         city = friends.get("city") or no_entry
-        looking = FRIEND_LOOKING_LABELS_UZ.get(friends.get("looking_for", ""), friends.get("looking_for", "–"))
+        lf_key = friends.get("looking_for", "")
+        looking = t(f"friends.looking_for.{lf_key}", lang) if lf_key in FRIEND_LOOKING_OPTIONS else "–"
         interests = friends.get("interests") or []
-        interests_str = ", ".join(FRIEND_INTERESTS_LABELS_UZ.get(i, i) for i in interests[:5])
+        interests_str = ", ".join(
+            t(f"friends.interests.{i}", lang) if i in _FRIEND_INTERESTS else i
+            for i in interests[:5]
+        )
         bio = friends.get("bio") or no_entry
         verified = t("profile.verified", lang) if friends.get("is_verified") else t("profile.pending_verify", lang)
         active = t("profile.visible", lang) if friends.get("is_active") else t("profile.hidden", lang)

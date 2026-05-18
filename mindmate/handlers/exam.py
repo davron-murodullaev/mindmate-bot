@@ -587,7 +587,8 @@ async def exam_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     except Exception as e:
         logger.error(f"Error in exam_callback: {e}")
         try:
-            await query.edit_message_text(t("errors.generic", lang if 'lang' in dir() else "uz"))
+            _err_lang = lang if 'lang' in locals() else await user_service.get_user_language(user.id)
+            await query.edit_message_text(t("errors.generic", _err_lang))
         except Exception:
             pass
 

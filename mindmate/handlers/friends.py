@@ -47,11 +47,8 @@ from mindmate.ui.keyboards import get_back_to_menu_keyboard
 from mindmate.i18n import t
 from mindmate.core.constants import (
     FRIEND_LOOKING_OPTIONS,
-    FRIEND_LOOKING_LABELS_UZ,
     FRIEND_GENDER_OPTIONS,
-    FRIEND_GENDER_LABELS_UZ,
     FRIEND_INTERESTS,
-    FRIEND_INTERESTS_LABELS_UZ,
     FRIEND_MIN_AGE,
     FRIEND_MAX_AGE,
     FRIEND_MIN_INTERESTS,
@@ -151,7 +148,7 @@ def kb_match_actions(match_user_id: int, lang: str = "uz") -> InlineKeyboardMark
 
 def kb_looking_for(lang: str = "uz") -> InlineKeyboardMarkup:
     rows = [
-        [InlineKeyboardButton(FRIEND_LOOKING_LABELS_UZ[lf], callback_data=f"friends_lf_{lf}")]
+        [InlineKeyboardButton(t(f"friends.looking_for.{lf}", lang), callback_data=f"friends_lf_{lf}")]
         for lf in FRIEND_LOOKING_OPTIONS
     ]
     rows.append([InlineKeyboardButton(t("buttons.cancel", lang), callback_data="friends_wizard_cancel")])
@@ -161,7 +158,7 @@ def kb_looking_for(lang: str = "uz") -> InlineKeyboardMarkup:
 def kb_gender(lang: str = "uz") -> InlineKeyboardMarkup:
     """Gender is required so users can be matched correctly — no skip option."""
     rows = [
-        [InlineKeyboardButton(FRIEND_GENDER_LABELS_UZ[g], callback_data=f"friends_g_{g}")]
+        [InlineKeyboardButton(t(f"friends.gender.{g}", lang), callback_data=f"friends_g_{g}")]
         for g in FRIEND_GENDER_OPTIONS
     ]
     rows.append([InlineKeyboardButton(t("buttons.cancel", lang), callback_data="friends_wizard_cancel")])
@@ -174,7 +171,7 @@ def kb_interests(selected: list, lang: str = "uz") -> InlineKeyboardMarkup:
     row = []
     for interest in FRIEND_INTERESTS:
         mark = "✅ " if interest in selected else ""
-        label = FRIEND_INTERESTS_LABELS_UZ.get(interest, interest)
+        label = t(f"friends.interests.{interest}", lang)
         row.append(InlineKeyboardButton(
             f"{mark}{label}",
             callback_data=f"friends_i_{interest}",
@@ -233,7 +230,7 @@ def kb_edit_choices(lang: str = "uz") -> InlineKeyboardMarkup:
 def kb_preferences(prefs: dict, lang: str = "uz") -> InlineKeyboardMarkup:
     """Filters keyboard."""
     target = prefs.get("target_gender")
-    target_label = FRIEND_GENDER_LABELS_UZ.get(target, t("friends.pref_any", lang)) if target else t("friends.pref_any", lang)
+    target_label = t(f"friends.gender.{target}", lang) if target in FRIEND_GENDER_OPTIONS else t("friends.pref_any", lang)
     same_city = prefs.get("same_city_only", True)
     same_city_label = t("friends.pref_yes", lang) if same_city else t("friends.pref_no", lang)
     age_label = f"{prefs.get('min_age', 18)}-{prefs.get('max_age', 100)}"
@@ -314,7 +311,8 @@ async def _show_friends_main(
     """Render the friends-feature dashboard."""
     name = profile.get("display_name", "—")
     age = profile.get("age", "—")
-    looking = FRIEND_LOOKING_LABELS_UZ.get(profile.get("looking_for", ""), "—")
+    lf_key = profile.get("looking_for", "")
+    looking = t(f"friends.looking_for.{lf_key}", lang) if lf_key in FRIEND_LOOKING_OPTIONS else "—"
     visibility = t("friends.visibility_active", lang) if profile.get("is_active") else t("friends.visibility_hidden", lang)
 
     likes_received = await count_friend_likes_received(profile["user_id"])
@@ -934,21 +932,15 @@ def _check_photo_quality(message, lang: str = "en") -> Optional[str]:
 
     if file_size is not None:
         if file_size < FRIEND_PHOTO_MIN_FILE_SIZE:
-            return t("friends.photo_quality_small", lang) if _has_key("friends.photo_quality_small") else "📐 Photo too small. Please send a better one."
+            return t("friends.photo_quality_small", lang)
         if file_size > FRIEND_PHOTO_MAX_FILE_SIZE:
-            return t("friends.photo_quality_large", lang) if _has_key("friends.photo_quality_large") else "📐 Photo too large (over 8 MB)."
+            return t("friends.photo_quality_large", lang)
 
     if width and height:
         if min(width, height) < FRIEND_PHOTO_MIN_DIMENSION:
             return t("friends.photo_quality_dim", lang, w=width, h=height, min_dim=FRIEND_PHOTO_MIN_DIMENSION)
 
     return None
-
-
-def _has_key(key: str) -> bool:
-    """Check if an i18n key exists (to avoid key-as-fallback)."""
-    result = t(key, "en")
-    return result != key
 
 
 async def _moderate_photo_bytes(file_id: str, context) -> tuple:
@@ -1239,10 +1231,11 @@ def _format_profile_card(profile: dict, verified: bool = False, photo_count: int
     name = profile.get("display_name", "—")
     age = profile.get("age", "")
     city = profile.get("city", "")
-    looking = FRIEND_LOOKING_LABELS_UZ.get(profile.get("looking_for", ""), "—")
+    lf_key = profile.get("looking_for", "")
+    looking = t(f"friends.looking_for.{lf_key}", lang) if lf_key in FRIEND_LOOKING_OPTIONS else "—"
     interests = profile.get("interests") or []
     interests_str = " · ".join(
-        FRIEND_INTERESTS_LABELS_UZ.get(i, i) for i in interests[:6]
+        t(f"friends.interests.{i}", lang) for i in interests[:6]
     )
     bio = profile.get("bio") or ""
 
