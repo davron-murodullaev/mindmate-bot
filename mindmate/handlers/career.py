@@ -27,7 +27,6 @@ from mindmate.ui.keyboards import get_back_to_menu_keyboard
 from mindmate.i18n import t
 from mindmate.core.constants import (
     CAREER_STATUS_OPTIONS,
-    CAREER_STATUS_LABELS_UZ,
     FREE_DAILY_AI_MESSAGES,
 )
 
@@ -43,52 +42,107 @@ def kb_career_main(lang: str = "uz") -> InlineKeyboardMarkup:
     """Main career coach menu."""
     return InlineKeyboardMarkup([
         [
-            InlineKeyboardButton("📝 Resume yaratish", callback_data="career_resume"),
-            InlineKeyboardButton("🔍 Resume tahlili", callback_data="career_review"),
+            InlineKeyboardButton(t("career.menu.resume", lang), callback_data="career_resume"),
+            InlineKeyboardButton(t("career.menu.review", lang), callback_data="career_review"),
         ],
         [
-            InlineKeyboardButton("🎤 Intervyu mashqi", callback_data="career_interview"),
-            InlineKeyboardButton("💬 Maslahat olish", callback_data="career_chat"),
+            InlineKeyboardButton(t("career.menu.interview", lang), callback_data="career_interview"),
+            InlineKeyboardButton(t("career.menu.chat", lang), callback_data="career_chat"),
         ],
         [
-            InlineKeyboardButton("💰 Maosh muzokarasi", callback_data="career_salary"),
-            InlineKeyboardButton("📈 Karyera rejasi", callback_data="career_plan"),
+            InlineKeyboardButton(t("career.menu.salary", lang), callback_data="career_salary"),
+            InlineKeyboardButton(t("career.menu.plan", lang), callback_data="career_plan"),
         ],
         [
-            InlineKeyboardButton("⚙️ Profilim", callback_data="career_setup"),
+            InlineKeyboardButton(t("career.menu.my_profile", lang), callback_data="career_setup"),
             InlineKeyboardButton(t("buttons.back", lang), callback_data="menu_main"),
         ],
     ])
 
 
-def kb_career_status() -> InlineKeyboardMarkup:
+def kb_career_status(lang: str = "uz") -> InlineKeyboardMarkup:
     """Career status selection."""
     rows = [
-        [InlineKeyboardButton(CAREER_STATUS_LABELS_UZ[s], callback_data=f"career_st_{s}")]
+        [InlineKeyboardButton(t(f"career.status.{s}", lang), callback_data=f"career_st_{s}")]
         for s in CAREER_STATUS_OPTIONS
     ]
-    rows.append([InlineKeyboardButton("❌ Bekor qilish", callback_data="career_wizard_cancel")])
+    rows.append([InlineKeyboardButton(t("buttons.cancel", lang), callback_data="career_wizard_cancel")])
     return InlineKeyboardMarkup(rows)
 
 
-def kb_career_cancel() -> InlineKeyboardMarkup:
+def kb_career_cancel(lang: str = "uz") -> InlineKeyboardMarkup:
     """Cancel keyboard for text-input steps in the career wizard."""
     return InlineKeyboardMarkup([
-        [InlineKeyboardButton("❌ Bekor qilish", callback_data="career_wizard_cancel")],
+        [InlineKeyboardButton(t("buttons.cancel", lang), callback_data="career_wizard_cancel")],
     ])
 
 
-def kb_interview_type() -> InlineKeyboardMarkup:
+def kb_interview_type(lang: str = "uz") -> InlineKeyboardMarkup:
     """Interview question type selection."""
     return InlineKeyboardMarkup([
-        [InlineKeyboardButton("👋 Umumiy savol (HR)", callback_data="career_iq_general")],
-        [InlineKeyboardButton("🛠 Texnik savol", callback_data="career_iq_technical")],
-        [InlineKeyboardButton("⭐ Behavioral (STAR)", callback_data="career_iq_behavioral")],
-        [InlineKeyboardButton("⬅️ Orqaga", callback_data="career_back")],
+        [InlineKeyboardButton(t("career.interview.general", lang), callback_data="career_iq_general")],
+        [InlineKeyboardButton(t("career.interview.technical", lang), callback_data="career_iq_technical")],
+        [InlineKeyboardButton(t("career.interview.behavioral", lang), callback_data="career_iq_behavioral")],
+        [InlineKeyboardButton(t("buttons.back", lang), callback_data="career_back")],
+    ])
+
+
+def kb_career_status_edit(lang: str = "uz") -> InlineKeyboardMarkup:
+    """Status selection for edit mode."""
+    rows = [
+        [InlineKeyboardButton(t(f"career.status.{s}", lang), callback_data=f"career_est_{s}")]
+        for s in CAREER_STATUS_OPTIONS
+    ]
+    rows.append([InlineKeyboardButton(t("buttons.back", lang), callback_data="career_edit_back")])
+    return InlineKeyboardMarkup(rows)
+
+
+def kb_career_edit_menu(lang: str) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton(t("career.edit.field_status", lang), callback_data="career_edit_status")],
+        [InlineKeyboardButton(t("career.edit.field_role", lang), callback_data="career_edit_role")],
+        [InlineKeyboardButton(t("career.edit.field_experience", lang), callback_data="career_edit_experience")],
+        [InlineKeyboardButton(t("buttons.back", lang), callback_data="menu_profile")],
     ])
 
 
 # ──────────────────────── Handlers ────────────────────────
+
+async def _start_edit_mode(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Show career profile with per-field edit buttons (non-destructive)."""
+    query = update.callback_query
+    user = query.from_user
+    try:
+        try:
+            await query.answer()
+        except Exception:
+            pass
+        lang = await user_service.get_user_language(user.id)
+        profile = await get_career_profile(user.id)
+        if not profile or not profile.get("status"):
+            context.user_data["career_setup"] = {"step": "status"}
+            await query.edit_message_text(
+                t("career.select_status", lang),
+                reply_markup=kb_career_status(lang),
+                parse_mode="Markdown",
+            )
+            return
+
+        status = t(f"career.status.{profile.get('status', '')}", lang)
+        role = profile.get("target_role") or t("profile.no_entry", lang)
+        exp = profile.get("experience_years", 0)
+
+        text = (
+            f"{t('career.edit.title', lang)}\n\n"
+            f"{t('career.edit.field_status', lang)}: {status}\n"
+            f"{t('career.edit.field_role', lang)}: {role}\n"
+            f"{t('career.edit.field_experience', lang)}: {exp}\n\n"
+            f"{t('career.edit.what_to_change', lang)}"
+        )
+        await query.edit_message_text(text, reply_markup=kb_career_edit_menu(lang), parse_mode="Markdown")
+    except Exception as e:
+        logger.error(f"career _start_edit_mode error: {e}")
+
 
 async def career_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Entry point — /career command or menu button.
@@ -104,16 +158,10 @@ async def career_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
         if not profile or not profile.get("status"):
             await chat.send_message(
-                "💼 *Karyera Coach*\n\n"
-                "Men sizga yaxshi ish topish va karyerada o'sishda yordam beraman:\n\n"
-                "📝 ATS-friendly resume yaratish\n"
-                "🎤 Intervyuga tayyorgarlik\n"
-                "💰 Maoshni qanday so'rashni o'rganish\n"
-                "📈 6 oylik karyera rejasi\n\n"
-                "Boshlash uchun anketani to'ldiring (1 daqiqa).",
+                t("career.teaser", lang),
                 reply_markup=InlineKeyboardMarkup([
-                    [InlineKeyboardButton("✨ Boshlash", callback_data="career_start_setup")],
-                    [InlineKeyboardButton("⬅️ Orqaga", callback_data="menu_main")],
+                    [InlineKeyboardButton(t("career.start_btn", lang), callback_data="career_start_setup")],
+                    [InlineKeyboardButton(t("buttons.back", lang), callback_data="menu_main")],
                 ]),
                 parse_mode="Markdown",
             )
@@ -121,7 +169,7 @@ async def career_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             await _show_career_dashboard(update, context, profile, lang, chat=chat)
     except Exception as e:
         logger.error(f"Error in career_handler: {e}")
-        await chat.send_message("Karyera Coach")
+        await chat.send_message(t("errors.generic", "en"))
 
 
 async def _show_career_dashboard(
@@ -133,18 +181,22 @@ async def _show_career_dashboard(
     edit_query=None,
 ) -> None:
     """Render the career dashboard with profile summary."""
-    status = profile.get("status", "")
-    target = profile.get("target_role") or "_kiritilmagan_"
-    industry = profile.get("industry") or "_kiritilmagan_"
+    status_key = profile.get("status", "")
+    status = t(f"career.status.{status_key}", lang) if status_key else "–"
+    target = profile.get("target_role") or f"_{t('profile.no_entry', lang)}_"
+    industry = profile.get("industry") or f"_{t('profile.no_entry', lang)}_"
     exp = profile.get("experience_years", 0)
 
+    no_entry = t("profile.no_entry", lang)
+    exp_label = t("profile.career_detail.experience", lang).format(exp=exp)
+
     text = (
-        f"💼 *Karyera Coach*\n\n"
-        f"📌 Holat: {CAREER_STATUS_LABELS_UZ.get(status, status)}\n"
-        f"🎯 Maqsad: {target}\n"
-        f"🏢 Soha: {industry}\n"
-        f"⏱ Tajriba: {exp} yil\n\n"
-        f"Bugun nima qilamiz?"
+        f"{t('career.dashboard_title', lang)}\n\n"
+        f"{t('profile.career_detail.status', lang)}: {status}\n"
+        f"{t('profile.career_detail.role', lang)}: {target}\n"
+        f"{t('profile.career_detail.industry', lang)}: {industry}\n"
+        f"{exp_label}\n\n"
+        f"{t('career.dashboard_prompt', lang)}"
     )
 
     kb = kb_career_main(lang)
@@ -171,14 +223,15 @@ async def career_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         if data == "career_start_setup":
             context.user_data["career_setup"] = {"step": "status"}
             await query.edit_message_text(
-                "💼 *Hozirgi holatingizni tanlang:*",
-                reply_markup=kb_career_status(),
+                t("career.select_status", lang),
+                reply_markup=kb_career_status(lang),
                 parse_mode="Markdown",
             )
             return
 
         if data == "career_wizard_cancel":
             context.user_data.pop("career_setup", None)
+            context.user_data.pop("career_edit", None)
             context.user_data.pop("career_action", None)
             existing = await get_career_profile(user.id)
             if existing and existing.get("status"):
@@ -191,6 +244,48 @@ async def career_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 await career_handler(update, context)
             return
 
+        # ── Per-field edit mode ────────────────────────────────────
+        if data == "career_edit_back":
+            await _start_edit_mode(update, context)
+            return
+
+        if data == "career_edit_status":
+            await query.edit_message_text(
+                t("career.edit.change_status", lang),
+                reply_markup=kb_career_status_edit(lang),
+                parse_mode="Markdown",
+            )
+            return
+
+        if data.startswith("career_est_"):
+            new_status = data.replace("career_est_", "")
+            existing = await get_career_profile(user.id)
+            if existing:
+                await upsert_career_profile(
+                    user_id=user.id,
+                    status=new_status,
+                    target_role=existing.get("target_role"),
+                    experience_years=existing.get("experience_years", 0),
+                )
+            await _start_edit_mode(update, context)
+            return
+
+        if data == "career_edit_role":
+            context.user_data["career_edit"] = {"field": "role"}
+            await query.edit_message_text(
+                t("career.edit.enter_role", lang),
+                parse_mode="Markdown",
+            )
+            return
+
+        if data == "career_edit_experience":
+            context.user_data["career_edit"] = {"field": "experience"}
+            await query.edit_message_text(
+                t("career.edit.enter_experience", lang),
+                parse_mode="Markdown",
+            )
+            return
+
         # ── Setup wizard ───────────────────────────────────────────
         if data.startswith("career_st_"):
             status = data.replace("career_st_", "")
@@ -199,16 +294,8 @@ async def career_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 "status": status,
             }
             await query.edit_message_text(
-                "🎯 *Maqsad lavozim*\n\n"
-                "Qaysi lavozimda ishlamoqchisiz?\n\n"
-                "Misollar:\n"
-                "• Frontend Developer\n"
-                "• HR Manager\n"
-                "• Marketing Specialist\n"
-                "• Sotuv menejeri\n"
-                "• Buxgalter\n\n"
-                "Yozing:",
-                reply_markup=kb_career_cancel(),
+                t("career.enter_role", lang),
+                reply_markup=kb_career_cancel(lang),
                 parse_mode="Markdown",
             )
             return
@@ -227,14 +314,7 @@ async def career_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             context.user_data["mode"] = "career"
             context.user_data["career_action"] = "resume"
             await query.edit_message_text(
-                "📝 *Resume yaratish*\n\n"
-                "Resume yozib beraman! Quyidagi ma'lumotlarni *bitta xabarda* yozing:\n\n"
-                "1️⃣ *Ism familiya, telefon, email*\n"
-                "2️⃣ *Ta'lim* (universitet, fakultet, yil)\n"
-                "3️⃣ *Ish tajribasi* (kompaniya, lavozim, yil, asosiy ishlar)\n"
-                "4️⃣ *Ko'nikmalar* (texnik + tillar)\n"
-                "5️⃣ *Loyiha/sertifikatlar* (agar bor bo'lsa)\n\n"
-                "Hammasini erkin shaklda yozing — men professional resume'ga aylantiraman.",
+                t("career.resume_intro", lang),
                 reply_markup=get_back_to_menu_keyboard(lang),
                 parse_mode="Markdown",
             )
@@ -244,14 +324,7 @@ async def career_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             context.user_data["mode"] = "career"
             context.user_data["career_action"] = "review"
             await query.edit_message_text(
-                "🔍 *Resume tahlili*\n\n"
-                "Hozirgi resume'ingizni shu yerga *to'liq* yozing yoki ko'chirib paste qiling.\n\n"
-                "Men quyidagilarga e'tibor beraman:\n"
-                "✓ ATS-friendly emasmi (robot tushunarmi)\n"
-                "✓ Action verb va raqamlar\n"
-                "✓ Format va tuzilish\n"
-                "✓ Yaxshilash kerak bo'lgan joylar\n\n"
-                "Resume'ni yozing:",
+                t("career.review_intro", lang),
                 reply_markup=get_back_to_menu_keyboard(lang),
                 parse_mode="Markdown",
             )
@@ -259,16 +332,15 @@ async def career_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
         if data == "career_interview":
             await query.edit_message_text(
-                "🎤 *Intervyu mashqi*\n\n"
-                "Qaysi turdagi savol bilan boshlaymiz?",
-                reply_markup=kb_interview_type(),
+                t("career.interview.select", lang),
+                reply_markup=kb_interview_type(lang),
                 parse_mode="Markdown",
             )
             return
 
         if data.startswith("career_iq_"):
             qtype = data.replace("career_iq_", "")
-            await query.edit_message_text("⏳ Savol tayyorlanyapti...")
+            await query.edit_message_text(t("career.interview.loading", lang))
             try:
                 question = await _engine.generate_interview_question(profile, qtype, lang)
                 context.user_data["interview_question"] = question
@@ -276,18 +348,18 @@ async def career_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 context.user_data["career_action"] = "interview_answer"
                 await query.edit_message_text(
                     f"{question}\n\n"
-                    "💬 Javobingizni yozing — men professional baholashni beraman.",
+                    f"{t('career.interview.answer_prompt', lang)}",
                     reply_markup=InlineKeyboardMarkup([[
-                        InlineKeyboardButton("⬅️ Orqaga", callback_data="career_back"),
+                        InlineKeyboardButton(t("buttons.back", lang), callback_data="career_back"),
                     ]]),
                     parse_mode="Markdown",
                 )
             except Exception as e:
                 logger.error(f"Interview question error: {e}")
                 await query.edit_message_text(
-                    "Savol tuzib bo'lmadi.",
+                    t("career.interview.error", lang),
                     reply_markup=InlineKeyboardMarkup([[
-                        InlineKeyboardButton("⬅️ Orqaga", callback_data="career_back"),
+                        InlineKeyboardButton(t("buttons.back", lang), callback_data="career_back"),
                     ]]),
                 )
             return
@@ -296,13 +368,7 @@ async def career_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             context.user_data["mode"] = "career"
             context.user_data["career_action"] = "chat"
             await query.edit_message_text(
-                "💬 *Karyera bo'yicha maslahat*\n\n"
-                "Har qanday savolingizni yozing:\n\n"
-                "Misollar:\n"
-                "• \"3 yil tajriba bilan qancha maoshi so'rasam bo'ladi?\"\n"
-                "• \"IT sohaga qanday o'tsam bo'ladi?\"\n"
-                "• \"LinkedIn profilim'ni qanday yaxshilash kerak?\"\n"
-                "• \"Boshliqdan oshirish so'rashning to'g'ri yo'li nima?\"",
+                t("career.chat_intro", lang),
                 reply_markup=get_back_to_menu_keyboard(lang),
                 parse_mode="Markdown",
             )
@@ -312,12 +378,7 @@ async def career_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             context.user_data["mode"] = "career"
             context.user_data["career_action"] = "chat"
             await query.edit_message_text(
-                "💰 *Maosh muzokarasi*\n\n"
-                "Quyidagilardan birini yozing:\n\n"
-                "1. \"Hozir X so'm olaman, oshirish so'rasam bo'ladimi?\"\n"
-                "2. \"Yangi ishga ofer berishdi, qanday kelishaman?\"\n"
-                "3. \"Bozorda mening lavozim qancha to'lanadi?\"\n\n"
-                "Aniq raqamlar va vaziyatni yozsangiz, aniq strategiya beraman.",
+                t("career.salary_intro", lang),
                 reply_markup=get_back_to_menu_keyboard(lang),
                 parse_mode="Markdown",
             )
@@ -327,17 +388,7 @@ async def career_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             context.user_data["mode"] = "career"
             context.user_data["career_action"] = "chat"
             await query.edit_message_text(
-                "📈 *6 oylik karyera rejasi*\n\n"
-                "Aytib bering: hozirda qaysi bosqichdasiz va 6 oydan keyin "
-                "qayerda bo'lishni xohlaysiz?\n\n"
-                "Misol:\n"
-                "_\"Hozir junior frontend, 6 oyda middle bo'lishni xohlayman\"_\n\n"
-                "Men sizga aniq qadamlardan iborat reja tuzib beraman:\n"
-                "• Qaysi ko'nikmani o'rganasiz\n"
-                "• Qaysi loyiha qilasiz\n"
-                "• Qaysi kursni olasiz\n"
-                "• Qachon ish o'zgartirasiz\n\n"
-                "Yozing:",
+                t("career.plan_intro", lang),
                 reply_markup=get_back_to_menu_keyboard(lang),
                 parse_mode="Markdown",
             )
@@ -345,11 +396,10 @@ async def career_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
         if data == "career_setup":
             await query.edit_message_text(
-                "⚙️ *Profilni qayta sozlash*\n\n"
-                "Eski profilni o'chirib, qaytadan boshlaymizmi?",
+                t("career.reset_confirm", lang),
                 reply_markup=InlineKeyboardMarkup([
-                    [InlineKeyboardButton("✅ Ha, qaytadan", callback_data="career_reset_yes")],
-                    [InlineKeyboardButton("❌ Bekor qilish", callback_data="career_back")],
+                    [InlineKeyboardButton(t("career.reset_yes", lang), callback_data="career_reset_yes")],
+                    [InlineKeyboardButton(t("career.reset_cancel", lang), callback_data="career_back")],
                 ]),
                 parse_mode="Markdown",
             )
@@ -364,7 +414,7 @@ async def career_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     except Exception as e:
         logger.error(f"Error in career_callback: {e}")
         try:
-            await query.edit_message_text("Xatolik yuz berdi.")
+            await query.edit_message_text(t("errors.generic", "en"))
         except Exception:
             pass
 
@@ -379,16 +429,61 @@ async def career_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
     setup = context.user_data.get("career_setup")
     text = message.text.strip()
 
+    lang = await user_service.get_user_language(user.id)
+
+    # ── Edit mode: individual field text input ─────────────────────
+    career_edit = context.user_data.get("career_edit", {})
+    if career_edit.get("field") == "role":
+        profile = await get_career_profile(user.id)
+        if not profile:
+            context.user_data.pop("career_edit", None)
+            await career_handler(update, context)
+            return
+        await upsert_career_profile(
+            user_id=user.id,
+            status=profile["status"],
+            target_role=text,
+            experience_years=profile.get("experience_years", 0),
+        )
+        context.user_data.pop("career_edit", None)
+        await message.reply_text(t("career.edit.role_updated", lang))
+        profile = await get_career_profile(user.id)
+        await _show_career_dashboard(update, context, profile, lang, chat=update.effective_chat)
+        return
+
+    if career_edit.get("field") == "experience":
+        try:
+            exp = int(text)
+            if exp < 0 or exp > 60:
+                raise ValueError
+        except ValueError:
+            await message.reply_text(t("career.exp_invalid", lang))
+            return
+        profile = await get_career_profile(user.id)
+        if not profile:
+            context.user_data.pop("career_edit", None)
+            await career_handler(update, context)
+            return
+        await upsert_career_profile(
+            user_id=user.id,
+            status=profile["status"],
+            target_role=profile.get("target_role"),
+            experience_years=exp,
+        )
+        context.user_data.pop("career_edit", None)
+        await message.reply_text(t("career.edit.exp_updated", lang))
+        profile = await get_career_profile(user.id)
+        await _show_career_dashboard(update, context, profile, lang, chat=update.effective_chat)
+        return
+
     # ── Wizard: target_role step ───────────────────────────────────
     if setup and setup.get("step") == "target_role":
         setup["target_role"] = text
         setup["step"] = "experience"
         context.user_data["career_setup"] = setup
         await message.reply_text(
-            "⏱ *Tajribangiz necha yil?*\n\n"
-            "Faqat raqam kiriting (masalan: `0`, `2`, `5`).\n"
-            "Talaba yoki bitiruvchi bo'lsangiz `0` yozing.",
-            reply_markup=kb_career_cancel(),
+            t("career.enter_exp", lang),
+            reply_markup=kb_career_cancel(lang),
             parse_mode="Markdown",
         )
         return
@@ -400,12 +495,11 @@ async def career_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
                 raise ValueError
         except ValueError:
             await message.reply_text(
-                "❌ Iltimos, 0 dan 60 gacha bo'lgan raqam kiriting.",
-                reply_markup=kb_career_cancel(),
+                t("career.exp_invalid", lang),
+                reply_markup=kb_career_cancel(lang),
             )
             return
 
-        # Save profile
         await upsert_career_profile(
             user_id=user.id,
             status=setup["status"],
@@ -413,11 +507,9 @@ async def career_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
             experience_years=exp,
         )
         context.user_data.pop("career_setup", None)
-        lang = await user_service.get_user_language(user.id)
         profile = await get_career_profile(user.id)
         await message.reply_text(
-            "✅ *Profilingiz tayyor!*\n\n"
-            "Endi men sizning shaxsiy karyera koachingizman. Qani boshlaymiz!",
+            t("career.setup_done", lang),
             parse_mode="Markdown",
         )
         await _show_career_dashboard(update, context, profile, lang, chat=update.effective_chat)
@@ -429,10 +521,8 @@ async def career_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     profile = await get_career_profile(user.id)
     if not profile:
-        await message.reply_text("Avval karyera profilini sozlang. /career")
+        await message.reply_text(t("career.no_profile", lang))
         return
-
-    lang = await user_service.get_user_language(user.id)
 
     # Free-tier limit
     if not await is_premium_active(user.id):
@@ -450,12 +540,16 @@ async def career_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
         await message.chat.send_action("typing")
 
         if action == "resume":
-            await message.reply_text("⏳ Resume yarataman, biroz kuting...")
+            await message.reply_text(t("career.resume_loading", lang))
             response = await _engine.generate_resume(profile, text, lang)
-            # Save the generated resume
             await upsert_career_profile(
                 user_id=user.id,
                 status=profile["status"],
+                target_role=profile.get("target_role"),
+                industry=profile.get("industry"),
+                experience_years=profile.get("experience_years", 0),
+                skills=profile.get("skills"),
+                languages=profile.get("languages"),
                 resume_text=response,
             )
             await message.reply_text(
@@ -466,11 +560,11 @@ async def career_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
             context.user_data.pop("career_action", None)
 
         elif action == "review":
-            await message.reply_text("🔍 Resume'ni tahlil qilyapman...")
+            await message.reply_text(t("career.review_loading", lang))
             history = await _memory.get_history(user.id, "career")
-            await _memory.add_message(user.id, "career", "user", f"Mening resume'im:\n{text}\n\nTahlil qiling.")
+            await _memory.add_message(user.id, "career", "user", f"My resume:\n{text}\n\nPlease analyze it.")
             response = await _engine.process(
-                message=f"Mening resume'im:\n{text}\n\nProfessional tahlil qiling: kuchli tomonlari, kamchiliklari, yaxshilash uchun aniq misollar.",
+                message=f"My resume:\n{text}\n\nPlease provide a professional analysis: strengths, weaknesses, and specific improvement suggestions.",
                 history=history,
                 context={"lang": lang, "career_profile": profile},
             )
@@ -483,13 +577,13 @@ async def career_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
 
         elif action == "interview_answer":
             question = context.user_data.get("interview_question", "")
-            await message.reply_text("🎯 Javobingizni baholayapman...")
+            await message.reply_text(t("career.interview.evaluating", lang))
             response = await _engine.evaluate_interview_answer(profile, question, text, lang)
             await message.reply_text(
                 response,
                 reply_markup=InlineKeyboardMarkup([
-                    [InlineKeyboardButton("🎤 Yana savol", callback_data="career_interview")],
-                    [InlineKeyboardButton("⬅️ Orqaga", callback_data="career_back")],
+                    [InlineKeyboardButton(t("career.interview.another", lang), callback_data="career_interview")],
+                    [InlineKeyboardButton(t("buttons.back", lang), callback_data="career_back")],
                 ]),
                 parse_mode="Markdown",
             )
@@ -510,4 +604,4 @@ async def career_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
         await increment_ai_usage(user.id)
     except Exception as e:
         logger.error(f"Career action error: {e}")
-        await message.reply_text("Texnik xatolik. Qaytadan urinib ko'ring.")
+        await message.reply_text(t("errors.generic", lang))

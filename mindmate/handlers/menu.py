@@ -1,5 +1,5 @@
 """
-Menu handler — clean routing for the new 4-button main menu + Profile sub-menu.
+Menu handler — routing for the main menu.
 """
 import logging
 
@@ -10,13 +10,9 @@ from mindmate.services.user_service import user_service
 from mindmate.ui.keyboards import (
     get_main_menu_keyboard,
     get_profile_menu_keyboard,
-    get_mood_keyboard,
-    get_journal_keyboard,
-    get_reminders_keyboard,
-    get_stats_keyboard,
     get_settings_keyboard,
     get_premium_keyboard,
-    get_back_to_menu_keyboard,
+    get_back_to_profile_keyboard,
 )
 from mindmate.i18n import t
 
@@ -27,13 +23,15 @@ def _clear_state(context: ContextTypes.DEFAULT_TYPE) -> None:
     """Clear all transient state when navigating menus."""
     for key in (
         "mode",
-        "waiting_for_journal",
-        "waiting_for_reminder",
         "exam_setup",
+        "exam_edit",
         "career_setup",
+        "career_edit",
         "career_action",
         "interview_question",
         "last_practice_question",
+        "friends_setup",
+        "friends_pref_age",
     ):
         context.user_data.pop(key, None)
 
@@ -67,7 +65,6 @@ async def main_menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
         _clear_state(context)
 
-        # ── Main 4 buttons ──
         if data == "menu_main":
             await query.edit_message_text(
                 text=t("menu.main_menu", lang),
@@ -103,43 +100,18 @@ async def main_menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
             from mindmate.handlers.profile import profile_callback
             await profile_callback(update, context)
 
-        # ── Inside Profile ──
-        elif data == "menu_mood":
-            await query.edit_message_text(
-                text=t("mood.select", lang),
-                reply_markup=get_mood_keyboard(lang),
-            )
-
-        elif data == "menu_journal":
-            await query.edit_message_text(
-                text=t("journal.welcome", lang),
-                reply_markup=get_journal_keyboard(lang),
-            )
-
-        elif data == "menu_reminders":
-            await query.edit_message_text(
-                text=t("reminders.welcome", lang),
-                reply_markup=get_reminders_keyboard(lang),
-            )
-
-        elif data == "menu_stats":
-            await query.edit_message_text(
-                text=t("stats.welcome", lang),
-                reply_markup=get_stats_keyboard(lang),
-            )
-
         elif data == "menu_healer":
             context.user_data["mode"] = "healer"
             await query.edit_message_text(
                 text=t("healer.welcome", lang),
-                reply_markup=get_back_to_menu_keyboard(lang),
+                reply_markup=get_back_to_profile_keyboard(lang),
             )
 
         elif data == "menu_productivity":
             context.user_data["mode"] = "productivity"
             await query.edit_message_text(
                 text=t("productivity.welcome", lang),
-                reply_markup=get_back_to_menu_keyboard(lang),
+                reply_markup=get_back_to_profile_keyboard(lang),
             )
 
         elif data == "menu_settings":

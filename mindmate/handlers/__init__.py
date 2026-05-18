@@ -1,44 +1,46 @@
 """
 Handlers module - Telegram bot command and callback handlers.
 """
-from mindmate.handlers.start import start_handler, language_callback, setup_callback
-from mindmate.handlers.menu import menu_handler, main_menu_callback
-from mindmate.handlers.mood import mood_handler, mood_callback, save_mood_handler
-from mindmate.handlers.healer import healer_handler, healer_message_handler
-from mindmate.handlers.journal import journal_handler, journal_callback, save_journal_handler
-from mindmate.handlers.productivity import productivity_handler, productivity_message_handler
-from mindmate.handlers.stats import stats_handler, stats_callback
-from mindmate.handlers.reminders import (
-    reminders_handler,
-    reminders_callback,
-    reminder_text_handler,
+from mindmate.handlers.start import (
+    start_handler,
+    language_callback,
+    setup_callback,
+    cancel_handler,
 )
+from mindmate.handlers.menu import menu_handler, main_menu_callback
+from mindmate.handlers.healer import healer_handler, healer_message_handler
+from mindmate.handlers.productivity import productivity_handler, productivity_message_handler
 from mindmate.handlers.settings import settings_handler, settings_callback
 from mindmate.handlers.premium import premium_handler, premium_callback
 from mindmate.handlers.exam import exam_handler, exam_callback, exam_text_handler
 from mindmate.handlers.career import career_handler, career_callback, career_text_handler
+from mindmate.handlers.profile import profile_handler, profile_callback, profile_action_callback
+from mindmate.handlers.friends import (
+    friends_handler,
+    friends_callback,
+    friends_text_handler,
+    friends_photo_handler,
+)
+from mindmate.handlers.legal import privacy_handler, terms_handler, legal_callback
+from mindmate.handlers.admin import stats_admin_handler
+from mindmate.handlers.payments import (
+    buy_premium_handler,
+    buy_callback,
+    precheckout_handler,
+    successful_payment_handler,
+)
 
 __all__ = [
     "start_handler",
     "language_callback",
     "setup_callback",
+    "cancel_handler",
     "menu_handler",
     "main_menu_callback",
-    "mood_handler",
-    "mood_callback",
-    "save_mood_handler",
     "healer_handler",
     "healer_message_handler",
-    "journal_handler",
-    "journal_callback",
-    "save_journal_handler",
     "productivity_handler",
     "productivity_message_handler",
-    "stats_handler",
-    "stats_callback",
-    "reminders_handler",
-    "reminders_callback",
-    "reminder_text_handler",
     "settings_handler",
     "settings_callback",
     "premium_handler",
@@ -49,4 +51,19 @@ __all__ = [
     "career_handler",
     "career_callback",
     "career_text_handler",
+    "profile_handler",
+    "profile_callback",
+    "profile_action_callback",
+    "friends_handler",
+    "friends_callback",
+    "friends_text_handler",
+    "friends_photo_handler",
+    "privacy_handler",
+    "terms_handler",
+    "legal_callback",
+    "stats_admin_handler",
+    "buy_premium_handler",
+    "buy_callback",
+    "precheckout_handler",
+    "successful_payment_handler",
 ]

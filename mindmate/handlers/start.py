@@ -34,7 +34,9 @@ def _clear_all_wizard_state(context: ContextTypes.DEFAULT_TYPE) -> None:
         "waiting_for_journal",
         "waiting_for_reminder",
         "exam_setup",
+        "exam_edit",
         "career_setup",
+        "career_edit",
         "career_action",
         "interview_question",
         "last_practice_question",
@@ -76,7 +78,7 @@ async def start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
             try:
                 greeting = t(greeting_key, lang).format(name=name)
             except Exception:
-                greeting = f"👋 {name}, qaytib kelganingizdan xursandman!"
+                greeting = f"👋 {name}!"
 
             await message.reply_text(
                 greeting,
@@ -112,6 +114,8 @@ async def language_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         lang = raw_lang if raw_lang in SUPPORTED_LANGUAGES else DEFAULT_LANGUAGE
 
         await user_service.set_user_language(user.id, lang)
+        # Invalidate the session-level language cache so next requests use the new lang
+        context.user_data.pop("_cached_lang", None)
 
         await query.edit_message_text(
             text=t("setup.complete", lang),
@@ -155,12 +159,13 @@ async def cancel_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     message = update.message
     try:
         _clear_all_wizard_state(context)
+        context.user_data.pop("_cached_lang", None)
         lang = await user_service.get_user_language(user.id)
         await message.reply_text(
-            "✅ Bekor qilindi.\n\n" + t("menu.main_menu", lang),
+            t("general.cancel_done", lang) + "\n\n" + t("menu.main_menu", lang),
             reply_markup=get_main_menu_keyboard(lang),
             parse_mode="Markdown",
         )
     except Exception as e:
         logger.error(f"Error in cancel_handler: {e}")
-        await message.reply_text("Bekor qilindi.")
+        await message.reply_text(t("general.cancel_done", "en"))

@@ -4,8 +4,11 @@ Core AI functionality — supports OpenAI (ChatGPT) and Anthropic (Claude).
 Switch providers via the AI_PROVIDER env var ("openai" or "anthropic").
 The handler/engine code never changes — only this file knows the provider.
 """
+import asyncio
 import logging
 from typing import List, Dict, Any, Optional
+
+_RETRY_DELAYS = (1, 2)  # 3 total attempts
 
 from mindmate.core.config import settings
 
@@ -58,20 +61,26 @@ class AICore:
         temperature: Optional[float] = None,
         max_tokens: Optional[int] = None,
     ) -> str:
-        """Generate a response from whichever provider is configured."""
-        try:
-            if self.provider == "anthropic":
-                return await self._generate_anthropic(
+        """Generate a response with automatic retry on transient failures."""
+        last_exc: Exception = RuntimeError("unreachable")
+        for delay in (0, *_RETRY_DELAYS):
+            if delay:
+                await asyncio.sleep(delay)
+            try:
+                if self.provider == "anthropic":
+                    return await self._generate_anthropic(
+                        system_prompt, user_message, conversation_history,
+                        temperature, max_tokens,
+                    )
+                return await self._generate_openai(
                     system_prompt, user_message, conversation_history,
                     temperature, max_tokens,
                 )
-            return await self._generate_openai(
-                system_prompt, user_message, conversation_history,
-                temperature, max_tokens,
-            )
-        except Exception as e:
-            logger.error(f"Error generating AI response ({self.provider}): {e}")
-            return "I encountered an error while processing your message. Please try again later."
+            except Exception as exc:
+                last_exc = exc
+                logger.warning("generate_response failed (retrying): %s", exc)
+        logger.error(f"generate_response gave up after retries ({self.provider}): {last_exc}")
+        return "Texnik xatolik. Qaytadan urinib ko'ring."
 
     # ─────────────────────────────────────────────────────────────────
     # Anthropic (Claude)

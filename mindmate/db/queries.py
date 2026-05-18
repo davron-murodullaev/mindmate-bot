@@ -51,6 +51,12 @@ async def update_user_timezone(user_id: int, timezone: str) -> None:
     await execute_query(query, timezone, user_id)
 
 
+async def update_user_active_status(user_id: int, is_active: bool) -> None:
+    """Mark a user as active or inactive (e.g. when they block the bot)."""
+    query = "UPDATE users SET is_active = $1 WHERE user_id = $2"
+    await execute_query(query, is_active, user_id)
+
+
 async def delete_user_data(user_id: int) -> None:
     """Delete all user-related data (CASCADE handles related tables)."""
     query = "DELETE FROM users WHERE user_id = $1"
@@ -403,12 +409,15 @@ async def upsert_career_profile(
     status: str,
     target_role: Optional[str] = None,
     industry: Optional[str] = None,
-    experience_years: int = 0,
+    experience_years: Optional[int] = None,
     skills: Optional[List[str]] = None,
     languages: Optional[List[str]] = None,
     resume_text: Optional[str] = None,
 ) -> None:
-    """Create or update a user's career profile."""
+    """Create or update a user's career profile.
+
+    Optional fields that are None are preserved on UPDATE (not overwritten).
+    """
     query = """
         INSERT INTO career_profiles
             (user_id, status, target_role, industry, experience_years,
@@ -418,15 +427,15 @@ async def upsert_career_profile(
         SET status = EXCLUDED.status,
             target_role = COALESCE(EXCLUDED.target_role, career_profiles.target_role),
             industry = COALESCE(EXCLUDED.industry, career_profiles.industry),
-            experience_years = EXCLUDED.experience_years,
-            skills = EXCLUDED.skills,
-            languages = EXCLUDED.languages,
+            experience_years = COALESCE(EXCLUDED.experience_years, career_profiles.experience_years),
+            skills = COALESCE(EXCLUDED.skills, career_profiles.skills),
+            languages = COALESCE(EXCLUDED.languages, career_profiles.languages),
             resume_text = COALESCE(EXCLUDED.resume_text, career_profiles.resume_text),
             updated_at = CURRENT_TIMESTAMP
     """
     await execute_query(
         query, user_id, status, target_role, industry,
-        experience_years, skills or [], languages or [], resume_text,
+        experience_years, skills, languages, resume_text,
     )
 
 
