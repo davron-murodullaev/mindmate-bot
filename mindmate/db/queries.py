@@ -435,10 +435,7 @@ async def upsert_career_profile(
     """
     await execute_query(
         query, user_id, status, target_role, industry,
-        experience_years if experience_years is not None else 0,
-        skills if skills is not None else [],
-        languages if languages is not None else [],
-        resume_text,
+        experience_years, skills, languages, resume_text,
     )
 
 
