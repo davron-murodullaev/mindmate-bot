@@ -435,13 +435,16 @@ async def career_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
     career_edit = context.user_data.get("career_edit", {})
     if career_edit.get("field") == "role":
         profile = await get_career_profile(user.id)
-        if profile:
-            await upsert_career_profile(
-                user_id=user.id,
-                status=profile["status"],
-                target_role=text,
-                experience_years=profile.get("experience_years", 0),
-            )
+        if not profile:
+            context.user_data.pop("career_edit", None)
+            await career_handler(update, context)
+            return
+        await upsert_career_profile(
+            user_id=user.id,
+            status=profile["status"],
+            target_role=text,
+            experience_years=profile.get("experience_years", 0),
+        )
         context.user_data.pop("career_edit", None)
         await message.reply_text(t("career.edit.role_updated", lang))
         profile = await get_career_profile(user.id)
@@ -457,13 +460,16 @@ async def career_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
             await message.reply_text(t("career.exp_invalid", lang))
             return
         profile = await get_career_profile(user.id)
-        if profile:
-            await upsert_career_profile(
-                user_id=user.id,
-                status=profile["status"],
-                target_role=profile.get("target_role"),
-                experience_years=exp,
-            )
+        if not profile:
+            context.user_data.pop("career_edit", None)
+            await career_handler(update, context)
+            return
+        await upsert_career_profile(
+            user_id=user.id,
+            status=profile["status"],
+            target_role=profile.get("target_role"),
+            experience_years=exp,
+        )
         context.user_data.pop("career_edit", None)
         await message.reply_text(t("career.edit.exp_updated", lang))
         profile = await get_career_profile(user.id)
