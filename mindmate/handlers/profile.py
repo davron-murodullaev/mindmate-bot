@@ -15,6 +15,7 @@ from mindmate.db.queries import (
     get_exam_profile,
     get_career_profile,
     get_friend_profile,
+    get_photo_verification,
 )
 from mindmate.ui.keyboards import get_profile_menu_keyboard
 from mindmate.i18n import t
@@ -112,7 +113,9 @@ async def _build_profile_text(user_id: int, first_name: str, lang: str) -> str:
         from mindmate.core.constants import FRIEND_LOOKING_OPTIONS
         lf_key = friends.get("looking_for", "")
         looking = t(f"friends.looking_for.{lf_key}", lang) if lf_key in FRIEND_LOOKING_OPTIONS else "–"
-        verified_str = t("profile.verified", lang) if friends.get("is_verified") else t("profile.pending_verify", lang)
+        verification = await get_photo_verification(user_id)
+        is_verified = bool(verification and verification.get("is_verified"))
+        verified_str = t("profile.verified", lang) if is_verified else t("profile.pending_verify", lang)
         lines.append(f"💝 *{t('menu.friends', lang)}:* {friends['display_name']} · {verified_str}")
         lines.append(f"   {t('profile.friends_detail.goal', lang)}: {looking}")
 
@@ -300,7 +303,9 @@ async def profile_view_friends(update: Update, context: ContextTypes.DEFAULT_TYP
             for i in interests[:5]
         )
         bio = friends.get("bio") or no_entry
-        verified = t("profile.verified", lang) if friends.get("is_verified") else t("profile.pending_verify", lang)
+        verification = await get_photo_verification(user.id)
+        is_verified = bool(verification and verification.get("is_verified"))
+        verified = t("profile.verified", lang) if is_verified else t("profile.pending_verify", lang)
         active = t("profile.visible", lang) if friends.get("is_active") else t("profile.hidden", lang)
 
         d = "profile.friends_detail"
