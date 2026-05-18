@@ -12,8 +12,6 @@ from mindmate.i18n import t
 
 logger = logging.getLogger(__name__)
 
-_CACHE_LANG_KEY = "_cached_lang"
-
 
 def _privacy_kb(lang: str) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup([
@@ -31,8 +29,9 @@ def _terms_kb(lang: str) -> InlineKeyboardMarkup:
 
 async def privacy_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """/privacy command — show full privacy policy."""
+    user = update.effective_user
     message = update.message
-    lang = context.user_data.get(_CACHE_LANG_KEY, "en")
+    lang = await user_service.get_user_language(user.id)
     try:
         await message.reply_text(
             t("legal.privacy_text", lang),
@@ -46,8 +45,9 @@ async def privacy_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
 async def terms_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """/terms command — show full terms of service."""
+    user = update.effective_user
     message = update.message
-    lang = context.user_data.get(_CACHE_LANG_KEY, "en")
+    lang = await user_service.get_user_language(user.id)
     try:
         await message.reply_text(
             t("legal.terms_text", lang),
@@ -62,7 +62,7 @@ async def terms_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 async def legal_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle legal_* callbacks (switch between privacy and terms views)."""
     query = update.callback_query
-    lang = context.user_data.get(_CACHE_LANG_KEY, "en")
+    lang = await user_service.get_user_language(query.from_user.id)
     try:
         await query.answer()
         data = query.data or ""

@@ -373,6 +373,7 @@ TRANSLATIONS = {
         "btn_full_edit": "✏️ Полное редактирование",
         "btn_clear_photos": "🗑 Начать заново",
         "btn_confirm_photos": "✅ Подтвердить ({count}/{max} фото)",
+        "btn_confirm_interests": "✅ Подтвердить ({count}/{max} интересов)",
         "btn_gender_male": "👨 Мужчина",
         "btn_gender_female": "👩 Женщина",
         "btn_gender_any": "🌈 Все",

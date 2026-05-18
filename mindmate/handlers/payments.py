@@ -24,8 +24,6 @@ from mindmate.i18n.loader import t
 
 logger = logging.getLogger(__name__)
 
-_CACHE_LANG_KEY = "_cached_lang"
-
 # Plan configuration: (plan_id, days, price_in_stars)
 PLANS = [
     ("premium_1m", 30, 100),   # 100 Stars ≈ $1.99
@@ -62,7 +60,7 @@ async def buy_premium_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
     """/buy_premium command — show available plans."""
     user = update.effective_user
     message = update.message
-    lang = context.user_data.get(_CACHE_LANG_KEY, "en")
+    lang = await user_service.get_user_language(user.id)
     try:
         if await is_premium_active(user.id):
             sub = await get_subscription(user.id)
@@ -90,7 +88,7 @@ async def buy_premium_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
 async def buy_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """User picked a plan — send a Telegram Stars invoice."""
     query = update.callback_query
-    lang = context.user_data.get(_CACHE_LANG_KEY, "en")
+    lang = await user_service.get_user_language(query.from_user.id)
     try:
         await query.answer()
         data = query.data or ""
@@ -129,12 +127,12 @@ async def buy_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 async def precheckout_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Telegram asks before charging — we always approve (validation already done)."""
     query = update.pre_checkout_query
-    lang = context.user_data.get(_CACHE_LANG_KEY, "en")
     try:
         await query.answer(ok=True)
     except Exception as e:
         logger.error(f"Pre-checkout error: {e}")
         try:
+            lang = await user_service.get_user_language(query.from_user.id)
             await query.answer(ok=False, error_message=t("payments.technical_error", lang))
         except Exception:
             pass
@@ -144,7 +142,7 @@ async def successful_payment_handler(update: Update, context: ContextTypes.DEFAU
     """Payment confirmed — extend the user's subscription."""
     user = update.effective_user
     message = update.message
-    lang = context.user_data.get(_CACHE_LANG_KEY, "en")
+    lang = await user_service.get_user_language(user.id)
     try:
         payment = message.successful_payment
         plan_id = payment.invoice_payload

@@ -376,6 +376,7 @@ TRANSLATIONS = {
         "btn_full_edit": "✏️ To'liq tahrirlash",
         "btn_clear_photos": "🗑 Boshqatdan boshlash",
         "btn_confirm_photos": "✅ Tasdiqlash ({count}/{max} rasm)",
+        "btn_confirm_interests": "✅ Tasdiqlash ({count}/{max} qiziqish)",
         "btn_gender_male": "👨 Erkak",
         "btn_gender_female": "👩 Ayol",
         "btn_gender_any": "🌈 Hammasi",

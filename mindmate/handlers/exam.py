@@ -258,12 +258,13 @@ async def _show_exam_dashboard(
     if not subjects_str:
         subjects_str = f"_{t('profile.no_entry', lang)}_"
 
+    level_key = profile.get("current_level", "intermediate")
     text = (
         f"{t('exam.dashboard_title', lang)}\n\n"
         f"{t('profile.exam_detail.exam_type', lang)}: {t(f'exam.type.{exam_type}', lang)}\n"
         f"{t('profile.exam_detail.subjects', lang)}: {subjects_str}"
         f"{days_left}\n"
-        f"{t('profile.exam_detail.level', lang)}: {t(f'exam.level.{profile.get(\"current_level\", \"intermediate\")}', lang)}\n\n"
+        f"{t('profile.exam_detail.level', lang)}: {t(f'exam.level.{level_key}', lang)}\n\n"
         f"{t('exam.dashboard_prompt', lang)}"
     )
 

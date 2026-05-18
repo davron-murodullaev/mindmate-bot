@@ -185,9 +185,7 @@ def kb_interests(selected: list, lang: str = "uz") -> InlineKeyboardMarkup:
     if row:
         rows.append(row)
     rows.append([InlineKeyboardButton(
-        t("friends.btn_confirm_photos", lang).format(count=len(selected), max=FRIEND_MAX_INTERESTS)
-        if False else  # use a dedicated confirm key
-        f"✅ ({len(selected)} {t('buttons.confirm', lang).lower()})",
+        t("friends.btn_confirm_interests", lang).format(count=len(selected), max=FRIEND_MAX_INTERESTS),
         callback_data="friends_i_done",
     )])
     rows.append([InlineKeyboardButton(t("buttons.cancel", lang), callback_data="friends_wizard_cancel")])

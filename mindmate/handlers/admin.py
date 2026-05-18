@@ -16,14 +16,12 @@ from mindmate.i18n.loader import t
 
 logger = logging.getLogger(__name__)
 
-_CACHE_LANG_KEY = "_cached_lang"
-
 
 async def stats_admin_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """/stats — admin-only summary of bot usage."""
     user = update.effective_user
     message = update.message
-    lang = context.user_data.get(_CACHE_LANG_KEY, "en")
+    lang = await user_service.get_user_language(user.id)
 
     if not settings.is_admin(user.id):
         await message.reply_text(t("admin.no_access", lang))
