@@ -245,16 +245,23 @@ async def voice_dispatcher(update, context):
 
 
 def _start_api_server() -> None:
-    """Run the FastAPI Mini App server in a daemon thread with its own event loop."""
+    """Run the FastAPI Mini App server in a daemon thread with its own event loop.
+
+    Binds to the platform-provided ``$PORT`` (Render/Heroku/Railway set this
+    automatically for web services); falls back to ``API_PORT`` for local runs.
+    """
+    import os
     import asyncio
     import uvicorn
+
+    port = int(os.environ.get("PORT", settings.API_PORT))
 
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     config = uvicorn.Config(
         "mindmate.api.server:app",
         host="0.0.0.0",
-        port=settings.API_PORT,
+        port=port,
         log_level="warning",
         loop="asyncio",
     )

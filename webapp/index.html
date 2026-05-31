@@ -7,843 +7,889 @@
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <style>
 :root {
-  --bg: #1c1c1e;
-  --secondary-bg: #2c2c2e;
+  --bg: #18181b;
+  --card: rgba(255,255,255,0.06);
+  --card-solid: #27272a;
   --text: #ffffff;
-  --hint: #8e8e93;
-  --link: #0a84ff;
-  --btn: #0a84ff;
-  --btn-text: #ffffff;
-  --radius: 16px;
-  --nav-h: 68px;
+  --text2: rgba(255,255,255,0.5);
+  --border: rgba(255,255,255,0.08);
+  --accent: #0A84FF;
+  --accent2: #5856D6;
+  --green: #30D158;
+  --orange: #FF9F0A;
+  --red: #FF3B30;
+  --purple: #AF52DE;
+  --r: 18px;
+  --r-sm: 12px;
+  --nav-h: 72px;
+  --safe: env(safe-area-inset-bottom, 0px);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html{height:100%}
+body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text','Segoe UI',sans-serif;background:var(--bg);color:var(--text);overflow:hidden}
+
+/* NAV */
+.nav{
+  position:fixed;bottom:0;left:0;right:0;z-index:100;
+  height:calc(var(--nav-h) + var(--safe));
+  padding-bottom:var(--safe);
+  background:rgba(24,24,27,.94);
+  backdrop-filter:blur(24px) saturate(180%);
+  -webkit-backdrop-filter:blur(24px) saturate(180%);
+  border-top:1px solid var(--border);
+  display:flex;align-items:stretch;
+}
+.nav-btn{
+  flex:1;border:none;background:none;cursor:pointer;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  color:var(--text2);transition:color .2s;padding:8px 4px;gap:4px;position:relative;
+}
+.nav-btn.active{color:var(--accent)}
+.nav-btn svg{width:24px;height:24px;flex-shrink:0}
+.nav-label{font-size:10px;font-weight:600;letter-spacing:.2px}
+.nav-dot{
+  position:absolute;top:8px;right:calc(50% - 14px);
+  width:7px;height:7px;border-radius:50%;
+  background:var(--red);border:2px solid var(--bg);display:none;
+}
+.nav-dot.show{display:block}
+
+/* PAGES */
+.page{
+  position:absolute;inset:0 0 var(--nav-h) 0;
+  overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;
+  display:none;opacity:0;transform:translateY(8px);
+  transition:opacity .22s ease,transform .22s ease;
+  padding-bottom:20px;
+}
+.page.active{display:block;opacity:1;transform:translateY(0)}
+.page::-webkit-scrollbar{display:none}
+.page{-ms-overflow-style:none;scrollbar-width:none}
+
+/* HEADER */
+.hdr{
+  position:sticky;top:0;z-index:50;
+  padding:16px 20px 12px;
+  background:rgba(24,24,27,.94);
+  backdrop-filter:blur(24px) saturate(180%);
+  -webkit-backdrop-filter:blur(24px) saturate(180%);
+  border-bottom:1px solid var(--border);
+  display:flex;align-items:center;gap:12px;
+}
+.hdr-title{flex:1;font-size:22px;font-weight:800;letter-spacing:-.5px}
+.badge-premium{
+  display:inline-flex;align-items:center;gap:4px;
+  background:linear-gradient(135deg,#FFD700,#FF8C00);
+  color:#000;padding:4px 10px;border-radius:20px;
+  font-size:11px;font-weight:800;letter-spacing:.3px;
 }
 
-* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-html, body { height: 100%; background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif; }
-
-body { padding-bottom: var(--nav-h); overflow-x: hidden; }
-
-/* ── NAV ── */
-.nav {
-  position: fixed; bottom: 0; left: 0; right: 0; z-index: 100;
-  background: var(--secondary-bg);
-  border-top: 1px solid rgba(255,255,255,0.08);
-  display: flex;
-  padding-bottom: env(safe-area-inset-bottom, 0px);
-  height: var(--nav-h);
+/* CARDS */
+.card{
+  background:var(--card);border:1px solid var(--border);
+  border-radius:var(--r);padding:16px;margin:0 16px 10px;
 }
-.nav-btn {
-  flex: 1; border: none; background: none; cursor: pointer;
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
-  color: var(--hint); transition: color .15s;
-  padding: 8px 2px 4px;
-  gap: 3px;
-}
-.nav-btn.active { color: var(--btn); }
-.nav-btn svg { width: 22px; height: 22px; flex-shrink: 0; }
-.nav-label { font-size: 10px; font-weight: 500; }
+.card.solid{background:var(--card-solid)}
+.card-tap{cursor:pointer;transition:transform .12s,opacity .12s}
+.card-tap:active{transform:scale(.98);opacity:.85}
 
-/* ── PAGES ── */
-.page { display: none; padding: 0 16px 16px; }
-.page.active { display: block; }
-
-/* ── HEADER ── */
-.hdr { padding: 20px 16px 8px; display: flex; align-items: center; justify-content: space-between; }
-.hdr-title { font-size: 26px; font-weight: 700; letter-spacing: -0.5px; }
-.badge-premium {
-  background: linear-gradient(135deg, #FFD700, #FF8C00);
-  color: #000; padding: 3px 10px; border-radius: 20px;
-  font-size: 11px; font-weight: 700;
+/* ICON BOX */
+.icon-box{
+  width:46px;height:46px;border-radius:14px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:24px;flex-shrink:0;
 }
 
-/* ── CARDS ── */
-.card {
-  background: var(--secondary-bg);
-  border-radius: var(--radius);
-  padding: 16px;
-  margin-bottom: 10px;
-}
-.card-row { display: flex; align-items: center; gap: 12px; }
-.card-icon {
-  width: 42px; height: 42px; border-radius: 12px;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 22px; flex-shrink: 0;
-}
-.card-info { flex: 1; min-width: 0; }
-.card-title { font-size: 16px; font-weight: 600; }
-.card-sub { font-size: 13px; color: var(--hint); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.chevron { color: var(--hint); font-size: 18px; flex-shrink: 0; }
-
-/* ── SECTION TITLE ── */
-.section { font-size: 18px; font-weight: 700; margin: 20px 0 10px; letter-spacing: -0.3px; }
-
-/* ── STAT ROW ── */
-.stat-row { display: flex; gap: 8px; margin-bottom: 10px; }
-.stat-box {
-  flex: 1; background: var(--secondary-bg);
-  border-radius: 14px; padding: 14px 12px; text-align: center;
-}
-.stat-val { font-size: 26px; font-weight: 800; line-height: 1; }
-.stat-lbl { font-size: 11px; color: var(--hint); margin-top: 4px; }
-
-/* ── STREAK DOTS ── */
-.streak-row { display: flex; gap: 6px; justify-content: space-between; margin-top: 10px; }
-.s-day {
-  flex: 1; height: 32px; border-radius: 8px;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 10px; font-weight: 600; color: var(--hint);
-  background: rgba(255,255,255,0.07);
-}
-.s-day.done { background: var(--btn); color: #fff; }
-.s-day.today { border: 2px solid var(--btn); color: var(--text); background: rgba(10,132,255,.12); }
-
-/* ── BUTTON ── */
-.btn {
-  background: var(--btn); color: var(--btn-text);
-  border: none; border-radius: 13px;
-  padding: 13px 20px; font-size: 15px; font-weight: 600;
-  width: 100%; cursor: pointer; margin-top: 10px;
-  transition: opacity .15s;
-}
-.btn:active { opacity: .75; }
-.btn.secondary { background: rgba(255,255,255,0.08); color: var(--text); }
-.btn.gold { background: linear-gradient(135deg, #FFD700, #FF8C00); color: #000; }
-
-/* ── TAG PILL ── */
-.tag { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 500; margin: 2px; }
-.tag.green { background: rgba(48,209,88,.18); color: #30d158; }
-.tag.orange { background: rgba(255,159,10,.18); color: #ff9f0a; }
-.tag.blue { background: rgba(10,132,255,.18); color: #0a84ff; }
-.tag.gray { background: rgba(255,255,255,.08); color: var(--hint); }
-
-/* ── PROGRESS BAR ── */
-.prog-bar { height: 6px; background: rgba(255,255,255,0.1); border-radius: 3px; margin-top: 8px; overflow: hidden; }
-.prog-fill { height: 100%; background: var(--btn); border-radius: 3px; transition: width .5s ease; }
-
-/* ── SWIPE AREA ── */
-.swipe-wrap { position: relative; height: 430px; margin-bottom: 14px; }
-.swipe-card {
-  position: absolute; inset: 0;
-  background: var(--secondary-bg); border-radius: var(--radius);
-  overflow: hidden; user-select: none; touch-action: pan-y;
-  transition: transform .25s ease, opacity .25s ease;
-  will-change: transform;
-}
-.swipe-photo {
-  width: 100%; height: 270px; object-fit: cover;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 90px;
-}
-.swipe-photo.placeholder { background: linear-gradient(135deg, #5856d6, #af52de); }
-.swipe-info { padding: 14px 16px; }
-.swipe-name { font-size: 22px; font-weight: 700; }
-.swipe-meta { font-size: 14px; color: var(--hint); margin-top: 3px; }
-.swipe-bio { font-size: 13px; color: var(--hint); margin-top: 8px; line-height: 1.4; }
-.swipe-tags { display: flex; flex-wrap: wrap; margin-top: 8px; gap: 4px; }
-
-.reaction-badge {
-  position: absolute; top: 18px; font-size: 22px; font-weight: 900;
-  padding: 6px 14px; border-radius: 8px; border: 3px solid;
-  opacity: 0; pointer-events: none; z-index: 10;
-  text-transform: uppercase; letter-spacing: 1px;
-}
-.rb-like { left: 16px; color: #30d158; border-color: #30d158; transform: rotate(-15deg); }
-.rb-pass { right: 16px; color: #ff3b30; border-color: #ff3b30; transform: rotate(15deg); }
-
-.swipe-actions { display: flex; gap: 20px; justify-content: center; margin-top: 4px; }
-.swipe-btn {
-  width: 66px; height: 66px; border-radius: 50%; border: none; cursor: pointer;
-  font-size: 28px; display: flex; align-items: center; justify-content: center;
-  box-shadow: 0 4px 16px rgba(0,0,0,.35); transition: transform .1s;
-}
-.swipe-btn:active { transform: scale(.9); }
-.sb-pass { background: #2c2c2e; }
-.sb-like { background: #ff3b30; }
-.sb-star { background: #ff9f0a; }
-
-/* ── MATCHES ── */
-.match-item {
-  display: flex; align-items: center; gap: 12px;
-  background: var(--secondary-bg); border-radius: 13px;
-  padding: 12px; margin-bottom: 8px;
-}
-.match-ava {
-  width: 50px; height: 50px; border-radius: 50%; flex-shrink: 0;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 24px; background: linear-gradient(135deg, #5856d6, #af52de);
-}
-.match-name { font-size: 15px; font-weight: 600; }
-.match-meta { font-size: 12px; color: var(--hint); margin-top: 2px; }
-
-/* ── PROFILE HERO ── */
-.p-hero { text-align: center; padding: 20px 16px 10px; }
-.p-ava {
-  width: 82px; height: 82px; border-radius: 50%; margin: 0 auto 12px;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 38px; background: linear-gradient(135deg, var(--btn), #5856d6);
-}
-.p-name { font-size: 22px; font-weight: 700; }
-.p-handle { font-size: 14px; color: var(--hint); margin-top: 3px; }
-
-.setting-item {
-  display: flex; align-items: center; gap: 12px;
-  background: var(--secondary-bg); border-radius: 13px;
-  padding: 15px; margin-bottom: 8px; cursor: pointer;
-  transition: opacity .15s;
-}
-.setting-item:active { opacity: .7; }
-.s-icon { font-size: 22px; width: 36px; text-align: center; }
-.s-label { font-size: 15px; flex: 1; }
-.s-arrow { color: var(--hint); }
-
-/* ── EMPTY STATE ── */
-.empty { text-align: center; padding: 48px 20px; }
-.empty-icon { font-size: 52px; margin-bottom: 14px; }
-.empty-title { font-size: 18px; font-weight: 600; margin-bottom: 8px; }
-.empty-sub { font-size: 14px; color: var(--hint); line-height: 1.5; }
-
-/* ── SPINNER ── */
-.loader { display: flex; justify-content: center; align-items: center; min-height: 220px; }
-.spinner {
-  width: 38px; height: 38px;
-  border: 3px solid rgba(255,255,255,.1);
-  border-top-color: var(--btn);
-  border-radius: 50%;
-  animation: spin .75s linear infinite;
-}
-@keyframes spin { to { transform: rotate(360deg); } }
-
-/* ── TOAST ── */
-.toast {
-  position: fixed; bottom: calc(var(--nav-h) + 12px); left: 50%;
-  transform: translateX(-50%);
-  background: rgba(50,50,52,.95); color: #fff;
-  padding: 10px 18px; border-radius: 22px; font-size: 13px;
-  z-index: 999; white-space: nowrap; pointer-events: none;
-  animation: fadeToast 2.5s ease forwards;
-}
-@keyframes fadeToast {
-  0% { opacity: 0; transform: translateX(-50%) translateY(8px); }
-  15% { opacity: 1; transform: translateX(-50%) translateY(0); }
-  75% { opacity: 1; }
-  100% { opacity: 0; }
+/* SECTION */
+.section{
+  font-size:12px;font-weight:700;color:var(--text2);
+  text-transform:uppercase;letter-spacing:.9px;
+  padding:18px 20px 8px;
 }
 
-/* ── MATCH POPUP ── */
-.match-popup {
-  position: fixed; inset: 0; z-index: 200;
-  background: rgba(0,0,0,.88);
-  display: none; flex-direction: column; align-items: center; justify-content: center;
-  text-align: center; padding: 32px;
+/* STAT GRID */
+.stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:0 16px 10px}
+.stat-box{
+  background:var(--card);border:1px solid var(--border);
+  border-radius:var(--r);padding:16px;text-align:center;
 }
-.match-popup.show { display: flex; }
-.mp-hearts { font-size: 64px; margin-bottom: 16px; animation: heartbeat .6s ease infinite alternate; }
-@keyframes heartbeat { to { transform: scale(1.15); } }
-.mp-title { font-size: 28px; font-weight: 800; margin-bottom: 8px; }
-.mp-sub { font-size: 16px; color: var(--hint); margin-bottom: 24px; line-height: 1.5; }
+.stat-val{font-size:28px;font-weight:900;line-height:1}
+.stat-lbl{font-size:11px;color:var(--text2);margin-top:5px;font-weight:500}
+
+/* STREAK */
+.streak-card{
+  margin:0 16px 10px;
+  background:linear-gradient(135deg,rgba(255,159,10,.12),rgba(255,59,48,.06));
+  border:1px solid rgba(255,159,10,.2);border-radius:var(--r);padding:16px;
+}
+.streak-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.streak-fire{font-size:30px;animation:fire 2s ease infinite}
+@keyframes fire{0%,100%{transform:scale(1) rotate(-3deg)}50%{transform:scale(1.12) rotate(3deg)}}
+.streak-count{font-size:30px;font-weight:900;color:var(--orange)}
+.streak-lbl{font-size:11px;color:var(--text2);margin-top:2px}
+.streak-bar{display:flex;gap:5px}
+.s-day{
+  flex:1;height:36px;border-radius:10px;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  font-size:9px;font-weight:700;color:var(--text2);
+  background:rgba(255,255,255,.05);gap:3px;
+}
+.s-dot{width:5px;height:5px;border-radius:50%;background:rgba(255,255,255,.15)}
+.s-day.done{background:rgba(10,132,255,.15);color:var(--accent)}
+.s-day.done .s-dot{background:var(--accent)}
+.s-day.today{background:rgba(10,132,255,.08);color:var(--accent);border:1.5px solid var(--accent)}
+.s-day.today .s-dot{background:var(--accent);box-shadow:0 0 6px var(--accent)}
+
+/* MODULE GRID */
+.mod-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:0 16px}
+.mod-card{
+  border:1px solid var(--border);border-radius:var(--r);padding:16px;
+  cursor:pointer;transition:transform .12s,opacity .12s;
+  min-height:115px;display:flex;flex-direction:column;justify-content:space-between;
+}
+.mod-card:active{transform:scale(.96);opacity:.85}
+.mod-icon{font-size:28px;margin-bottom:8px}
+.mod-name{font-size:14px;font-weight:800}
+.mod-sub{font-size:11px;color:var(--text2);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mod-status{
+  display:inline-flex;align-items:center;
+  font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;margin-top:8px;align-self:flex-start;
+}
+.mod-status.on{background:rgba(48,209,88,.18);color:var(--green)}
+.mod-status.off{background:rgba(255,159,10,.18);color:var(--orange)}
+.mod-status.rdy{background:rgba(10,132,255,.18);color:var(--accent)}
+
+/* PILLS */
+.pill{display:inline-flex;align-items:center;padding:4px 10px;border-radius:20px;font-size:12px;font-weight:600;margin:2px}
+.pill.green{background:rgba(48,209,88,.15);color:var(--green)}
+.pill.orange{background:rgba(255,159,10,.15);color:var(--orange)}
+.pill.blue{background:rgba(10,132,255,.15);color:var(--accent)}
+.pill.gray{background:rgba(255,255,255,.08);color:var(--text2)}
+.pill.purple{background:rgba(175,82,222,.15);color:var(--purple)}
+
+/* BUTTONS */
+.btn{
+  background:var(--accent);color:#fff;
+  border:none;border-radius:14px;
+  padding:15px 20px;font-size:15px;font-weight:700;
+  width:100%;cursor:pointer;
+  transition:opacity .15s,transform .1s;letter-spacing:-.2px;
+}
+.btn:active{opacity:.8;transform:scale(.99)}
+.btn.sec{background:rgba(255,255,255,.08);color:var(--text);border:1px solid var(--border)}
+.btn.gold{background:linear-gradient(135deg,#FFD700,#FF8C00);color:#000}
+.btn-row{display:flex;gap:8px;padding:0 16px}
+.btn-row .btn{flex:1}
+.btn-solo{padding:0 16px}
+
+/* PROGRESS */
+.prog-bar{height:5px;background:rgba(255,255,255,.08);border-radius:3px;overflow:hidden;margin-top:8px}
+.prog-fill{height:100%;background:var(--accent);border-radius:3px;transition:width .6s cubic-bezier(.34,1.56,.64,1)}
+
+/* SWIPE */
+.swipe-wrap{position:relative;height:490px;margin:12px 16px 4px}
+.swipe-card{
+  position:absolute;inset:0;
+  background:var(--card-solid);border-radius:var(--r);
+  overflow:hidden;user-select:none;touch-action:pan-y;
+  will-change:transform;cursor:grab;
+}
+.swipe-card:active{cursor:grabbing}
+.swipe-img{
+  width:100%;height:100%;
+  display:flex;align-items:flex-end;
+  background:linear-gradient(135deg,var(--accent2),var(--purple));
+  position:relative;overflow:hidden;
+}
+.swipe-bg-emoji{
+  position:absolute;inset:0;
+  display:flex;align-items:center;justify-content:center;
+  font-size:130px;opacity:.3;
+}
+.swipe-fade{
+  position:absolute;bottom:0;left:0;right:0;height:58%;
+  background:linear-gradient(to top,rgba(0,0,0,.92) 0%,transparent 100%);
+}
+.swipe-info{position:absolute;bottom:0;left:0;right:0;padding:20px 20px 26px;z-index:2}
+.swipe-name{font-size:26px;font-weight:900;letter-spacing:-.3px;text-shadow:0 1px 6px rgba(0,0,0,.5)}
+.swipe-meta{font-size:14px;color:rgba(255,255,255,.7);margin-top:4px}
+.swipe-bio{font-size:13px;color:rgba(255,255,255,.55);margin-top:6px;line-height:1.4}
+.swipe-chips{display:flex;flex-wrap:wrap;gap:5px;margin-top:9px}
+.swipe-chip{background:rgba(255,255,255,.18);backdrop-filter:blur(10px);color:#fff;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600}
+.rb{position:absolute;top:22px;z-index:10;font-size:16px;font-weight:900;padding:8px 16px;border-radius:10px;border:3px solid;opacity:0;pointer-events:none;text-transform:uppercase;letter-spacing:2px}
+.rb-like{left:20px;color:var(--green);border-color:var(--green);transform:rotate(-10deg)}
+.rb-pass{right:20px;color:var(--red);border-color:var(--red);transform:rotate(10deg)}
+.swipe-actions{display:flex;gap:16px;justify-content:center;padding:14px 0 8px}
+.swipe-btn{
+  width:62px;height:62px;border-radius:50%;border:none;cursor:pointer;
+  font-size:24px;display:flex;align-items:center;justify-content:center;
+  transition:transform .15s;
+}
+.swipe-btn:active{transform:scale(.88)}
+.sb-pass{background:var(--card-solid);border:1.5px solid var(--border);box-shadow:0 4px 20px rgba(0,0,0,.3)}
+.sb-like{background:var(--red);box-shadow:0 4px 20px rgba(255,59,48,.4);width:72px;height:72px;font-size:28px}
+.sb-star{background:var(--card-solid);border:1.5px solid rgba(255,159,10,.3);box-shadow:0 4px 20px rgba(0,0,0,.3)}
+
+/* MATCHES */
+.match-item{
+  display:flex;align-items:center;gap:14px;
+  background:var(--card);border:1px solid var(--border);
+  border-radius:14px;padding:14px;margin:0 16px 8px;
+}
+.match-ava{
+  width:52px;height:52px;border-radius:50%;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;font-size:26px;
+  background:linear-gradient(135deg,var(--accent2),var(--purple));
+}
+.match-name{font-size:15px;font-weight:700}
+.match-meta{font-size:12px;color:var(--text2);margin-top:3px}
+.match-new{margin-left:auto;background:rgba(10,132,255,.15);color:var(--accent);font-size:10px;font-weight:700;padding:3px 8px;border-radius:8px}
+
+/* LIKES CARD */
+.likes-card{
+  margin:0 16px 10px;background:var(--card);border:1px solid var(--border);
+  border-radius:var(--r);padding:16px;
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+}
+.likes-count{font-size:34px;font-weight:900;background:linear-gradient(135deg,var(--red),var(--purple));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+
+/* PROFILE */
+.prof-hero{padding:20px 20px 14px;display:flex;align-items:center;gap:16px}
+.p-ava-wrap{position:relative}
+.p-ava{
+  width:76px;height:76px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-size:32px;font-weight:900;
+  background:linear-gradient(135deg,var(--accent),var(--accent2));
+  color:#fff;flex-shrink:0;
+  box-shadow:0 4px 20px rgba(10,132,255,.35);
+}
+.p-ava-ring{position:absolute;inset:-3px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--purple));z-index:-1}
+.p-name{font-size:20px;font-weight:900}
+.p-handle{font-size:13px;color:var(--text2);margin-top:2px}
+.p-badges{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+
+/* SETTINGS LIST */
+.sg{margin:0 16px 16px}
+.si{
+  display:flex;align-items:center;gap:14px;padding:14px 16px;
+  cursor:pointer;transition:opacity .15s;
+  background:var(--card);border:1px solid var(--border);border-bottom:none;
+}
+.si:first-child{border-radius:var(--r) var(--r) 0 0}
+.si:last-child{border-radius:0 0 var(--r) var(--r);border-bottom:1px solid var(--border)}
+.si:only-child{border-radius:var(--r);border-bottom:1px solid var(--border)}
+.si:active{opacity:.7}
+.si-ico{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
+.si-lbl{font-size:15px;flex:1}
+.si-sub{font-size:12px;color:var(--text2);margin-top:1px}
+.si-arr{color:var(--text2);font-size:20px}
+
+/* PREMIUM BANNER */
+.prem-banner{
+  margin:0 16px 10px;
+  background:linear-gradient(135deg,rgba(255,215,0,.13),rgba(255,140,0,.07));
+  border:1px solid rgba(255,215,0,.22);border-radius:var(--r);padding:16px;
+  cursor:pointer;transition:transform .12s,opacity .12s;
+}
+.prem-banner:active{transform:scale(.99);opacity:.85}
+
+/* HOME HERO */
+.home-hero{padding:20px 20px 14px;display:flex;align-items:center;justify-content:space-between}
+.home-greet{font-size:13px;color:var(--text2);font-weight:500}
+.home-name{font-size:27px;font-weight:900;letter-spacing:-.5px;margin-top:2px}
+.home-ava{
+  width:48px;height:48px;border-radius:50%;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;
+  font-size:22px;font-weight:900;
+  background:linear-gradient(135deg,var(--accent),var(--accent2));
+  color:#fff;box-shadow:0 4px 14px rgba(10,132,255,.32);
+}
+
+/* EXAM CIRCLE */
+.exam-circle-wrap{display:flex;align-items:center;justify-content:center;padding:20px 0 14px}
+.exam-circle{position:relative;width:140px;height:140px}
+.exam-circle svg{width:140px;height:140px;transform:rotate(-90deg)}
+.ec-text{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.ec-val{font-size:26px;font-weight:900}
+.ec-lbl{font-size:10px;color:var(--text2);font-weight:600;text-transform:uppercase;letter-spacing:.5px;margin-top:2px}
+
+/* TIMELINE */
+.tl{padding:0 16px 4px}
+.tl-item{display:flex;gap:14px;padding:12px 0;position:relative;cursor:pointer}
+.tl-item:not(:last-child)::after{content:'';position:absolute;left:15px;top:42px;bottom:0;width:2px;background:var(--border)}
+.tl-dot{width:32px;height:32px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:15px;background:var(--card-solid);border:1.5px solid var(--border);z-index:1}
+.tl-dot.on{background:rgba(10,132,255,.2);border-color:var(--accent)}
+.tl-body{flex:1;padding-top:5px}
+.tl-title{font-size:14px;font-weight:700}
+.tl-sub{font-size:12px;color:var(--text2);margin-top:2px}
+
+/* EMPTY */
+.empty{text-align:center;padding:52px 24px 28px}
+.empty-icon{font-size:56px;margin-bottom:16px}
+.empty-title{font-size:20px;font-weight:900;letter-spacing:-.4px}
+.empty-sub{font-size:14px;color:var(--text2);margin-top:8px;line-height:1.6}
+
+/* LOADER */
+.loader{display:flex;justify-content:center;align-items:center;min-height:240px}
+.spinner{width:36px;height:36px;border:3px solid rgba(255,255,255,.08);border-top-color:var(--accent);border-radius:50%;animation:spin .65s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* TOAST */
+.toast{
+  position:fixed;bottom:calc(var(--nav-h) + var(--safe) + 16px);left:50%;
+  transform:translateX(-50%);
+  background:rgba(28,28,30,.98);backdrop-filter:blur(20px);
+  color:#fff;padding:11px 20px;border-radius:24px;
+  font-size:13px;font-weight:500;z-index:999;white-space:nowrap;pointer-events:none;
+  border:1px solid var(--border);
+  animation:fadeToast 2.8s ease forwards;
+}
+@keyframes fadeToast{
+  0%{opacity:0;transform:translateX(-50%) translateY(8px)}
+  12%{opacity:1;transform:translateX(-50%) translateY(0)}
+  78%{opacity:1}
+  100%{opacity:0;transform:translateX(-50%) translateY(-4px)}
+}
+
+/* MATCH POPUP */
+.match-popup{
+  position:fixed;inset:0;z-index:200;
+  background:rgba(0,0,0,.9);backdrop-filter:blur(30px);
+  display:none;flex-direction:column;align-items:center;justify-content:center;
+  text-align:center;padding:40px 32px;
+}
+.match-popup.show{display:flex;animation:popIn .3s cubic-bezier(.34,1.56,.64,1)}
+@keyframes popIn{from{transform:scale(.92);opacity:0}to{transform:scale(1);opacity:1}}
+.mp-glow{
+  width:140px;height:140px;border-radius:50%;margin-bottom:24px;
+  background:linear-gradient(135deg,rgba(255,59,48,.3),rgba(175,82,222,.3));
+  display:flex;align-items:center;justify-content:center;font-size:68px;
+  animation:heartbeat .7s ease infinite alternate;
+  box-shadow:0 0 60px rgba(255,59,48,.25);
+}
+@keyframes heartbeat{to{transform:scale(1.1)}}
+.mp-title{font-size:30px;font-weight:900;letter-spacing:-.5px;margin-bottom:8px}
+.mp-sub{font-size:16px;color:var(--text2);margin-bottom:32px;line-height:1.5}
 </style>
 </head>
 <body>
 
-<!-- HEADER -->
-<div class="hdr" id="hdr">
-  <div class="hdr-title" id="hdr-title">MindMate</div>
-  <div id="hdr-badge"></div>
-</div>
-
-<!-- PAGES -->
 <div id="pg-home" class="page active"></div>
 <div id="pg-exam" class="page"></div>
 <div id="pg-career" class="page"></div>
 <div id="pg-friends" class="page"></div>
 <div id="pg-profile" class="page"></div>
 
-<!-- MATCH POPUP -->
 <div class="match-popup" id="match-popup">
-  <div class="mp-hearts">💝</div>
+  <div class="mp-glow">💝</div>
   <div class="mp-title">Match bo'ldingiz!</div>
   <div class="mp-sub" id="mp-sub">Bir-biringizni yoqtirasiz.</div>
-  <button class="btn" style="max-width:260px" onclick="closeMatchPopup()">Davom etish ›</button>
+  <div style="width:100%;max-width:300px;padding:0 16px">
+    <button class="btn" onclick="closeMatchPopup()">Davom etish</button>
+  </div>
 </div>
 
-<!-- BOTTOM NAV -->
 <nav class="nav">
-  <button class="nav-btn active" data-page="home" onclick="showPage('home')">
-    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
+  <button class="nav-btn active" data-page="home" onclick="nav('home')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
     <span class="nav-label">Bosh</span>
   </button>
-  <button class="nav-btn" data-page="exam" onclick="showPage('exam')">
-    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zm3 7h8v2H8v-2zm0 4h5v2H8v-2zm0-8h8v2H8V6z"/></svg>
+  <button class="nav-btn" data-page="exam" onclick="nav('exam')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"/><path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/></svg>
     <span class="nav-label">Imtihon</span>
   </button>
-  <button class="nav-btn" data-page="career" onclick="showPage('career')">
-    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 7h-4V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2H4a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2zm-10-2h4v2h-4V5zm10 16H4V9h16v12z"/></svg>
+  <button class="nav-btn" data-page="career" onclick="nav('career')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v16"/></svg>
     <span class="nav-label">Karyera</span>
   </button>
-  <button class="nav-btn" data-page="friends" onclick="showPage('friends')">
-    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+  <button class="nav-btn" data-page="friends" onclick="nav('friends')">
+    <div class="nav-dot" id="dot-friends"></div>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>
     <span class="nav-label">Do'stlar</span>
   </button>
-  <button class="nav-btn" data-page="profile" onclick="showPage('profile')">
-    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+  <button class="nav-btn" data-page="profile" onclick="nav('profile')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
     <span class="nav-label">Profil</span>
   </button>
 </nav>
 
 <script>
-// ── GLOBALS ────────────────────────────────────────────────────────────
 const tg = window.Telegram?.WebApp;
 const API = '';
-let initData = '';
-let D = {}; // app data cache
+let initData = '', D = {}, BOT_USERNAME = '';
 let currentPage = 'home';
 let browseData = null;
-let swipeStartX = 0, swipeStartY = 0, swipeDeltaX = 0;
-let isSwiping = false;
+let swipeStartX = 0, swipeStartY = 0, isSwiping = false;
 
-const PAGE_TITLES = {
-  home:    'MindMate 🧠',
-  exam:    '🎓 Imtihon',
-  career:  '💼 Karyera',
-  friends: '💝 Do\'stlar',
-  profile: '👤 Profil',
-};
+const EXAM_NAMES = {dtm:'DTM',ielts:'IELTS',sat:'SAT',magistratura:'Magistratura',cefr:'CEFR'};
+const LEVEL_NAMES = {beginner:"Boshlang'ich",intermediate:"O'rta",advanced:'Yuqori'};
+const LEVEL_PCT = {beginner:22,intermediate:55,advanced:88};
+const STATUS_NAMES = {student:'Talaba',graduate:'Bitiruvchi',employed:'Ishlamoqda',switching:"Kasbni o'zgartirmoqchi",freelance:'Frilanser'};
+const GREETING = (()=>{const h=new Date().getHours();return h<5?'Yaxshi tun 🌙':h<12?'Xayrli tong ☀️':h<17?'Xayrli kun 🌤':'Xayrli kech 🌆'})();
 
-// ── INIT ───────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', init);
 
 async function init() {
   if (tg) {
-    tg.ready();
-    tg.expand();
+    tg.ready(); tg.expand();
+    tg.setHeaderColor?.('#18181b');
+    tg.setBackgroundColor?.('#18181b');
     initData = tg.initData || '';
-    applyTgTheme();
+    applyTheme();
   }
   await loadData();
 }
 
-function applyTgTheme() {
-  const p = tg.themeParams || {};
-  const set = (v, d) => v || d;
-  document.documentElement.style.setProperty('--bg',           set(p.bg_color, '#1c1c1e'));
-  document.documentElement.style.setProperty('--secondary-bg', set(p.secondary_bg_color, '#2c2c2e'));
-  document.documentElement.style.setProperty('--text',         set(p.text_color, '#ffffff'));
-  document.documentElement.style.setProperty('--hint',         set(p.hint_color, '#8e8e93'));
-  document.documentElement.style.setProperty('--btn',          set(p.button_color, '#0a84ff'));
-  document.documentElement.style.setProperty('--btn-text',     set(p.button_text_color, '#ffffff'));
-  document.documentElement.style.setProperty('--link',         set(p.link_color, '#0a84ff'));
+function applyTheme() {
+  const p = tg?.themeParams || {};
+  if (p.bg_color) document.documentElement.style.setProperty('--bg', p.bg_color);
+  if (p.secondary_bg_color) document.documentElement.style.setProperty('--card-solid', p.secondary_bg_color);
+  if (p.text_color) document.documentElement.style.setProperty('--text', p.text_color);
+  if (p.hint_color) document.documentElement.style.setProperty('--text2', p.hint_color);
+  if (p.button_color) document.documentElement.style.setProperty('--accent', p.button_color);
 }
 
-// ── API ────────────────────────────────────────────────────────────────
-async function api(path, opts = {}) {
-  const headers = { 'Content-Type': 'application/json' };
-  if (initData) headers['X-Telegram-Init-Data'] = initData;
-  const res = await fetch(API + '/api' + path, { headers, ...opts });
-  if (!res.ok) throw new Error(`${res.status} ${path}`);
-  return res.json();
+async function api(path, opts={}) {
+  const h = {'Content-Type':'application/json'};
+  if (initData) h['X-Telegram-Init-Data'] = initData;
+  const r = await fetch(API+'/api'+path, {headers:h,...opts});
+  if (!r.ok) throw new Error(r.status);
+  return r.json();
+}
+async function post(path, body) {
+  return api(path, {method:'POST', body:JSON.stringify(body)});
 }
 
-async function apiPost(path, body) {
-  return api(path, {
-    method: 'POST',
-    body: JSON.stringify(body),
-  });
-}
-
-// ── LOAD DATA ──────────────────────────────────────────────────────────
 async function loadData() {
-  showSpinner('home'); showSpinner('exam');
-  showSpinner('career'); showSpinner('profile');
-
-  const [user, overview, exam, career, friends] = await Promise.allSettled([
-    api('/user/me'),
-    api('/stats/overview'),
-    api('/exam/profile'),
-    api('/career/profile'),
-    api('/friends/profile'),
+  const [u, ov, ex, ca, fr, cfg] = await Promise.allSettled([
+    api('/user/me'), api('/stats/overview'), api('/exam/profile'),
+    api('/career/profile'), api('/friends/profile'),
+    fetch(API+'/api/config').then(r=>r.json()).catch(()=>({})),
   ]);
+  D.user     = u.status   ==='fulfilled' ? u.value   : {};
+  D.overview = ov.status  ==='fulfilled' ? ov.value  : {};
+  D.exam     = ex.status  ==='fulfilled' ? ex.value  : {};
+  D.career   = ca.status  ==='fulfilled' ? ca.value  : {};
+  D.friends  = fr.status  ==='fulfilled' ? fr.value  : {};
+  if (cfg.status==='fulfilled') BOT_USERNAME = cfg.value?.bot_username||'';
 
-  if (user.status === 'fulfilled')     D.user     = user.value;
-  if (overview.status === 'fulfilled') D.overview = overview.value;
-  if (exam.status === 'fulfilled')     D.exam     = exam.value;
-  if (career.status === 'fulfilled')   D.career   = career.value;
-  if (friends.status === 'fulfilled')  D.friends  = friends.value;
+  renderHome(); renderExam(); renderCareer(); renderProfile();
 
-  renderHeader();
-  renderHome();
-  renderExam();
-  renderCareer();
-  renderProfile();
+  if ((D.friends?.likes_received||0) > 0 && !D.user?.is_premium)
+    document.getElementById('dot-friends')?.classList.add('show');
 }
 
-function showSpinner(page) {
-  document.getElementById('pg-' + page).innerHTML = '<div class="loader"><div class="spinner"></div></div>';
-}
-
-// ── HEADER ─────────────────────────────────────────────────────────────
-function renderHeader() {
-  document.getElementById('hdr-title').textContent = PAGE_TITLES[currentPage];
-  const u = D.user || {};
-  if (u.is_premium) {
-    document.getElementById('hdr-badge').innerHTML = '<span class="badge-premium">💎 Premium</span>';
-  }
-}
-
-// ── HOME PAGE ──────────────────────────────────────────────────────────
+/* ── HOME ── */
 function renderHome() {
-  const u = D.user || {};
-  const ov = D.overview || {};
-  const streak = ov.streak_days || 0;
-  const aiToday = ov.ai_messages_today || 0;
-  const aiLimit = u.is_premium ? '∞' : '10';
-  const hist = ov.streak_history || Array(7).fill(false);
+  const u=D.user||{}, ov=D.overview||{};
+  const streak=ov.streak_days||0, aiToday=ov.ai_messages_today||0;
+  const aiLimit=u.is_premium?'∞':'10';
+  const hist=ov.streak_history||Array(7).fill(false);
+  const initial=(u.first_name||'U')[0].toUpperCase();
 
-  const DAY_LABELS = ['Du', 'Se', 'Ch', 'Pe', 'Ju', 'Sh', 'Ya'];
-  const todayIdx = new Date().getDay(); // 0=Sun
-  const order = [1,2,3,4,5,6,0]; // Mon→Sun
-  const startOffset = order.indexOf(todayIdx) - 6;
-  let dotsHTML = '';
-  for (let i = 0; i < 7; i++) {
-    const dayOff = ((startOffset + i) % 7 + 7) % 7;
-    const isToday = i === 6;
-    const isDone  = hist[i];
-    const cls     = isDone ? 's-day done' : isToday ? 's-day today' : 's-day';
-    dotsHTML += `<div class="${cls}">${DAY_LABELS[dayOff]}</div>`;
-  }
+  const DAY=['Du','Se','Ch','Pe','Ju','Sh','Ya'];
+  const ord=[1,2,3,4,5,6,0];
+  const base=ord.indexOf(new Date().getDay())-6;
+  const dots=Array.from({length:7},(_,i)=>{
+    const di=((base+i)%7+7)%7, done=hist[i], today=i===6;
+    const cls=done?'s-day done':today?'s-day today':'s-day';
+    return `<div class="${cls}"><span>${DAY[di]}</span><div class="s-dot"></div></div>`;
+  }).join('');
 
-  const modules = [
-    { icon:'🎓', bg:'#ff9f0a22', title:'Imtihon', data: D.exam, page:'exam',
-      status: D.exam && D.exam.exam_type ? 'Faol' : 'Sozlanmagan',
-      statusCls: D.exam && D.exam.exam_type ? 'green' : 'orange',
-      sub: D.exam && D.exam.exam_type ? examLabel(D.exam.exam_type) + ' — ' + levelLabel(D.exam.current_level) : 'Hali sozlanmagan' },
-    { icon:'💼', bg:'#30d15822', title:'Karyera', data: D.career, page:'career',
-      status: D.career && D.career.status ? 'Faol' : 'Sozlanmagan',
-      statusCls: D.career && D.career.status ? 'green' : 'orange',
-      sub: D.career && D.career.target_role ? D.career.target_role : 'Maqsad belgilanmagan' },
-    { icon:'💝', bg:'#ff2d5522', title:"Do'stlar", data: D.friends, page:'friends',
-      status: D.friends && D.friends.display_name ? 'Faol' : 'Sozlanmagan',
-      statusCls: D.friends && D.friends.display_name ? 'green' : 'orange',
-      sub: D.friends && D.friends.display_name ? D.friends.display_name + (D.friends.likes_received ? ` · ❤️ ${D.friends.likes_received}` : '') : 'Profil yaratilmagan' },
-    { icon:'🧠', bg:'#0a84ff22', title:'Psixolog', data: null, page:'healer',
-      status: 'Tayyor', statusCls: 'blue', sub: 'Ruhiy yordam va qo\'llab-quvvatlash' },
+  const mods=[
+    {icon:'🎓',name:'Imtihon',page:'exam',
+     grad:'rgba(255,159,10,.1)',border:'rgba(255,159,10,.2)',
+     on:!!D.exam?.exam_type,
+     sub:D.exam?.exam_type?EXAM_NAMES[D.exam.exam_type]+' · '+(LEVEL_NAMES[D.exam.current_level]||''):'Sozlanmagan'},
+    {icon:'💼',name:'Karyera',page:'career',
+     grad:'rgba(48,209,88,.1)',border:'rgba(48,209,88,.2)',
+     on:!!D.career?.status,
+     sub:D.career?.target_role||(D.career?.status?STATUS_NAMES[D.career.status]:'Sozlanmagan')},
+    {icon:'💝',name:"Do'stlar",page:'friends',
+     grad:'rgba(255,59,48,.1)',border:'rgba(255,59,48,.2)',
+     on:!!D.friends?.display_name,
+     sub:D.friends?.display_name||"Profil yo'q"},
+    {icon:'🧠',name:'Psixolog',page:'healer',
+     grad:'rgba(10,132,255,.1)',border:'rgba(10,132,255,.2)',
+     on:true,sub:'Ruhiy yordam'},
   ];
 
-  let modsHTML = modules.map(m => `
-    <div class="card" onclick="showPage('${m.page}')" style="cursor:pointer">
-      <div class="card-row">
-        <div class="card-icon" style="background:${m.bg}">${m.icon}</div>
-        <div class="card-info">
-          <div class="card-title">${m.title}</div>
-          <div class="card-sub">${m.sub}</div>
-        </div>
-        <span class="tag ${m.statusCls}">${m.status}</span>
-      </div>
-    </div>`).join('');
-
   document.getElementById('pg-home').innerHTML = `
-    <div class="stat-row">
+    <div class="home-hero">
+      <div>
+        <div class="home-greet">${GREETING}</div>
+        <div class="home-name">${esc(u.first_name||'Salom')}</div>
+      </div>
+      <div class="home-ava">${initial}</div>
+    </div>
+    <div class="stat-grid">
       <div class="stat-box">
-        <div class="stat-val" style="color:#ff9f0a">🔥 ${streak}</div>
-        <div class="stat-lbl">Ketma-ket kun</div>
+        <div class="stat-val" style="color:var(--orange)">🔥 ${streak}</div>
+        <div class="stat-lbl">Kun seriyasi</div>
       </div>
       <div class="stat-box">
-        <div class="stat-val">${aiToday}<span style="font-size:16px;color:var(--hint)">/${aiLimit}</span></div>
+        <div class="stat-val">${aiToday}<span style="font-size:16px;color:var(--text2)">/${aiLimit}</span></div>
         <div class="stat-lbl">AI xabar bugun</div>
       </div>
     </div>
-
-    <div class="card">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
-        <span style="font-weight:600;font-size:15px">Faollik seriyasi</span>
-        <span style="color:#ff9f0a;font-weight:700">🔥 ${streak} kun</span>
+    <div class="streak-card">
+      <div class="streak-top">
+        <div class="streak-fire">🔥</div>
+        <div style="text-align:right">
+          <div class="streak-count">${streak} kun</div>
+          <div class="streak-lbl">Faollik seriyasi</div>
+        </div>
       </div>
-      <div class="streak-row">${dotsHTML}</div>
+      <div class="streak-bar">${dots}</div>
     </div>
-
     <div class="section">Modullar</div>
-    ${modsHTML}
-  `;
+    <div class="mod-grid">${mods.map(m=>`
+      <div class="mod-card" style="background:${m.grad};border-color:${m.border}" onclick="nav('${m.page}')">
+        <div>
+          <div class="mod-icon">${m.icon}</div>
+          <div class="mod-name">${m.name}</div>
+          <div class="mod-sub">${esc(m.sub)}</div>
+        </div>
+        <div class="mod-status ${m.on?'on':'off'}">${m.on?'● Faol':'○ Boshlanmagan'}</div>
+      </div>`).join('')}</div>
+    <div style="height:8px"></div>`;
 }
 
-// ── EXAM PAGE ──────────────────────────────────────────────────────────
-const EXAM_NAMES  = { dtm:'DTM', ielts:'IELTS', sat:'SAT', magistratura:'Magistratura', cefr:'CEFR' };
-const LEVEL_NAMES = { beginner:"Boshlang'ich", intermediate:"O'rta", advanced:'Yuqori' };
-function examLabel(t) { return EXAM_NAMES[t] || t; }
-function levelLabel(l) { return LEVEL_NAMES[l] || l; }
-
+/* ── EXAM ── */
 function renderExam() {
-  const ex = D.exam;
-  const pg = document.getElementById('pg-exam');
+  const ex=D.exam, pg=document.getElementById('pg-exam');
+  const hdr=`<div class="hdr"><div class="hdr-title">🎓 Imtihon</div>${D.user?.is_premium?'<span class="badge-premium">💎</span>':''}</div>`;
 
-  if (!ex || !ex.exam_type) {
-    pg.innerHTML = `
-      <div class="empty">
-        <div class="empty-icon">🎓</div>
-        <div class="empty-title">Imtihon sozlanmagan</div>
-        <div class="empty-sub">Qaysi imtihonga tayyorlanayotganingizni belgilang va shaxsiy reja oling</div>
-      </div>
-      <button class="btn" onclick="goBot('/exam')">Boshlash →</button>`;
+  if (!ex?.exam_type) {
+    pg.innerHTML=hdr+`<div class="empty"><div class="empty-icon">🎓</div>
+      <div class="empty-title">Imtihon sozlanmagan</div>
+      <div class="empty-sub">Qaysi imtihonga tayyorlanayotganingizni belgilang — AI shaxsiy reja tuzib beradi</div>
+    </div><div class="btn-solo"><button class="btn" onclick="goBot('/exam')">Boshlash →</button></div>`;
     return;
   }
 
-  let daysLeft = '—';
+  let daysVal='—', daysLbl='Sana belgilanmagan';
   if (ex.exam_date) {
-    const diff = Math.ceil((new Date(ex.exam_date) - Date.now()) / 86400000);
-    daysLeft = diff > 0 ? diff + ' kun' : diff === 0 ? 'Bugun!' : 'O\'tib ketdi';
+    const d=Math.ceil((new Date(ex.exam_date)-Date.now())/86400000);
+    daysVal=d>0?d:d===0?'0':'—';
+    daysLbl=d>0?'kun qoldi':d===0?'Bugun!':'O\'tib ketdi';
   }
+  const pct=LEVEL_PCT[ex.current_level]||50;
+  const r=54, C=2*Math.PI*r;
 
-  const subjects = (ex.subjects || []).join(' · ') || '—';
-  const pct = ex.current_level === 'beginner' ? 20 : ex.current_level === 'advanced' ? 80 : 50;
-
-  pg.innerHTML = `
-    <div class="stat-row">
-      <div class="stat-box">
-        <div class="stat-val" style="color:#ff9f0a">${examLabel(ex.exam_type)}</div>
-        <div class="stat-lbl">${levelLabel(ex.current_level)}</div>
-      </div>
-      <div class="stat-box">
-        <div class="stat-val">${daysLeft}</div>
-        <div class="stat-lbl">Imtihonga qoldi</div>
+  pg.innerHTML=hdr+`
+    <div class="exam-circle-wrap">
+      <div class="exam-circle">
+        <svg viewBox="0 0 140 140">
+          <circle cx="70" cy="70" r="${r}" fill="none" stroke="rgba(255,255,255,.06)" stroke-width="10"/>
+          <circle cx="70" cy="70" r="${r}" fill="none" stroke="var(--accent)"
+            stroke-width="10" stroke-linecap="round"
+            stroke-dasharray="${C*pct/100} ${C*(1-pct/100)}"/>
+        </svg>
+        <div class="ec-text">
+          <div class="ec-val" style="color:var(--orange)">${EXAM_NAMES[ex.exam_type]||ex.exam_type}</div>
+          <div class="ec-lbl">${LEVEL_NAMES[ex.current_level]||ex.current_level}</div>
+        </div>
       </div>
     </div>
-
-    <div class="card">
-      <div style="font-weight:600;margin-bottom:6px">Daraja</div>
-      <div style="font-size:13px;color:var(--hint)">${levelLabel(ex.current_level)}</div>
+    <div class="stat-grid">
+      <div class="stat-box"><div class="stat-val">${daysVal}</div><div class="stat-lbl">${daysLbl}</div></div>
+      <div class="stat-box"><div class="stat-val">${ex.daily_study_hours||4}h</div><div class="stat-lbl">Kunlik reja</div></div>
+    </div>
+    <div class="section">Fanlar</div>
+    <div class="card solid">
+      <div style="display:flex;flex-wrap:wrap;gap:6px">
+        ${(ex.subjects||[]).map(s=>`<span class="pill orange">${esc(s)}</span>`).join('')||'<span style="color:var(--text2);font-size:13px">Belgilanmagan</span>'}
+      </div>
+    </div>
+    <div class="section">Daraja</div>
+    <div class="card solid">
+      <div style="display:flex;justify-content:space-between;margin-bottom:6px">
+        <span style="font-size:13px;font-weight:600">${LEVEL_NAMES[ex.current_level]||''}</span>
+        <span style="font-size:13px;color:var(--text2)">${pct}%</span>
+      </div>
       <div class="prog-bar"><div class="prog-fill" style="width:${pct}%"></div></div>
     </div>
-
-    <div class="card">
-      <div class="card-row">
-        <div class="card-icon" style="background:#ff9f0a22">📚</div>
-        <div class="card-info">
-          <div class="card-title">Fanlar</div>
-          <div class="card-sub">${subjects}</div>
-        </div>
-      </div>
+    <div class="btn-row">
+      <button class="btn" onclick="goBot('/exam')">📋 Reja</button>
+      <button class="btn sec" onclick="goBot('/exam')">✏️ Mashq</button>
     </div>
-
-    <div class="card">
-      <div class="card-row">
-        <div class="card-icon" style="background:#30d15822">⏱</div>
-        <div class="card-info">
-          <div class="card-title">Kunlik o'qish</div>
-          <div class="card-sub">${ex.daily_study_hours || 4} soat / kun</div>
-        </div>
-      </div>
-    </div>
-
-    <button class="btn" onclick="goBot('/exam')">📋 Bugungi reja olish</button>
-    <button class="btn secondary" style="margin-top:8px" onclick="goBot('/exam')">✏️ Amaliyot savollar</button>
-  `;
+    <div style="height:16px"></div>`;
 }
 
-// ── CAREER PAGE ────────────────────────────────────────────────────────
-const STATUS_NAMES = {
-  student:"Talaba", graduate:"Bitiruvchi",
-  employed:"Ishlamoqda", switching:"Kasbni o'zgartirmoqchi", freelance:"Frilanser"
-};
-
+/* ── CAREER ── */
 function renderCareer() {
-  const ca = D.career;
-  const pg = document.getElementById('pg-career');
+  const ca=D.career, pg=document.getElementById('pg-career');
+  const hdr=`<div class="hdr"><div class="hdr-title">💼 Karyera</div></div>`;
 
-  if (!ca || !ca.status) {
-    pg.innerHTML = `
-      <div class="empty">
-        <div class="empty-icon">💼</div>
-        <div class="empty-title">Karyera profil yo'q</div>
-        <div class="empty-sub">Maqsadlaringizni belgilang va AI resume, intervyu mashqi oling</div>
-      </div>
-      <button class="btn" onclick="goBot('/career')">Boshlash →</button>`;
+  if (!ca?.status) {
+    pg.innerHTML=hdr+`<div class="empty"><div class="empty-icon">💼</div>
+      <div class="empty-title">Karyera profil yo'q</div>
+      <div class="empty-sub">Maqsadlaringizni belgilang — AI resume, intervyu mashqi va 6 oylik yo'l xaritasi tuzib beradi</div>
+    </div><div class="btn-solo"><button class="btn" onclick="goBot('/career')">Boshlash →</button></div>`;
     return;
   }
 
-  const skills = (ca.skills || []).map(s => `<span class="tag gray">${s}</span>`).join('');
-  const langs  = (ca.languages || []).map(l => `<span class="tag blue">${l}</span>`).join('');
+  const skills=ca.skills||[], langs=ca.languages||[];
+  const actions=[
+    {icon:'🎤',title:"Intervyu mashq qilish",sub:'AI savol-javob sessiyasi',on:true},
+    {icon:'📄',title:"Rezyumeni ko'rish",sub:'ATS uchun optimallashtirilgan',on:!!ca.resume_updated},
+    {icon:'🗺', title:"6 oylik yo'l xaritasi",sub:'Shaxsiy karyera rejasi',on:false},
+    {icon:'💰',title:'Maosh muzokarasi',sub:'Negotiation strategiyasi',on:false},
+  ];
 
-  pg.innerHTML = `
-    <div class="card">
-      <div class="card-row">
-        <div class="card-icon" style="background:#30d15822">👔</div>
-        <div class="card-info">
-          <div class="card-title">${STATUS_NAMES[ca.status] || ca.status}</div>
-          <div class="card-sub">${ca.target_role || 'Lavozim belgilanmagan'}</div>
+  pg.innerHTML=hdr+`
+    <div class="card solid" style="margin-top:16px">
+      <div style="display:flex;align-items:center;gap:14px">
+        <div class="icon-box" style="background:rgba(48,209,88,.15)">👔</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:17px;font-weight:900">${esc(STATUS_NAMES[ca.status]||ca.status)}</div>
+          <div style="font-size:13px;color:var(--text2);margin-top:3px">${esc(ca.target_role||'Lavozim belgilanmagan')}</div>
         </div>
       </div>
-      ${ca.industry ? `<div style="font-size:13px;color:var(--hint);margin-top:8px">Soha: ${ca.industry}</div>` : ''}
-      ${ca.experience_years != null ? `<div style="font-size:13px;color:var(--hint);margin-top:4px">Tajriba: ${ca.experience_years} yil</div>` : ''}
+      ${ca.industry?`<div style="font-size:12px;color:var(--text2);margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">
+        📌 ${esc(ca.industry)}${ca.experience_years!=null?' · '+ca.experience_years+' yil tajriba':''}</div>`:''}
     </div>
-
-    ${skills ? `<div class="card"><div style="font-weight:600;margin-bottom:8px">Ko'nikmalar</div><div>${skills}</div></div>` : ''}
-    ${langs  ? `<div class="card"><div style="font-weight:600;margin-bottom:8px">Tillar</div><div>${langs}</div></div>` : ''}
-
-    <button class="btn" onclick="goBot('/career')">🎤 Intervyu mashq qilish</button>
-    <button class="btn secondary" style="margin-top:8px" onclick="goBot('/career')">📄 Rezyume ko'rish / yangilash</button>
-    <button class="btn secondary" style="margin-top:8px" onclick="goBot('/career')">🗺 6 oylik yo'l xaritasi</button>
-  `;
+    ${skills.length?`<div class="section">Ko'nikmalar</div><div class="card solid"><div style="display:flex;flex-wrap:wrap;gap:6px">${skills.map(s=>`<span class="pill gray">${esc(s)}</span>`).join('')}</div></div>`:''}
+    ${langs.length?`<div class="section">Tillar</div><div class="card solid"><div style="display:flex;flex-wrap:wrap;gap:6px">${langs.map(l=>`<span class="pill blue">${esc(l)}</span>`).join('')}</div></div>`:''}
+    <div class="section">Amallar</div>
+    <div class="tl">${actions.map((a,i)=>`
+      <div class="tl-item" onclick="goBot('/career')">
+        <div class="tl-dot${a.on?' on':''}">${a.icon}</div>
+        <div class="tl-body"><div class="tl-title">${a.title}</div><div class="tl-sub">${a.sub}</div></div>
+      </div>`).join('')}
+    </div>
+    <div style="height:16px"></div>`;
 }
 
-// ── FRIENDS PAGE ───────────────────────────────────────────────────────
+/* ── FRIENDS ── */
 async function renderFriends() {
-  const pg = document.getElementById('pg-friends');
-  showSpinner('friends');
+  const pg=document.getElementById('pg-friends');
+  pg.innerHTML=`<div class="hdr"><div class="hdr-title">💝 Do'stlar</div></div><div class="loader"><div class="spinner"></div></div>`;
 
-  const fr = D.friends;
-  if (!fr || !fr.display_name) {
-    pg.innerHTML = `
-      <div class="empty">
-        <div class="empty-icon">💝</div>
-        <div class="empty-title">Do'stlar profili yo'q</div>
-        <div class="empty-sub">Yangi do'stlar topish uchun profilingizni yarating</div>
-      </div>
-      <button class="btn" onclick="goBot('/friends')">Profil yaratish →</button>`;
+  const fr=D.friends;
+  if (!fr?.display_name) {
+    pg.innerHTML=`<div class="hdr"><div class="hdr-title">💝 Do'stlar</div></div>
+      <div class="empty"><div class="empty-icon">💝</div>
+        <div class="empty-title">Profil yo'q</div>
+        <div class="empty-sub">Yangi do'stlar va tanishlar topish uchun profilingizni yarating</div>
+      </div><div class="btn-solo"><button class="btn" onclick="goBot('/friends')">Profil yaratish →</button></div>`;
     return;
   }
 
-  // Load browse + matches in parallel
-  const [browseRes, matchesRes] = await Promise.allSettled([
-    api('/friends/browse'),
-    api('/friends/matches'),
-  ]);
+  const [bR,mR]=await Promise.allSettled([api('/friends/browse'), api('/friends/matches')]);
+  browseData=bR.status==='fulfilled'&&bR.value.user_id?bR.value:null;
+  const matches=mR.status==='fulfilled'?(mR.value.matches||[]):[];
+  const likesCount=fr.likes_received||0, isPremium=D.user?.is_premium;
+  document.getElementById('dot-friends')?.classList.remove('show');
 
-  browseData = browseRes.status === 'fulfilled' && browseRes.value.user_id ? browseRes.value : null;
-  const matches = matchesRes.status === 'fulfilled' ? (matchesRes.value.matches || []) : [];
-
-  const likesCount = fr.likes_received || 0;
-  const isPremium  = D.user?.is_premium;
-
-  let swipeHTML = '';
+  let swipeHTML='';
   if (browseData) {
-    const gEmoji = browseData.gender === 'female' ? '👩' : browseData.gender === 'male' ? '👨' : '🧑';
-    const tags   = (browseData.interests || []).slice(0, 5).map(i => `<span class="tag gray">${i}</span>`).join('');
-
-    swipeHTML = `
+    const bd=browseData;
+    const gE=bd.gender==='female'?'👩':bd.gender==='male'?'👨':'🧑';
+    const chips=(bd.interests||[]).slice(0,4).map(i=>`<span class="swipe-chip">${esc(i)}</span>`).join('');
+    swipeHTML=`
       <div class="swipe-wrap" id="swipe-wrap">
         <div class="swipe-card" id="swipe-card">
-          <div class="reaction-badge rb-like" id="rb-like">❤️ YOQDI</div>
-          <div class="reaction-badge rb-pass" id="rb-pass">👎 O'TKAZISH</div>
-          <div class="swipe-photo placeholder" style="font-size:90px">${gEmoji}</div>
-          <div class="swipe-info">
-            <div class="swipe-name">${esc(browseData.display_name)}, ${browseData.age}</div>
-            <div class="swipe-meta">${esc(browseData.city || '')}${browseData.looking_for ? ' · ' + browseData.looking_for : ''}</div>
-            ${browseData.bio ? `<div class="swipe-bio">${esc(browseData.bio)}</div>` : ''}
-            <div class="swipe-tags">${tags}</div>
+          <div class="rb rb-like" id="rb-like">❤️ YOQDI</div>
+          <div class="rb rb-pass" id="rb-pass">✕ O'TKAZISH</div>
+          <div class="swipe-img">
+            <div class="swipe-bg-emoji">${gE}</div>
+            <div class="swipe-fade"></div>
+            <div class="swipe-info">
+              <div class="swipe-name">${esc(bd.display_name)}, ${bd.age}</div>
+              <div class="swipe-meta">${esc(bd.city||'')}${bd.looking_for?' · '+esc(bd.looking_for):''}</div>
+              ${bd.bio?`<div class="swipe-bio">${esc(bd.bio)}</div>`:''}
+              ${chips?`<div class="swipe-chips">${chips}</div>`:''}
+            </div>
           </div>
         </div>
       </div>
       <div class="swipe-actions">
-        <button class="swipe-btn sb-pass" onclick="doReact('pass')" title="O'tkazish">👎</button>
-        <button class="swipe-btn sb-star" onclick="doReact('superlike')" title="Super like">⭐</button>
-        <button class="swipe-btn sb-like" onclick="doReact('like')" title="Yoqdi">❤️</button>
+        <button class="swipe-btn sb-pass" onclick="doReact('pass')">✕</button>
+        <button class="swipe-btn sb-like" onclick="doReact('like')">❤️</button>
+        <button class="swipe-btn sb-star" onclick="doReact('superlike')">⭐</button>
       </div>`;
   } else {
-    swipeHTML = `
-      <div class="card" style="text-align:center;padding:32px 20px">
-        <div style="font-size:42px;margin-bottom:10px">🌟</div>
-        <div style="font-weight:600;font-size:16px">Hozircha yangi profillar yo'q</div>
-        <div style="color:var(--hint);font-size:13px;margin-top:6px">Keyinroq qaytib keling</div>
-      </div>`;
-  }
-
-  const likesSection = `
-    <div class="card" style="margin-top:4px">
-      <div style="display:flex;align-items:center;justify-content:space-between">
-        <div>
-          <div style="font-weight:600;font-size:15px">❤️ Sizni yoqtirdi</div>
-          <div style="font-size:13px;color:var(--hint);margin-top:3px">
-            ${isPremium ? `${likesCount} kishi` : `${likesCount} kishi (ko'rish uchun Premium kerak)`}
-          </div>
-        </div>
-        ${!isPremium ? `<button class="btn gold" style="width:auto;margin:0;padding:8px 14px;font-size:12px" onclick="goBot('/premium')">💎 Ko'rish</button>` : ''}
-      </div>
+    swipeHTML=`<div class="card solid" style="margin:16px 16px 8px;text-align:center;padding:36px 20px">
+      <div style="font-size:42px;margin-bottom:10px">🌟</div>
+      <div style="font-weight:700;font-size:16px">Hozircha yangi profillar yo'q</div>
+      <div style="color:var(--text2);font-size:13px;margin-top:6px">Keyinroq qaytib keling</div>
     </div>`;
-
-  let matchesHTML = '';
-  if (matches.length) {
-    matchesHTML = `<div class="section">Matchlar (${matches.length})</div>` +
-      matches.slice(0, 6).map(m => {
-        const g = m.gender === 'female' ? '👩' : m.gender === 'male' ? '👨' : '🧑';
-        return `
-          <div class="match-item">
-            <div class="match-ava">${g}</div>
-            <div>
-              <div class="match-name">${esc(m.display_name)}, ${m.age}</div>
-              <div class="match-meta">${esc(m.city || '')} · Match bo'lindi</div>
-            </div>
-          </div>`;
-      }).join('');
   }
 
-  pg.innerHTML = `<div class="section">Yangi tanishuv</div>` + swipeHTML + likesSection + matchesHTML;
+  const matchHTML=matches.length?`<div class="section">Matchlar (${matches.length})</div>`+
+    matches.slice(0,5).map(m=>{
+      const g=m.gender==='female'?'👩':m.gender==='male'?'👨':'🧑';
+      return `<div class="match-item">
+        <div class="match-ava">${g}</div>
+        <div style="flex:1;min-width:0">
+          <div class="match-name">${esc(m.display_name)}, ${m.age}</div>
+          <div class="match-meta">${esc(m.city||'')} · ✅ Match</div>
+        </div>
+        <div class="match-new">Yangi</div>
+      </div>`;}).join(''):'';
+
+  pg.innerHTML=`<div class="hdr"><div class="hdr-title">💝 Do'stlar</div></div>
+    ${swipeHTML}
+    <div class="likes-card">
+      <div>
+        <div style="font-weight:700;font-size:15px">Sizni yoqtirdi</div>
+        <div style="font-size:13px;color:var(--text2);margin-top:3px">
+          ${isPremium?`${likesCount} kishi`:`${likesCount} kishi — kim ekanini ko'ring`}
+        </div>
+      </div>
+      <div style="text-align:right">
+        <div class="likes-count">${likesCount}</div>
+        ${!isPremium?`<button class="btn gold" style="width:auto;padding:7px 14px;font-size:12px;margin-top:6px" onclick="goBot('/premium')">💎 Premium</button>`:''}
+      </div>
+    </div>
+    ${matchHTML}
+    <div style="height:16px"></div>`;
 
   if (browseData) initSwipe();
 }
 
-// ── SWIPE ──────────────────────────────────────────────────────────────
+/* ── SWIPE ── */
 function initSwipe() {
-  const card = document.getElementById('swipe-card');
+  const card=document.getElementById('swipe-card');
   if (!card) return;
-
-  card.addEventListener('mousedown', e => { swipeStartX = e.clientX; isSwiping = true; });
-  window.addEventListener('mousemove', onSwipeMove);
-  window.addEventListener('mouseup', onSwipeEnd);
-  card.addEventListener('touchstart', e => { swipeStartX = e.touches[0].clientX; swipeStartY = e.touches[0].clientY; isSwiping = true; }, { passive: true });
-  card.addEventListener('touchmove', e => {
-    const dx = e.touches[0].clientX - swipeStartX;
-    const dy = e.touches[0].clientY - swipeStartY;
-    if (Math.abs(dx) > Math.abs(dy)) { e.preventDefault(); updateCardPos(dx); }
-  }, { passive: false });
-  card.addEventListener('touchend', e => { onSwipeEnd({ clientX: e.changedTouches[0].clientX }); });
+  card.addEventListener('mousedown',e=>{swipeStartX=e.clientX;isSwiping=true});
+  window.addEventListener('mousemove',onMove);
+  window.addEventListener('mouseup',onEnd);
+  card.addEventListener('touchstart',e=>{swipeStartX=e.touches[0].clientX;swipeStartY=e.touches[0].clientY;isSwiping=true},{passive:true});
+  card.addEventListener('touchmove',e=>{
+    const dx=e.touches[0].clientX-swipeStartX,dy=e.touches[0].clientY-swipeStartY;
+    if(Math.abs(dx)>Math.abs(dy)){e.preventDefault();moveCard(dx);}
+  },{passive:false});
+  card.addEventListener('touchend',e=>onEnd({clientX:e.changedTouches[0].clientX}));
 }
-
-function onSwipeMove(e) {
-  if (!isSwiping) return;
-  updateCardPos(e.clientX - swipeStartX);
+function onMove(e){if(isSwiping)moveCard(e.clientX-swipeStartX)}
+function onEnd(e){
+  if(!isSwiping)return; isSwiping=false;
+  window.removeEventListener('mousemove',onMove); window.removeEventListener('mouseup',onEnd);
+  const dx=e.clientX-swipeStartX;
+  if(dx>90)doReact('like'); else if(dx<-90)doReact('pass'); else resetCard();
 }
-function onSwipeEnd(e) {
-  if (!isSwiping) return;
-  isSwiping = false;
-  window.removeEventListener('mousemove', onSwipeMove);
-  window.removeEventListener('mouseup', onSwipeEnd);
-  const dx = e.clientX - swipeStartX;
-  if (dx > 90) doReact('like');
-  else if (dx < -90) doReact('pass');
-  else resetCard();
+function moveCard(dx){
+  const c=document.getElementById('swipe-card'); if(!c)return;
+  c.style.transition='none';
+  c.style.transform=`rotate(${dx*.04}deg) translateX(${dx*.35}px)`;
+  const l=document.getElementById('rb-like'),p=document.getElementById('rb-pass');
+  if(l) l.style.opacity=dx>20?Math.min((dx-20)/60,1):0;
+  if(p) p.style.opacity=dx<-20?Math.min((-dx-20)/60,1):0;
 }
-function updateCardPos(dx) {
-  const card = document.getElementById('swipe-card');
-  if (!card) return;
-  card.style.transition = 'none';
-  card.style.transform = `rotate(${dx * 0.04}deg) translateX(${dx * 0.35}px)`;
-  const likeEl = document.getElementById('rb-like');
-  const passEl = document.getElementById('rb-pass');
-  if (likeEl) likeEl.style.opacity = dx > 20 ? Math.min((dx - 20) / 60, 1) : 0;
-  if (passEl) passEl.style.opacity = dx < -20 ? Math.min((-dx - 20) / 60, 1) : 0;
+function resetCard(){
+  const c=document.getElementById('swipe-card'); if(!c)return;
+  c.style.transition='transform .32s cubic-bezier(.34,1.56,.64,1)';
+  c.style.transform='';
+  ['rb-like','rb-pass'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.opacity=0});
 }
-function resetCard() {
-  const card = document.getElementById('swipe-card');
-  if (!card) return;
-  card.style.transition = '';
-  card.style.transform = '';
-  const likeEl = document.getElementById('rb-like');
-  const passEl = document.getElementById('rb-pass');
-  if (likeEl) likeEl.style.opacity = 0;
-  if (passEl) passEl.style.opacity = 0;
-}
-
-async function doReact(action) {
-  if (!browseData) return;
-  const card = document.getElementById('swipe-card');
-  if (card) {
-    card.style.transition = 'transform .28s ease, opacity .28s ease';
-    if (action === 'like' || action === 'superlike') {
-      card.style.transform = 'rotate(15deg) translateX(160%)';
-    } else {
-      card.style.transform = 'rotate(-15deg) translateX(-160%)';
-    }
-    card.style.opacity = '0';
+async function doReact(action){
+  if(!browseData)return;
+  tg?.HapticFeedback?.impactOccurred?.('medium');
+  const c=document.getElementById('swipe-card');
+  if(c){
+    c.style.transition='transform .3s ease,opacity .3s ease';
+    c.style.transform=action==='pass'?'rotate(-18deg) translateX(-130%)':'rotate(18deg) translateX(130%)';
+    c.style.opacity='0';
   }
-
-  let matched = false;
-  try {
-    const res = await apiPost('/friends/react', {
-      to_user_id: browseData.user_id,
-      action: action === 'superlike' ? 'like' : action,
-    });
-    matched = res.matched;
-  } catch (e) { console.error(e); }
-
-  if (matched) {
-    document.getElementById('mp-sub').textContent = browseData.display_name + ' ham sizni yoqtirdi!';
+  let matched=false;
+  try{const r=await post('/friends/react',{to_user_id:browseData.user_id,action:action==='superlike'?'like':action});matched=r.matched;}catch(e){console.error(e)}
+  if(matched){
+    tg?.HapticFeedback?.notificationOccurred?.('success');
+    document.getElementById('mp-sub').textContent=browseData.display_name+' ham sizni yoqtirdi! 🎉';
     document.getElementById('match-popup').classList.add('show');
   } else {
-    setTimeout(() => renderFriends(), 320);
+    setTimeout(()=>renderFriends(),350);
   }
 }
+function closeMatchPopup(){document.getElementById('match-popup').classList.remove('show');renderFriends()}
 
-function closeMatchPopup() {
-  document.getElementById('match-popup').classList.remove('show');
-  renderFriends();
-}
+/* ── PROFILE ── */
+function renderProfile(){
+  const u=D.user||{}, isPrem=u.is_premium;
+  const init=(u.first_name||'U')[0].toUpperCase();
+  const name=esc(([u.first_name,u.last_name].filter(Boolean).join(' '))).trim()||'Foydalanuvchi';
 
-// ── PROFILE PAGE ───────────────────────────────────────────────────────
-function renderProfile() {
-  const u = D.user || {};
-  const first = (u.first_name || 'U')[0].toUpperCase();
-  const isPremium = u.is_premium;
-
-  document.getElementById('pg-profile').innerHTML = `
-    <div class="p-hero">
-      <div class="p-ava">${first}</div>
-      <div class="p-name">${esc((u.first_name || '') + ' ' + (u.last_name || '')).trim() || 'Foydalanuvchi'}</div>
-      ${u.username ? `<div class="p-handle">@${esc(u.username)}</div>` : ''}
-      ${isPremium ? '<div style="margin-top:10px"><span class="badge-premium">💎 Premium</span></div>' : ''}
-    </div>
-
-    ${!isPremium ? `
-    <div class="card" style="background:linear-gradient(135deg,rgba(255,215,0,.12),rgba(255,140,0,.08));cursor:pointer" onclick="goBot('/premium')">
-      <div class="card-row">
-        <div class="card-icon" style="background:#ffd70022">💎</div>
-        <div class="card-info">
-          <div class="card-title">Premium olish</div>
-          <div class="card-sub">Cheksiz AI, like va ko'proq imkoniyatlar</div>
-        </div>
-        <span class="chevron">›</span>
+  document.getElementById('pg-profile').innerHTML=`
+    <div class="hdr"><div class="hdr-title">👤 Profil</div>${isPrem?'<span class="badge-premium">💎 Premium</span>':''}</div>
+    <div class="prof-hero">
+      <div class="p-ava-wrap">
+        <div class="p-ava">${init}</div>
+        ${isPrem?'<div class="p-ava-ring"></div>':''}
       </div>
-    </div>` : ''}
-
+      <div style="flex:1;min-width:0">
+        <div class="p-name">${name}</div>
+        ${u.username?`<div class="p-handle">@${esc(u.username)}</div>`:''}
+        <div class="p-badges">
+          ${isPrem?'<span class="pill purple">💎 Premium</span>':'<span class="pill gray">Bepul rejim</span>'}
+          <span class="pill green">✓ Faol</span>
+        </div>
+      </div>
+    </div>
+    ${!isPrem?`
+    <div class="prem-banner" onclick="goBot('/premium')">
+      <div style="display:flex;align-items:center;gap:14px">
+        <div class="icon-box" style="background:rgba(255,215,0,.15)">💎</div>
+        <div style="flex:1">
+          <div style="font-size:16px;font-weight:800">Premium olish</div>
+          <div style="font-size:12px;color:var(--text2);margin-top:2px">Cheksiz AI, like va ko'proq imkoniyatlar</div>
+        </div>
+        <div style="color:var(--orange);font-size:22px">›</div>
+      </div>
+    </div>`:''}
+    <div class="section">Modullar</div>
+    <div class="sg">${[
+      {ico:'🎓',bg:'rgba(255,159,10,.15)',lbl:'Imtihon',pg:'exam',sub:D.exam?.exam_type?(EXAM_NAMES[D.exam.exam_type]||D.exam.exam_type):'Sozlanmagan'},
+      {ico:'💼',bg:'rgba(48,209,88,.15)', lbl:'Karyera',pg:'career',sub:D.career?.status?(STATUS_NAMES[D.career.status]||D.career.status):'Sozlanmagan'},
+      {ico:'💝',bg:'rgba(255,59,48,.15)', lbl:"Do'stlar",pg:'friends',sub:D.friends?.display_name||'Sozlanmagan'},
+      {ico:'🧠',bg:'rgba(10,132,255,.15)',lbl:'Psixolog',pg:'healer',sub:'Tayyor'},
+    ].map(s=>`<div class="si" onclick="nav('${s.pg}')">
+      <div class="si-ico" style="background:${s.bg}">${s.ico}</div>
+      <div style="flex:1"><div class="si-lbl">${s.lbl}</div><div class="si-sub">${esc(s.sub)}</div></div>
+      <div class="si-arr">›</div>
+    </div>`).join('')}</div>
     <div class="section">Sozlamalar</div>
-    <div class="setting-item" onclick="goBot('/settings')">
-      <span class="s-icon">⚙️</span><span class="s-label">Sozlamalar</span><span class="s-arrow">›</span>
-    </div>
-    <div class="setting-item" onclick="goBot('/privacy')">
-      <span class="s-icon">🔒</span><span class="s-label">Maxfiylik siyosati</span><span class="s-arrow">›</span>
-    </div>
-    <div class="setting-item" onclick="goBot('/terms')">
-      <span class="s-icon">📜</span><span class="s-label">Foydalanish shartlari</span><span class="s-arrow">›</span>
-    </div>
-  `;
+    <div class="sg">${[
+      {ico:'⚙️',bg:'rgba(142,142,147,.15)',lbl:'Sozlamalar',cmd:'/settings'},
+      {ico:'🔒',bg:'rgba(48,209,88,.15)',   lbl:'Maxfiylik siyosati',cmd:'/privacy'},
+      {ico:'📜',bg:'rgba(10,132,255,.15)',  lbl:'Foydalanish shartlari',cmd:'/terms'},
+    ].map(s=>`<div class="si" onclick="goBot('${s.cmd}')">
+      <div class="si-ico" style="background:${s.bg}">${s.ico}</div>
+      <div class="si-lbl">${s.lbl}</div>
+      <div class="si-arr">›</div>
+    </div>`).join('')}</div>
+    <div style="height:16px"></div>`;
 }
 
-// ── NAVIGATION ─────────────────────────────────────────────────────────
-function showPage(name) {
-  if (name === 'healer') { goBot('/healer'); return; }
-
-  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-
-  const pg = document.getElementById('pg-' + name);
-  if (pg) pg.classList.add('active');
-
-  const btn = document.querySelector(`.nav-btn[data-page="${name}"]`);
-  if (btn) btn.classList.add('active');
-
-  currentPage = name;
-  document.getElementById('hdr-title').textContent = PAGE_TITLES[name] || 'MindMate';
-
-  if (name === 'friends') renderFriends();
+/* ── NAVIGATION ── */
+function nav(name){
+  if(name==='healer'){goBot('/healer');return}
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+  const pg=document.getElementById('pg-'+name);
+  if(pg) pg.classList.add('active');
+  const btn=document.querySelector(`.nav-btn[data-page="${name}"]`);
+  if(btn) btn.classList.add('active');
+  currentPage=name;
+  tg?.HapticFeedback?.selectionChanged?.();
+  if(name==='friends') renderFriends();
 }
 
-// ── UTILS ──────────────────────────────────────────────────────────────
-function goBot(cmd) {
-  if (tg) tg.close();
-  toast('Bot ochilmoqda… ' + cmd);
+/* ── UTILS ── */
+function goBot(cmd){
+  tg?.HapticFeedback?.impactOccurred?.('light');
+  if(tg){if(BOT_USERNAME)tg.openTelegramLink('https://t.me/'+BOT_USERNAME);else tg.close()}
 }
-
-function toast(msg) {
-  const el = document.createElement('div');
-  el.className = 'toast';
-  el.textContent = msg;
+function toast(msg){
+  const el=document.createElement('div');
+  el.className='toast';el.textContent=msg;
   document.body.appendChild(el);
-  setTimeout(() => el.remove(), 2600);
+  setTimeout(()=>el.remove(),2900);
 }
-
-function esc(s) {
-  return String(s || '')
-    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
-    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-}
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
 </script>
 </body>
 </html>

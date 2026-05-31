@@ -1,14 +1,28 @@
 services:
-  - type: worker            # IMPORTANT: long-polling Telegram bot, not a web server
+  - type: web               # Web service — gets a public HTTPS URL + health checks
     name: mindmate-bot
     env: python
     region: oregon
     plan: starter
     buildCommand: pip install -r requirements.txt
     startCommand: python main.py
+    healthCheckPath: /api/health
+
     envVars:
       - key: TELEGRAM_BOT_TOKEN
         sync: false
+
+      # ── Mini App ───────────────────────────────────────────────────
+      # After first deploy, copy your Render URL (e.g. https://mindmate-bot.onrender.com)
+      # and set it here. Then redeploy. The "Open Dashboard" button will appear in the bot.
+      - key: WEBAPP_URL
+        value: ""
+      - key: BOT_USERNAME
+        value: ""          # your bot username without @  (e.g. mindmate_bot)
+      - key: ENABLE_WEBAPP
+        value: true
+      - key: API_PORT
+        value: 8080
 
       # ── AI provider — change to 'anthropic' to switch to Claude ──
       - key: AI_PROVIDER
