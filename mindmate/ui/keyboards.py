@@ -1,7 +1,7 @@
 """
 Keyboard builders for MindMate Bot
 """
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, KeyboardButton
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, KeyboardButton, WebAppInfo
 
 from mindmate.i18n import t
 
@@ -26,8 +26,8 @@ def get_setup_keyboard(lang: str = "en") -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(keyboard)
 
 
-def get_main_menu_keyboard(lang: str = "en") -> InlineKeyboardMarkup:
-    """Main menu — 4 big categories."""
+def get_main_menu_keyboard(lang: str = "en", webapp_url: str = "") -> InlineKeyboardMarkup:
+    """Main menu — 4 big categories + optional Mini App button."""
     keyboard = [
         [
             InlineKeyboardButton(t("menu.exam", lang), callback_data="menu_exam"),
@@ -38,6 +38,13 @@ def get_main_menu_keyboard(lang: str = "en") -> InlineKeyboardMarkup:
             InlineKeyboardButton(t("menu.profile", lang), callback_data="menu_profile"),
         ],
     ]
+    if webapp_url:
+        keyboard.append([
+            InlineKeyboardButton(
+                t("menu.open_app", lang),
+                web_app=WebAppInfo(url=webapp_url),
+            )
+        ])
     return InlineKeyboardMarkup(keyboard)
 
 

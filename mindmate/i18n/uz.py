@@ -29,6 +29,7 @@ TRANSLATIONS = {
         "settings": "⚙️ Sozlamalar",
         "premium": "💎 Premium",
         "help": "❓ Yordam",
+        "open_app": "📱 Dashboardni ochish",
     },
 
     "profile": {

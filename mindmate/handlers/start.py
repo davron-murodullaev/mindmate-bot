@@ -19,6 +19,7 @@ from mindmate.ui.keyboards import (
 )
 from mindmate.i18n import t
 from mindmate.core.constants import SUPPORTED_LANGUAGES, DEFAULT_LANGUAGE
+from mindmate.core.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -82,7 +83,7 @@ async def start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 
             await message.reply_text(
                 greeting,
-                reply_markup=get_main_menu_keyboard(lang),
+                reply_markup=get_main_menu_keyboard(lang, webapp_url=settings.WEBAPP_URL),
                 parse_mode="Markdown",
             )
             return
@@ -141,7 +142,7 @@ async def setup_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
         await query.edit_message_text(
             text=t("menu.main_menu", lang),
-            reply_markup=get_main_menu_keyboard(lang),
+            reply_markup=get_main_menu_keyboard(lang, webapp_url=settings.WEBAPP_URL),
             parse_mode="Markdown",
         )
 
@@ -163,7 +164,7 @@ async def cancel_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         lang = await user_service.get_user_language(user.id)
         await message.reply_text(
             t("general.cancel_done", lang) + "\n\n" + t("menu.main_menu", lang),
-            reply_markup=get_main_menu_keyboard(lang),
+            reply_markup=get_main_menu_keyboard(lang, webapp_url=settings.WEBAPP_URL),
             parse_mode="Markdown",
         )
     except Exception as e:

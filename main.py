@@ -244,6 +244,24 @@ async def voice_dispatcher(update, context):
         await chat.send_message(t("voice.error", _err_lang))
 
 
+def _start_api_server() -> None:
+    """Run the FastAPI Mini App server in a daemon thread with its own event loop."""
+    import asyncio
+    import uvicorn
+
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    config = uvicorn.Config(
+        "mindmate.api.server:app",
+        host="0.0.0.0",
+        port=settings.API_PORT,
+        log_level="warning",
+        loop="asyncio",
+    )
+    server = uvicorn.Server(config)
+    loop.run_until_complete(server.serve())
+
+
 def main():
     logger.info("Starting MindMate Bot...")
 
@@ -299,6 +317,13 @@ def main():
         filters.PHOTO | filters.Document.IMAGE,
         friends_photo_handler,
     ))
+
+    # Start Mini App API server if enabled
+    if settings.ENABLE_WEBAPP:
+        import threading
+        api_thread = threading.Thread(target=_start_api_server, daemon=True, name="api-server")
+        api_thread.start()
+        logger.info(f"Mini App API server starting on port {settings.API_PORT}")
 
     logger.info("Bot started successfully. Polling for updates...")
     application.run_polling(allowed_updates=["message", "callback_query"])

@@ -29,6 +29,7 @@ TRANSLATIONS = {
         "settings": "⚙️ Настройки",
         "premium": "💎 Премиум",
         "help": "❓ Помощь",
+        "open_app": "📱 Открыть дашборд",
     },
 
     "profile": {

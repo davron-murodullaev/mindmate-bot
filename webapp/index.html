@@ -1,0 +1,849 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>MindMate</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+:root {
+  --bg: #1c1c1e;
+  --secondary-bg: #2c2c2e;
+  --text: #ffffff;
+  --hint: #8e8e93;
+  --link: #0a84ff;
+  --btn: #0a84ff;
+  --btn-text: #ffffff;
+  --radius: 16px;
+  --nav-h: 68px;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+html, body { height: 100%; background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif; }
+
+body { padding-bottom: var(--nav-h); overflow-x: hidden; }
+
+/* ── NAV ── */
+.nav {
+  position: fixed; bottom: 0; left: 0; right: 0; z-index: 100;
+  background: var(--secondary-bg);
+  border-top: 1px solid rgba(255,255,255,0.08);
+  display: flex;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  height: var(--nav-h);
+}
+.nav-btn {
+  flex: 1; border: none; background: none; cursor: pointer;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  color: var(--hint); transition: color .15s;
+  padding: 8px 2px 4px;
+  gap: 3px;
+}
+.nav-btn.active { color: var(--btn); }
+.nav-btn svg { width: 22px; height: 22px; flex-shrink: 0; }
+.nav-label { font-size: 10px; font-weight: 500; }
+
+/* ── PAGES ── */
+.page { display: none; padding: 0 16px 16px; }
+.page.active { display: block; }
+
+/* ── HEADER ── */
+.hdr { padding: 20px 16px 8px; display: flex; align-items: center; justify-content: space-between; }
+.hdr-title { font-size: 26px; font-weight: 700; letter-spacing: -0.5px; }
+.badge-premium {
+  background: linear-gradient(135deg, #FFD700, #FF8C00);
+  color: #000; padding: 3px 10px; border-radius: 20px;
+  font-size: 11px; font-weight: 700;
+}
+
+/* ── CARDS ── */
+.card {
+  background: var(--secondary-bg);
+  border-radius: var(--radius);
+  padding: 16px;
+  margin-bottom: 10px;
+}
+.card-row { display: flex; align-items: center; gap: 12px; }
+.card-icon {
+  width: 42px; height: 42px; border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 22px; flex-shrink: 0;
+}
+.card-info { flex: 1; min-width: 0; }
+.card-title { font-size: 16px; font-weight: 600; }
+.card-sub { font-size: 13px; color: var(--hint); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.chevron { color: var(--hint); font-size: 18px; flex-shrink: 0; }
+
+/* ── SECTION TITLE ── */
+.section { font-size: 18px; font-weight: 700; margin: 20px 0 10px; letter-spacing: -0.3px; }
+
+/* ── STAT ROW ── */
+.stat-row { display: flex; gap: 8px; margin-bottom: 10px; }
+.stat-box {
+  flex: 1; background: var(--secondary-bg);
+  border-radius: 14px; padding: 14px 12px; text-align: center;
+}
+.stat-val { font-size: 26px; font-weight: 800; line-height: 1; }
+.stat-lbl { font-size: 11px; color: var(--hint); margin-top: 4px; }
+
+/* ── STREAK DOTS ── */
+.streak-row { display: flex; gap: 6px; justify-content: space-between; margin-top: 10px; }
+.s-day {
+  flex: 1; height: 32px; border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 10px; font-weight: 600; color: var(--hint);
+  background: rgba(255,255,255,0.07);
+}
+.s-day.done { background: var(--btn); color: #fff; }
+.s-day.today { border: 2px solid var(--btn); color: var(--text); background: rgba(10,132,255,.12); }
+
+/* ── BUTTON ── */
+.btn {
+  background: var(--btn); color: var(--btn-text);
+  border: none; border-radius: 13px;
+  padding: 13px 20px; font-size: 15px; font-weight: 600;
+  width: 100%; cursor: pointer; margin-top: 10px;
+  transition: opacity .15s;
+}
+.btn:active { opacity: .75; }
+.btn.secondary { background: rgba(255,255,255,0.08); color: var(--text); }
+.btn.gold { background: linear-gradient(135deg, #FFD700, #FF8C00); color: #000; }
+
+/* ── TAG PILL ── */
+.tag { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 500; margin: 2px; }
+.tag.green { background: rgba(48,209,88,.18); color: #30d158; }
+.tag.orange { background: rgba(255,159,10,.18); color: #ff9f0a; }
+.tag.blue { background: rgba(10,132,255,.18); color: #0a84ff; }
+.tag.gray { background: rgba(255,255,255,.08); color: var(--hint); }
+
+/* ── PROGRESS BAR ── */
+.prog-bar { height: 6px; background: rgba(255,255,255,0.1); border-radius: 3px; margin-top: 8px; overflow: hidden; }
+.prog-fill { height: 100%; background: var(--btn); border-radius: 3px; transition: width .5s ease; }
+
+/* ── SWIPE AREA ── */
+.swipe-wrap { position: relative; height: 430px; margin-bottom: 14px; }
+.swipe-card {
+  position: absolute; inset: 0;
+  background: var(--secondary-bg); border-radius: var(--radius);
+  overflow: hidden; user-select: none; touch-action: pan-y;
+  transition: transform .25s ease, opacity .25s ease;
+  will-change: transform;
+}
+.swipe-photo {
+  width: 100%; height: 270px; object-fit: cover;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 90px;
+}
+.swipe-photo.placeholder { background: linear-gradient(135deg, #5856d6, #af52de); }
+.swipe-info { padding: 14px 16px; }
+.swipe-name { font-size: 22px; font-weight: 700; }
+.swipe-meta { font-size: 14px; color: var(--hint); margin-top: 3px; }
+.swipe-bio { font-size: 13px; color: var(--hint); margin-top: 8px; line-height: 1.4; }
+.swipe-tags { display: flex; flex-wrap: wrap; margin-top: 8px; gap: 4px; }
+
+.reaction-badge {
+  position: absolute; top: 18px; font-size: 22px; font-weight: 900;
+  padding: 6px 14px; border-radius: 8px; border: 3px solid;
+  opacity: 0; pointer-events: none; z-index: 10;
+  text-transform: uppercase; letter-spacing: 1px;
+}
+.rb-like { left: 16px; color: #30d158; border-color: #30d158; transform: rotate(-15deg); }
+.rb-pass { right: 16px; color: #ff3b30; border-color: #ff3b30; transform: rotate(15deg); }
+
+.swipe-actions { display: flex; gap: 20px; justify-content: center; margin-top: 4px; }
+.swipe-btn {
+  width: 66px; height: 66px; border-radius: 50%; border: none; cursor: pointer;
+  font-size: 28px; display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 4px 16px rgba(0,0,0,.35); transition: transform .1s;
+}
+.swipe-btn:active { transform: scale(.9); }
+.sb-pass { background: #2c2c2e; }
+.sb-like { background: #ff3b30; }
+.sb-star { background: #ff9f0a; }
+
+/* ── MATCHES ── */
+.match-item {
+  display: flex; align-items: center; gap: 12px;
+  background: var(--secondary-bg); border-radius: 13px;
+  padding: 12px; margin-bottom: 8px;
+}
+.match-ava {
+  width: 50px; height: 50px; border-radius: 50%; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 24px; background: linear-gradient(135deg, #5856d6, #af52de);
+}
+.match-name { font-size: 15px; font-weight: 600; }
+.match-meta { font-size: 12px; color: var(--hint); margin-top: 2px; }
+
+/* ── PROFILE HERO ── */
+.p-hero { text-align: center; padding: 20px 16px 10px; }
+.p-ava {
+  width: 82px; height: 82px; border-radius: 50%; margin: 0 auto 12px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 38px; background: linear-gradient(135deg, var(--btn), #5856d6);
+}
+.p-name { font-size: 22px; font-weight: 700; }
+.p-handle { font-size: 14px; color: var(--hint); margin-top: 3px; }
+
+.setting-item {
+  display: flex; align-items: center; gap: 12px;
+  background: var(--secondary-bg); border-radius: 13px;
+  padding: 15px; margin-bottom: 8px; cursor: pointer;
+  transition: opacity .15s;
+}
+.setting-item:active { opacity: .7; }
+.s-icon { font-size: 22px; width: 36px; text-align: center; }
+.s-label { font-size: 15px; flex: 1; }
+.s-arrow { color: var(--hint); }
+
+/* ── EMPTY STATE ── */
+.empty { text-align: center; padding: 48px 20px; }
+.empty-icon { font-size: 52px; margin-bottom: 14px; }
+.empty-title { font-size: 18px; font-weight: 600; margin-bottom: 8px; }
+.empty-sub { font-size: 14px; color: var(--hint); line-height: 1.5; }
+
+/* ── SPINNER ── */
+.loader { display: flex; justify-content: center; align-items: center; min-height: 220px; }
+.spinner {
+  width: 38px; height: 38px;
+  border: 3px solid rgba(255,255,255,.1);
+  border-top-color: var(--btn);
+  border-radius: 50%;
+  animation: spin .75s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── TOAST ── */
+.toast {
+  position: fixed; bottom: calc(var(--nav-h) + 12px); left: 50%;
+  transform: translateX(-50%);
+  background: rgba(50,50,52,.95); color: #fff;
+  padding: 10px 18px; border-radius: 22px; font-size: 13px;
+  z-index: 999; white-space: nowrap; pointer-events: none;
+  animation: fadeToast 2.5s ease forwards;
+}
+@keyframes fadeToast {
+  0% { opacity: 0; transform: translateX(-50%) translateY(8px); }
+  15% { opacity: 1; transform: translateX(-50%) translateY(0); }
+  75% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+/* ── MATCH POPUP ── */
+.match-popup {
+  position: fixed; inset: 0; z-index: 200;
+  background: rgba(0,0,0,.88);
+  display: none; flex-direction: column; align-items: center; justify-content: center;
+  text-align: center; padding: 32px;
+}
+.match-popup.show { display: flex; }
+.mp-hearts { font-size: 64px; margin-bottom: 16px; animation: heartbeat .6s ease infinite alternate; }
+@keyframes heartbeat { to { transform: scale(1.15); } }
+.mp-title { font-size: 28px; font-weight: 800; margin-bottom: 8px; }
+.mp-sub { font-size: 16px; color: var(--hint); margin-bottom: 24px; line-height: 1.5; }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="hdr" id="hdr">
+  <div class="hdr-title" id="hdr-title">MindMate</div>
+  <div id="hdr-badge"></div>
+</div>
+
+<!-- PAGES -->
+<div id="pg-home" class="page active"></div>
+<div id="pg-exam" class="page"></div>
+<div id="pg-career" class="page"></div>
+<div id="pg-friends" class="page"></div>
+<div id="pg-profile" class="page"></div>
+
+<!-- MATCH POPUP -->
+<div class="match-popup" id="match-popup">
+  <div class="mp-hearts">💝</div>
+  <div class="mp-title">Match bo'ldingiz!</div>
+  <div class="mp-sub" id="mp-sub">Bir-biringizni yoqtirasiz.</div>
+  <button class="btn" style="max-width:260px" onclick="closeMatchPopup()">Davom etish ›</button>
+</div>
+
+<!-- BOTTOM NAV -->
+<nav class="nav">
+  <button class="nav-btn active" data-page="home" onclick="showPage('home')">
+    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
+    <span class="nav-label">Bosh</span>
+  </button>
+  <button class="nav-btn" data-page="exam" onclick="showPage('exam')">
+    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zm3 7h8v2H8v-2zm0 4h5v2H8v-2zm0-8h8v2H8V6z"/></svg>
+    <span class="nav-label">Imtihon</span>
+  </button>
+  <button class="nav-btn" data-page="career" onclick="showPage('career')">
+    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 7h-4V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2H4a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2zm-10-2h4v2h-4V5zm10 16H4V9h16v12z"/></svg>
+    <span class="nav-label">Karyera</span>
+  </button>
+  <button class="nav-btn" data-page="friends" onclick="showPage('friends')">
+    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+    <span class="nav-label">Do'stlar</span>
+  </button>
+  <button class="nav-btn" data-page="profile" onclick="showPage('profile')">
+    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+    <span class="nav-label">Profil</span>
+  </button>
+</nav>
+
+<script>
+// ── GLOBALS ────────────────────────────────────────────────────────────
+const tg = window.Telegram?.WebApp;
+const API = '';
+let initData = '';
+let D = {}; // app data cache
+let currentPage = 'home';
+let browseData = null;
+let swipeStartX = 0, swipeStartY = 0, swipeDeltaX = 0;
+let isSwiping = false;
+
+const PAGE_TITLES = {
+  home:    'MindMate 🧠',
+  exam:    '🎓 Imtihon',
+  career:  '💼 Karyera',
+  friends: '💝 Do\'stlar',
+  profile: '👤 Profil',
+};
+
+// ── INIT ───────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', init);
+
+async function init() {
+  if (tg) {
+    tg.ready();
+    tg.expand();
+    initData = tg.initData || '';
+    applyTgTheme();
+  }
+  await loadData();
+}
+
+function applyTgTheme() {
+  const p = tg.themeParams || {};
+  const set = (v, d) => v || d;
+  document.documentElement.style.setProperty('--bg',           set(p.bg_color, '#1c1c1e'));
+  document.documentElement.style.setProperty('--secondary-bg', set(p.secondary_bg_color, '#2c2c2e'));
+  document.documentElement.style.setProperty('--text',         set(p.text_color, '#ffffff'));
+  document.documentElement.style.setProperty('--hint',         set(p.hint_color, '#8e8e93'));
+  document.documentElement.style.setProperty('--btn',          set(p.button_color, '#0a84ff'));
+  document.documentElement.style.setProperty('--btn-text',     set(p.button_text_color, '#ffffff'));
+  document.documentElement.style.setProperty('--link',         set(p.link_color, '#0a84ff'));
+}
+
+// ── API ────────────────────────────────────────────────────────────────
+async function api(path, opts = {}) {
+  const headers = { 'Content-Type': 'application/json' };
+  if (initData) headers['X-Telegram-Init-Data'] = initData;
+  const res = await fetch(API + '/api' + path, { headers, ...opts });
+  if (!res.ok) throw new Error(`${res.status} ${path}`);
+  return res.json();
+}
+
+async function apiPost(path, body) {
+  return api(path, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
+// ── LOAD DATA ──────────────────────────────────────────────────────────
+async function loadData() {
+  showSpinner('home'); showSpinner('exam');
+  showSpinner('career'); showSpinner('profile');
+
+  const [user, overview, exam, career, friends] = await Promise.allSettled([
+    api('/user/me'),
+    api('/stats/overview'),
+    api('/exam/profile'),
+    api('/career/profile'),
+    api('/friends/profile'),
+  ]);
+
+  if (user.status === 'fulfilled')     D.user     = user.value;
+  if (overview.status === 'fulfilled') D.overview = overview.value;
+  if (exam.status === 'fulfilled')     D.exam     = exam.value;
+  if (career.status === 'fulfilled')   D.career   = career.value;
+  if (friends.status === 'fulfilled')  D.friends  = friends.value;
+
+  renderHeader();
+  renderHome();
+  renderExam();
+  renderCareer();
+  renderProfile();
+}
+
+function showSpinner(page) {
+  document.getElementById('pg-' + page).innerHTML = '<div class="loader"><div class="spinner"></div></div>';
+}
+
+// ── HEADER ─────────────────────────────────────────────────────────────
+function renderHeader() {
+  document.getElementById('hdr-title').textContent = PAGE_TITLES[currentPage];
+  const u = D.user || {};
+  if (u.is_premium) {
+    document.getElementById('hdr-badge').innerHTML = '<span class="badge-premium">💎 Premium</span>';
+  }
+}
+
+// ── HOME PAGE ──────────────────────────────────────────────────────────
+function renderHome() {
+  const u = D.user || {};
+  const ov = D.overview || {};
+  const streak = ov.streak_days || 0;
+  const aiToday = ov.ai_messages_today || 0;
+  const aiLimit = u.is_premium ? '∞' : '10';
+  const hist = ov.streak_history || Array(7).fill(false);
+
+  const DAY_LABELS = ['Du', 'Se', 'Ch', 'Pe', 'Ju', 'Sh', 'Ya'];
+  const todayIdx = new Date().getDay(); // 0=Sun
+  const order = [1,2,3,4,5,6,0]; // Mon→Sun
+  const startOffset = order.indexOf(todayIdx) - 6;
+  let dotsHTML = '';
+  for (let i = 0; i < 7; i++) {
+    const dayOff = ((startOffset + i) % 7 + 7) % 7;
+    const isToday = i === 6;
+    const isDone  = hist[i];
+    const cls     = isDone ? 's-day done' : isToday ? 's-day today' : 's-day';
+    dotsHTML += `<div class="${cls}">${DAY_LABELS[dayOff]}</div>`;
+  }
+
+  const modules = [
+    { icon:'🎓', bg:'#ff9f0a22', title:'Imtihon', data: D.exam, page:'exam',
+      status: D.exam && D.exam.exam_type ? 'Faol' : 'Sozlanmagan',
+      statusCls: D.exam && D.exam.exam_type ? 'green' : 'orange',
+      sub: D.exam && D.exam.exam_type ? examLabel(D.exam.exam_type) + ' — ' + levelLabel(D.exam.current_level) : 'Hali sozlanmagan' },
+    { icon:'💼', bg:'#30d15822', title:'Karyera', data: D.career, page:'career',
+      status: D.career && D.career.status ? 'Faol' : 'Sozlanmagan',
+      statusCls: D.career && D.career.status ? 'green' : 'orange',
+      sub: D.career && D.career.target_role ? D.career.target_role : 'Maqsad belgilanmagan' },
+    { icon:'💝', bg:'#ff2d5522', title:"Do'stlar", data: D.friends, page:'friends',
+      status: D.friends && D.friends.display_name ? 'Faol' : 'Sozlanmagan',
+      statusCls: D.friends && D.friends.display_name ? 'green' : 'orange',
+      sub: D.friends && D.friends.display_name ? D.friends.display_name + (D.friends.likes_received ? ` · ❤️ ${D.friends.likes_received}` : '') : 'Profil yaratilmagan' },
+    { icon:'🧠', bg:'#0a84ff22', title:'Psixolog', data: null, page:'healer',
+      status: 'Tayyor', statusCls: 'blue', sub: 'Ruhiy yordam va qo\'llab-quvvatlash' },
+  ];
+
+  let modsHTML = modules.map(m => `
+    <div class="card" onclick="showPage('${m.page}')" style="cursor:pointer">
+      <div class="card-row">
+        <div class="card-icon" style="background:${m.bg}">${m.icon}</div>
+        <div class="card-info">
+          <div class="card-title">${m.title}</div>
+          <div class="card-sub">${m.sub}</div>
+        </div>
+        <span class="tag ${m.statusCls}">${m.status}</span>
+      </div>
+    </div>`).join('');
+
+  document.getElementById('pg-home').innerHTML = `
+    <div class="stat-row">
+      <div class="stat-box">
+        <div class="stat-val" style="color:#ff9f0a">🔥 ${streak}</div>
+        <div class="stat-lbl">Ketma-ket kun</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-val">${aiToday}<span style="font-size:16px;color:var(--hint)">/${aiLimit}</span></div>
+        <div class="stat-lbl">AI xabar bugun</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+        <span style="font-weight:600;font-size:15px">Faollik seriyasi</span>
+        <span style="color:#ff9f0a;font-weight:700">🔥 ${streak} kun</span>
+      </div>
+      <div class="streak-row">${dotsHTML}</div>
+    </div>
+
+    <div class="section">Modullar</div>
+    ${modsHTML}
+  `;
+}
+
+// ── EXAM PAGE ──────────────────────────────────────────────────────────
+const EXAM_NAMES  = { dtm:'DTM', ielts:'IELTS', sat:'SAT', magistratura:'Magistratura', cefr:'CEFR' };
+const LEVEL_NAMES = { beginner:"Boshlang'ich", intermediate:"O'rta", advanced:'Yuqori' };
+function examLabel(t) { return EXAM_NAMES[t] || t; }
+function levelLabel(l) { return LEVEL_NAMES[l] || l; }
+
+function renderExam() {
+  const ex = D.exam;
+  const pg = document.getElementById('pg-exam');
+
+  if (!ex || !ex.exam_type) {
+    pg.innerHTML = `
+      <div class="empty">
+        <div class="empty-icon">🎓</div>
+        <div class="empty-title">Imtihon sozlanmagan</div>
+        <div class="empty-sub">Qaysi imtihonga tayyorlanayotganingizni belgilang va shaxsiy reja oling</div>
+      </div>
+      <button class="btn" onclick="goBot('/exam')">Boshlash →</button>`;
+    return;
+  }
+
+  let daysLeft = '—';
+  if (ex.exam_date) {
+    const diff = Math.ceil((new Date(ex.exam_date) - Date.now()) / 86400000);
+    daysLeft = diff > 0 ? diff + ' kun' : diff === 0 ? 'Bugun!' : 'O\'tib ketdi';
+  }
+
+  const subjects = (ex.subjects || []).join(' · ') || '—';
+  const pct = ex.current_level === 'beginner' ? 20 : ex.current_level === 'advanced' ? 80 : 50;
+
+  pg.innerHTML = `
+    <div class="stat-row">
+      <div class="stat-box">
+        <div class="stat-val" style="color:#ff9f0a">${examLabel(ex.exam_type)}</div>
+        <div class="stat-lbl">${levelLabel(ex.current_level)}</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-val">${daysLeft}</div>
+        <div class="stat-lbl">Imtihonga qoldi</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div style="font-weight:600;margin-bottom:6px">Daraja</div>
+      <div style="font-size:13px;color:var(--hint)">${levelLabel(ex.current_level)}</div>
+      <div class="prog-bar"><div class="prog-fill" style="width:${pct}%"></div></div>
+    </div>
+
+    <div class="card">
+      <div class="card-row">
+        <div class="card-icon" style="background:#ff9f0a22">📚</div>
+        <div class="card-info">
+          <div class="card-title">Fanlar</div>
+          <div class="card-sub">${subjects}</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-row">
+        <div class="card-icon" style="background:#30d15822">⏱</div>
+        <div class="card-info">
+          <div class="card-title">Kunlik o'qish</div>
+          <div class="card-sub">${ex.daily_study_hours || 4} soat / kun</div>
+        </div>
+      </div>
+    </div>
+
+    <button class="btn" onclick="goBot('/exam')">📋 Bugungi reja olish</button>
+    <button class="btn secondary" style="margin-top:8px" onclick="goBot('/exam')">✏️ Amaliyot savollar</button>
+  `;
+}
+
+// ── CAREER PAGE ────────────────────────────────────────────────────────
+const STATUS_NAMES = {
+  student:"Talaba", graduate:"Bitiruvchi",
+  employed:"Ishlamoqda", switching:"Kasbni o'zgartirmoqchi", freelance:"Frilanser"
+};
+
+function renderCareer() {
+  const ca = D.career;
+  const pg = document.getElementById('pg-career');
+
+  if (!ca || !ca.status) {
+    pg.innerHTML = `
+      <div class="empty">
+        <div class="empty-icon">💼</div>
+        <div class="empty-title">Karyera profil yo'q</div>
+        <div class="empty-sub">Maqsadlaringizni belgilang va AI resume, intervyu mashqi oling</div>
+      </div>
+      <button class="btn" onclick="goBot('/career')">Boshlash →</button>`;
+    return;
+  }
+
+  const skills = (ca.skills || []).map(s => `<span class="tag gray">${s}</span>`).join('');
+  const langs  = (ca.languages || []).map(l => `<span class="tag blue">${l}</span>`).join('');
+
+  pg.innerHTML = `
+    <div class="card">
+      <div class="card-row">
+        <div class="card-icon" style="background:#30d15822">👔</div>
+        <div class="card-info">
+          <div class="card-title">${STATUS_NAMES[ca.status] || ca.status}</div>
+          <div class="card-sub">${ca.target_role || 'Lavozim belgilanmagan'}</div>
+        </div>
+      </div>
+      ${ca.industry ? `<div style="font-size:13px;color:var(--hint);margin-top:8px">Soha: ${ca.industry}</div>` : ''}
+      ${ca.experience_years != null ? `<div style="font-size:13px;color:var(--hint);margin-top:4px">Tajriba: ${ca.experience_years} yil</div>` : ''}
+    </div>
+
+    ${skills ? `<div class="card"><div style="font-weight:600;margin-bottom:8px">Ko'nikmalar</div><div>${skills}</div></div>` : ''}
+    ${langs  ? `<div class="card"><div style="font-weight:600;margin-bottom:8px">Tillar</div><div>${langs}</div></div>` : ''}
+
+    <button class="btn" onclick="goBot('/career')">🎤 Intervyu mashq qilish</button>
+    <button class="btn secondary" style="margin-top:8px" onclick="goBot('/career')">📄 Rezyume ko'rish / yangilash</button>
+    <button class="btn secondary" style="margin-top:8px" onclick="goBot('/career')">🗺 6 oylik yo'l xaritasi</button>
+  `;
+}
+
+// ── FRIENDS PAGE ───────────────────────────────────────────────────────
+async function renderFriends() {
+  const pg = document.getElementById('pg-friends');
+  showSpinner('friends');
+
+  const fr = D.friends;
+  if (!fr || !fr.display_name) {
+    pg.innerHTML = `
+      <div class="empty">
+        <div class="empty-icon">💝</div>
+        <div class="empty-title">Do'stlar profili yo'q</div>
+        <div class="empty-sub">Yangi do'stlar topish uchun profilingizni yarating</div>
+      </div>
+      <button class="btn" onclick="goBot('/friends')">Profil yaratish →</button>`;
+    return;
+  }
+
+  // Load browse + matches in parallel
+  const [browseRes, matchesRes] = await Promise.allSettled([
+    api('/friends/browse'),
+    api('/friends/matches'),
+  ]);
+
+  browseData = browseRes.status === 'fulfilled' && browseRes.value.user_id ? browseRes.value : null;
+  const matches = matchesRes.status === 'fulfilled' ? (matchesRes.value.matches || []) : [];
+
+  const likesCount = fr.likes_received || 0;
+  const isPremium  = D.user?.is_premium;
+
+  let swipeHTML = '';
+  if (browseData) {
+    const gEmoji = browseData.gender === 'female' ? '👩' : browseData.gender === 'male' ? '👨' : '🧑';
+    const tags   = (browseData.interests || []).slice(0, 5).map(i => `<span class="tag gray">${i}</span>`).join('');
+
+    swipeHTML = `
+      <div class="swipe-wrap" id="swipe-wrap">
+        <div class="swipe-card" id="swipe-card">
+          <div class="reaction-badge rb-like" id="rb-like">❤️ YOQDI</div>
+          <div class="reaction-badge rb-pass" id="rb-pass">👎 O'TKAZISH</div>
+          <div class="swipe-photo placeholder" style="font-size:90px">${gEmoji}</div>
+          <div class="swipe-info">
+            <div class="swipe-name">${esc(browseData.display_name)}, ${browseData.age}</div>
+            <div class="swipe-meta">${esc(browseData.city || '')}${browseData.looking_for ? ' · ' + browseData.looking_for : ''}</div>
+            ${browseData.bio ? `<div class="swipe-bio">${esc(browseData.bio)}</div>` : ''}
+            <div class="swipe-tags">${tags}</div>
+          </div>
+        </div>
+      </div>
+      <div class="swipe-actions">
+        <button class="swipe-btn sb-pass" onclick="doReact('pass')" title="O'tkazish">👎</button>
+        <button class="swipe-btn sb-star" onclick="doReact('superlike')" title="Super like">⭐</button>
+        <button class="swipe-btn sb-like" onclick="doReact('like')" title="Yoqdi">❤️</button>
+      </div>`;
+  } else {
+    swipeHTML = `
+      <div class="card" style="text-align:center;padding:32px 20px">
+        <div style="font-size:42px;margin-bottom:10px">🌟</div>
+        <div style="font-weight:600;font-size:16px">Hozircha yangi profillar yo'q</div>
+        <div style="color:var(--hint);font-size:13px;margin-top:6px">Keyinroq qaytib keling</div>
+      </div>`;
+  }
+
+  const likesSection = `
+    <div class="card" style="margin-top:4px">
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <div>
+          <div style="font-weight:600;font-size:15px">❤️ Sizni yoqtirdi</div>
+          <div style="font-size:13px;color:var(--hint);margin-top:3px">
+            ${isPremium ? `${likesCount} kishi` : `${likesCount} kishi (ko'rish uchun Premium kerak)`}
+          </div>
+        </div>
+        ${!isPremium ? `<button class="btn gold" style="width:auto;margin:0;padding:8px 14px;font-size:12px" onclick="goBot('/premium')">💎 Ko'rish</button>` : ''}
+      </div>
+    </div>`;
+
+  let matchesHTML = '';
+  if (matches.length) {
+    matchesHTML = `<div class="section">Matchlar (${matches.length})</div>` +
+      matches.slice(0, 6).map(m => {
+        const g = m.gender === 'female' ? '👩' : m.gender === 'male' ? '👨' : '🧑';
+        return `
+          <div class="match-item">
+            <div class="match-ava">${g}</div>
+            <div>
+              <div class="match-name">${esc(m.display_name)}, ${m.age}</div>
+              <div class="match-meta">${esc(m.city || '')} · Match bo'lindi</div>
+            </div>
+          </div>`;
+      }).join('');
+  }
+
+  pg.innerHTML = `<div class="section">Yangi tanishuv</div>` + swipeHTML + likesSection + matchesHTML;
+
+  if (browseData) initSwipe();
+}
+
+// ── SWIPE ──────────────────────────────────────────────────────────────
+function initSwipe() {
+  const card = document.getElementById('swipe-card');
+  if (!card) return;
+
+  card.addEventListener('mousedown', e => { swipeStartX = e.clientX; isSwiping = true; });
+  window.addEventListener('mousemove', onSwipeMove);
+  window.addEventListener('mouseup', onSwipeEnd);
+  card.addEventListener('touchstart', e => { swipeStartX = e.touches[0].clientX; swipeStartY = e.touches[0].clientY; isSwiping = true; }, { passive: true });
+  card.addEventListener('touchmove', e => {
+    const dx = e.touches[0].clientX - swipeStartX;
+    const dy = e.touches[0].clientY - swipeStartY;
+    if (Math.abs(dx) > Math.abs(dy)) { e.preventDefault(); updateCardPos(dx); }
+  }, { passive: false });
+  card.addEventListener('touchend', e => { onSwipeEnd({ clientX: e.changedTouches[0].clientX }); });
+}
+
+function onSwipeMove(e) {
+  if (!isSwiping) return;
+  updateCardPos(e.clientX - swipeStartX);
+}
+function onSwipeEnd(e) {
+  if (!isSwiping) return;
+  isSwiping = false;
+  window.removeEventListener('mousemove', onSwipeMove);
+  window.removeEventListener('mouseup', onSwipeEnd);
+  const dx = e.clientX - swipeStartX;
+  if (dx > 90) doReact('like');
+  else if (dx < -90) doReact('pass');
+  else resetCard();
+}
+function updateCardPos(dx) {
+  const card = document.getElementById('swipe-card');
+  if (!card) return;
+  card.style.transition = 'none';
+  card.style.transform = `rotate(${dx * 0.04}deg) translateX(${dx * 0.35}px)`;
+  const likeEl = document.getElementById('rb-like');
+  const passEl = document.getElementById('rb-pass');
+  if (likeEl) likeEl.style.opacity = dx > 20 ? Math.min((dx - 20) / 60, 1) : 0;
+  if (passEl) passEl.style.opacity = dx < -20 ? Math.min((-dx - 20) / 60, 1) : 0;
+}
+function resetCard() {
+  const card = document.getElementById('swipe-card');
+  if (!card) return;
+  card.style.transition = '';
+  card.style.transform = '';
+  const likeEl = document.getElementById('rb-like');
+  const passEl = document.getElementById('rb-pass');
+  if (likeEl) likeEl.style.opacity = 0;
+  if (passEl) passEl.style.opacity = 0;
+}
+
+async function doReact(action) {
+  if (!browseData) return;
+  const card = document.getElementById('swipe-card');
+  if (card) {
+    card.style.transition = 'transform .28s ease, opacity .28s ease';
+    if (action === 'like' || action === 'superlike') {
+      card.style.transform = 'rotate(15deg) translateX(160%)';
+    } else {
+      card.style.transform = 'rotate(-15deg) translateX(-160%)';
+    }
+    card.style.opacity = '0';
+  }
+
+  let matched = false;
+  try {
+    const res = await apiPost('/friends/react', {
+      to_user_id: browseData.user_id,
+      action: action === 'superlike' ? 'like' : action,
+    });
+    matched = res.matched;
+  } catch (e) { console.error(e); }
+
+  if (matched) {
+    document.getElementById('mp-sub').textContent = browseData.display_name + ' ham sizni yoqtirdi!';
+    document.getElementById('match-popup').classList.add('show');
+  } else {
+    setTimeout(() => renderFriends(), 320);
+  }
+}
+
+function closeMatchPopup() {
+  document.getElementById('match-popup').classList.remove('show');
+  renderFriends();
+}
+
+// ── PROFILE PAGE ───────────────────────────────────────────────────────
+function renderProfile() {
+  const u = D.user || {};
+  const first = (u.first_name || 'U')[0].toUpperCase();
+  const isPremium = u.is_premium;
+
+  document.getElementById('pg-profile').innerHTML = `
+    <div class="p-hero">
+      <div class="p-ava">${first}</div>
+      <div class="p-name">${esc((u.first_name || '') + ' ' + (u.last_name || '')).trim() || 'Foydalanuvchi'}</div>
+      ${u.username ? `<div class="p-handle">@${esc(u.username)}</div>` : ''}
+      ${isPremium ? '<div style="margin-top:10px"><span class="badge-premium">💎 Premium</span></div>' : ''}
+    </div>
+
+    ${!isPremium ? `
+    <div class="card" style="background:linear-gradient(135deg,rgba(255,215,0,.12),rgba(255,140,0,.08));cursor:pointer" onclick="goBot('/premium')">
+      <div class="card-row">
+        <div class="card-icon" style="background:#ffd70022">💎</div>
+        <div class="card-info">
+          <div class="card-title">Premium olish</div>
+          <div class="card-sub">Cheksiz AI, like va ko'proq imkoniyatlar</div>
+        </div>
+        <span class="chevron">›</span>
+      </div>
+    </div>` : ''}
+
+    <div class="section">Sozlamalar</div>
+    <div class="setting-item" onclick="goBot('/settings')">
+      <span class="s-icon">⚙️</span><span class="s-label">Sozlamalar</span><span class="s-arrow">›</span>
+    </div>
+    <div class="setting-item" onclick="goBot('/privacy')">
+      <span class="s-icon">🔒</span><span class="s-label">Maxfiylik siyosati</span><span class="s-arrow">›</span>
+    </div>
+    <div class="setting-item" onclick="goBot('/terms')">
+      <span class="s-icon">📜</span><span class="s-label">Foydalanish shartlari</span><span class="s-arrow">›</span>
+    </div>
+  `;
+}
+
+// ── NAVIGATION ─────────────────────────────────────────────────────────
+function showPage(name) {
+  if (name === 'healer') { goBot('/healer'); return; }
+
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+
+  const pg = document.getElementById('pg-' + name);
+  if (pg) pg.classList.add('active');
+
+  const btn = document.querySelector(`.nav-btn[data-page="${name}"]`);
+  if (btn) btn.classList.add('active');
+
+  currentPage = name;
+  document.getElementById('hdr-title').textContent = PAGE_TITLES[name] || 'MindMate';
+
+  if (name === 'friends') renderFriends();
+}
+
+// ── UTILS ──────────────────────────────────────────────────────────────
+function goBot(cmd) {
+  if (tg) tg.close();
+  toast('Bot ochilmoqda… ' + cmd);
+}
+
+function toast(msg) {
+  const el = document.createElement('div');
+  el.className = 'toast';
+  el.textContent = msg;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 2600);
+}
+
+function esc(s) {
+  return String(s || '')
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+</script>
+</body>
+</html>

@@ -29,6 +29,7 @@ TRANSLATIONS = {
         "settings": "⚙️ Settings",
         "premium": "💎 Premium",
         "help": "❓ Help",
+        "open_app": "📱 Open Dashboard",
     },
 
     "profile": {
