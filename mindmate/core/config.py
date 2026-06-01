@@ -39,6 +39,12 @@ class Settings(BaseSettings):
     ENVIRONMENT: str = Field(default="production", description="Environment")
     DEBUG: bool = Field(default=False, description="Debug mode")
 
+    # ── Telegram Mini App (Web Dashboard) ───────────────────────────
+    ENABLE_WEBAPP: bool = Field(default=False, description="Enable Mini App web server")
+    WEBAPP_URL: str = Field(default="", description="Public HTTPS URL for the Mini App")
+    BOT_USERNAME: str = Field(default="", description="Bot username without @")
+    API_PORT: int = Field(default=8080, description="Local port for the web server")
+
     # ── Feature Flags ────────────────────────────────────────────────
     ENABLE_REMINDERS: bool = Field(default=True, description="Enable reminder system")
     ENABLE_ANALYTICS: bool = Field(default=True, description="Enable analytics tracking")

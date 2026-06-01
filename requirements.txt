@@ -1,6 +1,9 @@
 # Telegram Bot
 python-telegram-bot[job-queue]==20.7
 
+# Web API (Telegram Mini App backend — runs in same event loop as PTB)
+aiohttp>=3.9.0,<4.0.0
+
 # AI providers — both supported, switch via AI_PROVIDER env var
 openai>=1.30.0,<2.0.0
 anthropic>=0.39.0,<1.0.0

@@ -15,6 +15,7 @@ from mindmate.ui.keyboards import (
     get_back_to_profile_keyboard,
 )
 from mindmate.i18n import t
+from mindmate.core.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -45,7 +46,7 @@ async def menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         lang = await user_service.get_user_language(user.id)
         await message.reply_text(
             t("menu.main_menu", lang),
-            reply_markup=get_main_menu_keyboard(lang),
+            reply_markup=get_main_menu_keyboard(lang, webapp_url=settings.WEBAPP_URL),
             parse_mode="Markdown",
         )
     except Exception as e:
@@ -68,7 +69,7 @@ async def main_menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
         if data == "menu_main":
             await query.edit_message_text(
                 text=t("menu.main_menu", lang),
-                reply_markup=get_main_menu_keyboard(lang),
+                reply_markup=get_main_menu_keyboard(lang, webapp_url=settings.WEBAPP_URL),
                 parse_mode="Markdown",
             )
 
@@ -130,7 +131,7 @@ async def main_menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
             logger.warning(f"Unknown menu callback: {data}")
             await query.edit_message_text(
                 text=t("menu.main_menu", lang),
-                reply_markup=get_main_menu_keyboard(lang),
+                reply_markup=get_main_menu_keyboard(lang, webapp_url=settings.WEBAPP_URL),
                 parse_mode="Markdown",
             )
 

@@ -18,6 +18,7 @@ from mindmate.core.config import settings
 from mindmate.core.logger import setup_logger
 from mindmate.db.connection import init_db, close_pool
 from mindmate.reminders.scheduler import start_scheduler, stop_scheduler
+from mindmate.api.aiohttp_server import start_web_server, stop_web_server
 
 # Handlers
 from mindmate.handlers.start import (
@@ -81,6 +82,8 @@ async def post_init(application: Application) -> None:
         logger.info("Database initialized successfully")
         await start_scheduler(application.bot)
         logger.info("Reminder scheduler started")
+        if settings.ENABLE_WEBAPP:
+            await start_web_server()
     except Exception as e:
         logger.error(f"Error during post-init: {e}")
         raise
@@ -90,6 +93,8 @@ async def post_stop(application: Application) -> None:
     try:
         await stop_scheduler()
         logger.info("Reminder scheduler stopped")
+        if settings.ENABLE_WEBAPP:
+            await stop_web_server()
         await close_pool()
         logger.info("Database pool closed")
     except Exception as e:
