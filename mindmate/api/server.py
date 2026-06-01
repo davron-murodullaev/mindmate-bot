@@ -1,17 +1,22 @@
 """FastAPI server — runs alongside the Telegram bot."""
 import os
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 import asyncpg
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
 from mindmate.core.config import settings
 from mindmate.api.routes import career, exam, friends, stats, user
 
-_WEBAPP_DIR = os.path.join(os.path.dirname(__file__), "../../webapp")
+# Resolve webapp directory robustly: walk up from this file to project root.
+# Works regardless of working directory (local, Render, Heroku, Docker).
+_PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+_WEBAPP_DIR   = _PROJECT_ROOT / "webapp"
+_INDEX_HTML   = _WEBAPP_DIR / "index.html"
 
 
 @asynccontextmanager
@@ -37,11 +42,11 @@ app.add_middleware(
 )
 
 # API routes
-app.include_router(user.router, prefix="/api")
-app.include_router(exam.router, prefix="/api")
-app.include_router(career.router, prefix="/api")
+app.include_router(user.router,    prefix="/api")
+app.include_router(exam.router,    prefix="/api")
+app.include_router(career.router,  prefix="/api")
 app.include_router(friends.router, prefix="/api")
-app.include_router(stats.router, prefix="/api")
+app.include_router(stats.router,   prefix="/api")
 
 
 @app.get("/api/health")
@@ -54,13 +59,26 @@ async def get_config():
     return {"bot_username": settings.BOT_USERNAME}
 
 
-# Serve the Mini App (index.html for all non-API routes)
-if os.path.isdir(_WEBAPP_DIR):
-    _index_html = os.path.join(_WEBAPP_DIR, "index.html")
+# ── Mini App static serving ────────────────────────────────────────────────
+# Always register / so the route exists even if the file isn't found yet.
+@app.get("/", include_in_schema=False)
+async def serve_root():
+    if _INDEX_HTML.is_file():
+        return FileResponse(str(_INDEX_HTML), media_type="text/html")
+    return HTMLResponse("<h2>MindMate API is running ✓</h2><p>webapp/index.html not found.</p>", status_code=200)
 
-    @app.get("/", include_in_schema=False)
-    async def serve_root():
-        return FileResponse(_index_html)
 
-    # Serve static assets (css, js, images)
-    app.mount("/static", StaticFiles(directory=_WEBAPP_DIR), name="static")
+# Catch-all: serve index.html for any non-API path (SPA routing).
+@app.get("/{full_path:path}", include_in_schema=False)
+async def serve_spa(full_path: str):
+    # Don't intercept API routes (handled above)
+    if full_path.startswith("api/"):
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404)
+    # Try exact file first, fall back to index.html
+    target = _WEBAPP_DIR / full_path
+    if target.is_file():
+        return FileResponse(str(target))
+    if _INDEX_HTML.is_file():
+        return FileResponse(str(_INDEX_HTML), media_type="text/html")
+    return HTMLResponse("<h2>MindMate API is running ✓</h2>", status_code=200)
