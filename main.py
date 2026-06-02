@@ -69,6 +69,12 @@ _router_memory = ConversationMemory()
 _CACHE_LANG_KEY = "_cached_lang"
 
 
+def _should_serve_http() -> bool:
+    """True when a cloud platform has injected $PORT — need HTTP for health checks."""
+    import os
+    return bool(os.environ.get("PORT") or os.environ.get("RAILWAY_ENVIRONMENT"))
+
+
 async def _get_lang(user_id: int, context) -> str:
     """Return user language, using context.user_data as a session cache."""
     if _CACHE_LANG_KEY not in context.user_data:
@@ -82,7 +88,9 @@ async def post_init(application: Application) -> None:
         logger.info("Database initialized successfully")
         await start_scheduler(application.bot)
         logger.info("Reminder scheduler started")
-        if settings.ENABLE_WEBAPP:
+        # Start HTTP server when Mini App is enabled OR when $PORT is injected
+        # by the platform (Railway/Render) so health checks always pass.
+        if settings.ENABLE_WEBAPP or _should_serve_http():
             await start_web_server()
     except Exception as e:
         logger.error(f"Error during post-init: {e}")
@@ -93,7 +101,7 @@ async def post_stop(application: Application) -> None:
     try:
         await stop_scheduler()
         logger.info("Reminder scheduler stopped")
-        if settings.ENABLE_WEBAPP:
+        if settings.ENABLE_WEBAPP or _should_serve_http():
             await stop_web_server()
         await close_pool()
         logger.info("Database pool closed")

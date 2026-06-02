@@ -1,14 +1,25 @@
 services:
-  - type: worker            # IMPORTANT: long-polling Telegram bot, not a web server
+  - type: web                 # web = Render binds $PORT and serves HTTP
     name: mindmate-bot
     env: python
     region: oregon
     plan: starter
     buildCommand: pip install -r requirements.txt
     startCommand: python main.py
+    healthCheckPath: /api/health
     envVars:
       - key: TELEGRAM_BOT_TOKEN
         sync: false
+
+      # ── Mini App (Telegram Web App Dashboard) ──
+      - key: ENABLE_WEBAPP
+        value: "true"
+      - key: WEBAPP_URL
+        sync: false           # Set to your Render public URL, e.g. https://mindmate-bot.onrender.com
+      - key: BOT_USERNAME
+        sync: false           # Your bot username without @, e.g. mindmate_bot
+      - key: API_PORT
+        value: "8080"
 
       # ── AI provider — change to 'anthropic' to switch to Claude ──
       - key: AI_PROVIDER
@@ -35,13 +46,13 @@ services:
       - key: LOG_LEVEL
         value: INFO
       - key: ENABLE_REMINDERS
-        value: true
+        value: "true"
       - key: ENABLE_ANALYTICS
-        value: true
+        value: "true"
       - key: MAX_TOKENS
-        value: 2048
+        value: "2048"
       - key: TEMPERATURE
-        value: 0.7
+        value: "0.7"
       - key: TIMEZONE
         value: Asia/Tashkent
 
