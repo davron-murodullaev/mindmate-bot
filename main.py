@@ -68,8 +68,7 @@ from mindmate.ai.memory import ConversationMemory
 from mindmate.ai.transcription import transcribe_voice
 from mindmate.services.user_service import user_service
 from mindmate.db.queries import (
-    increment_ai_usage,
-    get_daily_usage,
+    check_and_increment_ai_usage,
     is_premium_active,
 )
 from mindmate.core.constants import FREE_DAILY_AI_MESSAGES
@@ -131,10 +130,10 @@ async def _route_via_ai(update, context, user_text: str) -> None:
     chat = update.effective_chat
     lang = await _get_lang(user.id, context)
 
-    # Free-tier daily limit
+    # Free-tier daily limit — atomic check + pre-allocate
     if not await is_premium_active(user.id):
-        usage = await get_daily_usage(user.id)
-        if usage["ai_messages"] >= FREE_DAILY_AI_MESSAGES:
+        allowed, _ = await check_and_increment_ai_usage(user.id, FREE_DAILY_AI_MESSAGES)
+        if not allowed:
             await chat.send_message(
                 t("premium.limit_reached", lang).format(limit=FREE_DAILY_AI_MESSAGES),
             )
@@ -164,10 +163,8 @@ async def _route_via_ai(update, context, user_text: str) -> None:
         if open_menu:
             await _open_menu_for_user(update, context, open_menu)
 
-        await increment_ai_usage(user.id)
-
-    except Exception as e:
-        logger.error(f"AI router error: {e}")
+    except Exception:
+        logger.exception("AI router error for user %d", user.id)
         await chat.send_message(t("errors.generic", lang))
 
 
@@ -263,8 +260,8 @@ async def voice_dispatcher(update, context):
         await chat.send_message(t("voice.heard", lang).format(text=text), parse_mode="Markdown")
         await _route_via_ai(update, context, text)
 
-    except Exception as e:
-        logger.error(f"Voice dispatcher error: {e}")
+    except Exception:
+        logger.exception("Voice dispatcher error for user %d", user.id)
         _err_lang = context.user_data.get(_CACHE_LANG_KEY, "en")
         await chat.send_message(t("voice.error", _err_lang))
 

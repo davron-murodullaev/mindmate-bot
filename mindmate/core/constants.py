@@ -50,7 +50,7 @@ USER_STATE_IN_PRODUCTIVITY_MODE = "in_productivity_mode"
 USER_STATE_WAITING_REMINDER = "waiting_reminder"
 
 # Conversation Memory Limits
-MAX_CONVERSATION_HISTORY = 20  # Maximum number of messages to keep in memory
+MAX_CONVERSATION_HISTORY = 10  # Messages fed to AI (keep cost and latency low)
 CONVERSATION_TIMEOUT = 3600  # 1 hour in seconds
 
 # Database Table Names

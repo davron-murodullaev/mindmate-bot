@@ -5,6 +5,8 @@ Started via AppRunner in post_init; stopped in post_stop.
 import json
 import logging
 import os
+import time
+from collections import defaultdict
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
@@ -23,6 +25,24 @@ _FRONTEND_DIR = _PROJECT_ROOT / "frontend"
 
 _runner: "web.AppRunner | None" = None
 _ptb_app = None  # set via register_ptb_app() before web server starts
+
+# Origins allowed to make cross-origin requests to the API.
+# Telegram web clients + our own deployed URL.
+_WEBAPP_URL = os.getenv("WEBAPP_URL", "").rstrip("/")
+ALLOWED_ORIGINS: set[str] = {
+    "https://web.telegram.org",
+    "https://k.web.telegram.org",
+    "https://z.web.telegram.org",
+    "https://a.web.telegram.org",
+}
+if _WEBAPP_URL:
+    ALLOWED_ORIGINS.add(_WEBAPP_URL)
+
+# In-memory rate limiter: {ip: [timestamp, ...]}
+_rate_store: dict[str, list[float]] = defaultdict(list)
+
+RATE_LIMIT = 30    # max requests
+RATE_WINDOW = 60   # per N seconds
 
 
 def register_ptb_app(app) -> None:
@@ -56,38 +76,84 @@ async def _auth(request: web.Request) -> "dict | None":
     init_data = request.headers.get("X-Telegram-Init-Data")
     if not init_data:
         return None
-    data = validate_telegram_init_data(init_data, settings.TELEGRAM_BOT_TOKEN)
-    if not data or "user" not in data:
-        return None
-    return data["user"]
+    # validate_telegram_init_data now returns the user dict directly (or None)
+    return validate_telegram_init_data(init_data, settings.TELEGRAM_BOT_TOKEN)
 
 
 # ── CORS middleware ────────────────────────────────────────────────────────
 
 @web.middleware
 async def cors_middleware(request: web.Request, handler) -> web.Response:
+    origin = request.headers.get("Origin", "")
+    cors_headers: dict[str, str] = {}
+    if origin in ALLOWED_ORIGINS:
+        cors_headers = {
+            "Access-Control-Allow-Origin": origin,
+            "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type, X-Telegram-Init-Data",
+            "Vary": "Origin",
+        }
+
     if request.method == "OPTIONS":
-        return web.Response(
-            status=200,
-            headers={
-                "Access-Control-Allow-Origin": "*",
-                "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-                "Access-Control-Allow-Headers": "Content-Type, X-Telegram-Init-Data",
-            },
-        )
+        if cors_headers:
+            cors_headers["Access-Control-Max-Age"] = "86400"
+            return web.Response(status=204, headers=cors_headers)
+        return web.Response(status=403)
+
     response = await handler(request)
-    response.headers.update({
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-        "Access-Control-Allow-Headers": "Content-Type, X-Telegram-Init-Data",
-    })
+    response.headers.update(cors_headers)
     return response
+
+
+# ── Rate-limit middleware ──────────────────────────────────────────────────
+
+@web.middleware
+async def rate_limit_middleware(request: web.Request, handler) -> web.Response:
+    if request.path in ("/api/health", "/"):
+        return await handler(request)
+
+    ip = request.headers.get("X-Forwarded-For", request.remote or "unknown").split(",")[0].strip()
+    now = time.monotonic()
+    window_start = now - RATE_WINDOW
+    timestamps = _rate_store[ip]
+
+    # Purge expired entries in-place
+    while timestamps and timestamps[0] < window_start:
+        timestamps.pop(0)
+
+    if len(timestamps) >= RATE_LIMIT:
+        logger.warning("Rate limit hit: ip=%s count=%d", ip, len(timestamps))
+        return web.json_response(
+            {"error": "Juda ko'p so'rov. Biroz kuting."},
+            status=429,
+            headers={"Retry-After": str(RATE_WINDOW)},
+        )
+
+    timestamps.append(now)
+    return await handler(request)
 
 
 # ── Route handlers ─────────────────────────────────────────────────────────
 
+def get_server_port() -> int:
+    """Return the port to bind. $PORT (Railway/Render) takes priority."""
+    return int(os.environ.get("PORT") or os.environ.get("API_PORT") or settings.API_PORT)
+
+
 async def health(request: web.Request) -> web.Response:
-    return _json({"status": "ok"})
+    checks: dict = {"status": "ok", "db": "unknown"}
+    http_status = 200
+    try:
+        pool = await get_pool()
+        async with pool.acquire() as conn:
+            await conn.fetchval("SELECT 1")
+        checks["db"] = "ok"
+    except Exception:
+        logger.exception("Health check: DB error")
+        checks["db"] = "error"
+        checks["status"] = "degraded"
+        http_status = 503
+    return _json(checks, status=http_status)
 
 
 async def get_config(request: web.Request) -> web.Response:
@@ -447,7 +513,7 @@ async def serve_spa(request: web.Request) -> web.Response:
 # ── App factory ────────────────────────────────────────────────────────────
 
 def _create_app() -> web.Application:
-    app = web.Application(middlewares=[cors_middleware])
+    app = web.Application(middlewares=[cors_middleware, rate_limit_middleware])
 
     app.router.add_post("/telegram/webhook/{secret}", telegram_webhook)
     app.router.add_get("/api/health", health)
@@ -472,13 +538,13 @@ def _create_app() -> web.Application:
 
 async def start_web_server() -> None:
     global _runner
-    port = int(os.environ.get("PORT", settings.API_PORT))
+    port = get_server_port()
     app = _create_app()
     _runner = web.AppRunner(app)
     await _runner.setup()
     site = web.TCPSite(_runner, "0.0.0.0", port)
     await site.start()
-    logger.info("Mini App web server started on port %d", port)
+    logger.info("HTTP server started on port %d", port)
 
 
 async def stop_web_server() -> None:

@@ -5,7 +5,7 @@ from typing import Optional, List, Dict, Any
 from datetime import datetime, date
 import logging
 
-from mindmate.db.connection import execute_query, execute_fetchrow, execute_fetchval
+from mindmate.db.connection import execute_query, execute_fetchrow, execute_fetchval, get_pool
 
 logger = logging.getLogger(__name__)
 
@@ -337,6 +337,39 @@ async def increment_ai_usage(user_id: int) -> int:
         RETURNING ai_messages
     """
     return await execute_fetchval(query, user_id)
+
+
+async def check_and_increment_ai_usage(
+    user_id: int, daily_limit: int
+) -> tuple[bool, int]:
+    """Atomically check the daily AI limit and increment if allowed.
+
+    Returns (allowed, current_count).
+    Uses a single connection so the check+increment is race-free.
+    When two concurrent requests both see count < limit, PostgreSQL
+    serialises the row lock and the second one sees the updated value.
+    """
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow(
+            """
+            INSERT INTO daily_usage (user_id, usage_date, ai_messages)
+            VALUES ($1, CURRENT_DATE, 1)
+            ON CONFLICT (user_id, usage_date) DO UPDATE
+                SET ai_messages = daily_usage.ai_messages + 1
+                WHERE daily_usage.ai_messages < $2
+            RETURNING ai_messages
+            """,
+            user_id, daily_limit,
+        )
+        if row is not None:
+            return True, int(row["ai_messages"])
+        # Limit already reached — fetch current count for the log
+        count = await conn.fetchval(
+            "SELECT ai_messages FROM daily_usage WHERE user_id=$1 AND usage_date=CURRENT_DATE",
+            user_id,
+        ) or daily_limit
+        return False, int(count)
 
 
 async def increment_journal_usage(user_id: int) -> int:

@@ -113,7 +113,7 @@ async def _route_openai(
         system = SYSTEM_PROMPT + name_clause
 
         messages: List[Dict[str, Any]] = [{"role": "system", "content": system}]
-        for m in history[-12:]:  # Limit history to keep context tight
+        for m in history[-10:]:
             role = m.get("role")
             content = m.get("content")
             if role in ("user", "assistant") and content:

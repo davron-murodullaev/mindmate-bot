@@ -2,51 +2,73 @@
 import hashlib
 import hmac
 import json
-from urllib.parse import unquote
+import logging
+import time
+import urllib.parse
+from typing import Optional
+
+logger = logging.getLogger(__name__)
+
+INIT_DATA_MAX_AGE = 3600  # 1 hour — stale data is rejected
 
 
-def validate_telegram_init_data(init_data: str, bot_token: str) -> dict | None:
-    """Validate Telegram WebApp initData signature.
+def validate_telegram_init_data(init_data: str, bot_token: str) -> Optional[dict]:
+    """Validate Telegram WebApp initData via HMAC-SHA256.
 
-    Returns parsed data dict (including ``user`` as a dict) on success,
-    or None if the signature is invalid or data is malformed.
+    Returns the parsed *user* dict on success, None on any failure.
+    Ref: https://core.telegram.org/bots/webapps#validating-data-received-via-the-mini-app
     """
     if not init_data or not bot_token:
         return None
     try:
-        params: dict[str, str] = {}
-        for pair in init_data.split("&"):
-            if "=" in pair:
-                key, _, value = pair.partition("=")
-                params[key] = unquote(value)
+        parsed = dict(urllib.parse.parse_qsl(init_data, keep_blank_values=True))
 
-        hash_value = params.pop("hash", "")
-        if not hash_value:
+        received_hash = parsed.pop("hash", "")
+        if not received_hash:
+            logger.warning("initData: missing 'hash' field")
+            return None
+
+        # Replay-attack protection
+        auth_date_str = parsed.get("auth_date")
+        if not auth_date_str:
+            logger.warning("initData: missing 'auth_date' field")
+            return None
+        auth_date = int(auth_date_str)
+        age = int(time.time()) - auth_date
+        if not (0 <= age <= INIT_DATA_MAX_AGE):
+            logger.warning("initData rejected: age=%ds (limit=%ds)", age, INIT_DATA_MAX_AGE)
             return None
 
         data_check_string = "\n".join(
-            f"{k}={v}" for k, v in sorted(params.items())
+            f"{k}={v}" for k, v in sorted(parsed.items())
         )
 
         secret_key = hmac.new(
             b"WebAppData",
-            bot_token.encode(),
+            bot_token.encode("utf-8"),
             hashlib.sha256,
         ).digest()
 
-        computed_hash = hmac.new(
+        expected_hash = hmac.new(
             secret_key,
-            data_check_string.encode(),
+            data_check_string.encode("utf-8"),
             hashlib.sha256,
         ).hexdigest()
 
-        if not hmac.compare_digest(computed_hash, hash_value):
+        if not hmac.compare_digest(expected_hash, received_hash):
+            logger.warning("initData: HMAC mismatch")
             return None
 
-        result = dict(params)
-        if "user" in result:
-            result["user"] = json.loads(result["user"])
+        user_str = parsed.get("user")
+        if not user_str:
+            logger.warning("initData: missing 'user' field")
+            return None
 
-        return result
+        return json.loads(user_str)
+
+    except (ValueError, KeyError, json.JSONDecodeError) as e:
+        logger.warning("initData parse error: %s", e)
+        return None
     except Exception:
+        logger.exception("Unexpected error in initData validation")
         return None

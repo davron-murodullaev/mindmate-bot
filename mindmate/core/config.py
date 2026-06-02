@@ -23,7 +23,7 @@ class Settings(BaseSettings):
 
     # Anthropic (Claude)
     ANTHROPIC_API_KEY: str = Field(default="", description="Anthropic API Key for Claude")
-    ANTHROPIC_MODEL: str = Field(default="claude-sonnet-4-5", description="Anthropic model")
+    ANTHROPIC_MODEL: str = Field(default="claude-sonnet-4-6", description="Anthropic model")
 
     # Shared AI generation settings
     MAX_TOKENS: int = Field(default=2048, description="Maximum tokens for AI responses")

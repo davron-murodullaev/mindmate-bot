@@ -278,16 +278,20 @@ async def init_db() -> None:
         # Indexes
         await conn.execute("CREATE INDEX IF NOT EXISTS idx_moods_user_id ON moods(user_id)")
         await conn.execute("CREATE INDEX IF NOT EXISTS idx_moods_created_at ON moods(created_at)")
+        await conn.execute("CREATE INDEX IF NOT EXISTS idx_moods_user_created ON moods(user_id, created_at DESC)")
         await conn.execute("CREATE INDEX IF NOT EXISTS idx_journals_user_id ON journals(user_id)")
+        await conn.execute("CREATE INDEX IF NOT EXISTS idx_journals_user_created ON journals(user_id, created_at DESC)")
         await conn.execute("CREATE INDEX IF NOT EXISTS idx_reminders_user_id ON reminders(user_id)")
         await conn.execute("CREATE INDEX IF NOT EXISTS idx_reminders_time ON reminders(reminder_time)")
         await conn.execute("CREATE INDEX IF NOT EXISTS idx_reminders_pending ON reminders(is_sent, reminder_time) WHERE is_sent = false")
         await conn.execute("CREATE INDEX IF NOT EXISTS idx_conversations_user_mode ON conversations(user_id, mode)")
         await conn.execute("CREATE INDEX IF NOT EXISTS idx_conversations_created ON conversations(created_at DESC)")
+        await conn.execute("CREATE INDEX IF NOT EXISTS idx_daily_usage_user_date ON daily_usage(user_id, usage_date)")
         await conn.execute("CREATE INDEX IF NOT EXISTS idx_friend_profiles_active ON friend_profiles(is_active, city) WHERE is_active = true")
         await conn.execute("CREATE INDEX IF NOT EXISTS idx_friend_likes_to ON friend_likes(to_user_id)")
         await conn.execute("CREATE INDEX IF NOT EXISTS idx_friend_matches_user1 ON friend_matches(user1_id)")
         await conn.execute("CREATE INDEX IF NOT EXISTS idx_friend_matches_user2 ON friend_matches(user2_id)")
+        await conn.execute("CREATE INDEX IF NOT EXISTS idx_subscriptions_user_tier ON subscriptions(user_id, tier)")
 
         logger.info("Database schema initialized successfully")
 
