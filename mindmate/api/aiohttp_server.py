@@ -22,6 +22,7 @@ _PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 _WEBAPP_DIR = _PROJECT_ROOT / "webapp"
 _INDEX_HTML = _WEBAPP_DIR / "index.html"
 _FRONTEND_DIR = _PROJECT_ROOT / "frontend"
+_DASHBOARD_DIR = _PROJECT_ROOT / "admin-dashboard" / "out"
 
 _runner: "web.AppRunner | None" = None
 _ptb_app = None  # set via register_ptb_app() before web server starts
@@ -510,9 +511,38 @@ async def serve_spa(request: web.Request) -> web.Response:
     )
 
 
+# ── Dashboard (Next.js static export) ─────────────────────────────────────
+
+async def serve_dashboard(request: web.Request) -> web.Response:
+    """Serve files from admin-dashboard/out/ at /dashboard/*."""
+    path = request.match_info.get("path", "")
+    try:
+        target = (_DASHBOARD_DIR / path).resolve()
+        target.relative_to(_DASHBOARD_DIR.resolve())
+    except ValueError:
+        raise web.HTTPNotFound()
+
+    if target.is_file():
+        return web.FileResponse(str(target))
+
+    # Look for index.html (directory route)
+    idx = (target if target.is_dir() else target.parent) / "index.html"
+    if idx.is_file():
+        return web.FileResponse(str(idx))
+
+    # SPA fallback
+    fallback = _DASHBOARD_DIR / "index.html"
+    if fallback.is_file():
+        return web.FileResponse(str(fallback))
+
+    return web.Response(text="Dashboard not built", status=404)
+
+
 # ── App factory ────────────────────────────────────────────────────────────
 
 def _create_app() -> web.Application:
+    from mindmate.api.admin_routes import setup_admin_routes
+
     app = web.Application(middlewares=[cors_middleware, rate_limit_middleware])
 
     app.router.add_post("/telegram/webhook/{secret}", telegram_webhook)
@@ -526,6 +556,10 @@ def _create_app() -> web.Application:
     app.router.add_post("/api/friends/react", react_friends)
     app.router.add_get("/api/friends/matches", get_matches)
     app.router.add_get("/api/stats/overview", get_stats_overview)
+    setup_admin_routes(app)
+    app.router.add_get("/dashboard", lambda r: web.HTTPFound("/dashboard/"))
+    app.router.add_get("/dashboard/", serve_dashboard)
+    app.router.add_get("/dashboard/{path:.*}", serve_dashboard)
     app.router.add_get("/frontend/{filename}", serve_frontend)
     app.router.add_get("/frontend/", serve_frontend)
     app.router.add_get("/", serve_index)

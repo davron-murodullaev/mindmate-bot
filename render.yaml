@@ -10,6 +10,8 @@ services:
     envVars:
       - key: TELEGRAM_BOT_TOKEN
         sync: false
+      - key: ADMIN_PASSWORD
+        sync: false           # Set a strong password for the /dashboard/ web panel
 
       # ── Mini App (Telegram Web App Dashboard) ──
       - key: ENABLE_WEBAPP

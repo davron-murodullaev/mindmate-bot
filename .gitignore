@@ -58,3 +58,7 @@ htmlcov/
 
 # Docker
 docker-compose.override.yml
+
+# Admin dashboard build artifacts (node_modules; keep out/ for deployment)
+admin-dashboard/node_modules/
+admin-dashboard/.next/
