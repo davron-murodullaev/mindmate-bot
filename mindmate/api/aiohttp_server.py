@@ -19,6 +19,7 @@ logger = logging.getLogger(__name__)
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 _WEBAPP_DIR = _PROJECT_ROOT / "webapp"
 _INDEX_HTML = _WEBAPP_DIR / "index.html"
+_FRONTEND_DIR = _PROJECT_ROOT / "frontend"
 
 _runner: "web.AppRunner | None" = None
 
@@ -373,6 +374,18 @@ async def get_stats_overview(request: web.Request) -> web.Response:
 
 # ── Static / SPA serving ────────────────────────────────────────────────────
 
+async def serve_frontend(request: web.Request) -> web.Response:
+    filename = request.match_info.get("filename", "mindmate-app.html")
+    try:
+        target = (_FRONTEND_DIR / filename).resolve()
+        target.relative_to(_FRONTEND_DIR.resolve())
+    except ValueError:
+        raise web.HTTPNotFound()
+    if target.is_file():
+        return web.FileResponse(str(target))
+    raise web.HTTPNotFound()
+
+
 async def serve_index(request: web.Request) -> web.Response:
     if _INDEX_HTML.is_file():
         return web.FileResponse(str(_INDEX_HTML))
@@ -417,6 +430,8 @@ def _create_app() -> web.Application:
     app.router.add_post("/api/friends/react", react_friends)
     app.router.add_get("/api/friends/matches", get_matches)
     app.router.add_get("/api/stats/overview", get_stats_overview)
+    app.router.add_get("/frontend/{filename}", serve_frontend)
+    app.router.add_get("/frontend/", serve_frontend)
     app.router.add_get("/", serve_index)
     app.router.add_get("/{path:.*}", serve_spa)
 

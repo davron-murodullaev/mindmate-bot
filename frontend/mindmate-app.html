@@ -1,0 +1,1512 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>MindMate</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,700;9..144,900&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0f0f12;
+  --bg2: #18181d;
+  --card: rgba(255,255,255,0.05);
+  --card2: #1e1e26;
+  --text: #f0f0f5;
+  --text2: rgba(240,240,245,0.5);
+  --text3: rgba(240,240,245,0.3);
+  --border: rgba(255,255,255,0.07);
+  --accent: #7C6BFF;
+  --accent2: #A89BFF;
+  --green: #4ADE80;
+  --orange: #FB923C;
+  --red: #F87171;
+  --teal: #2DD4BF;
+  --pink: #F472B6;
+  --yellow: #FACC15;
+  --nav-h: 76px;
+  --safe: env(safe-area-inset-bottom, 0px);
+  --r: 20px;
+  --r-sm: 14px;
+  --r-xs: 10px;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html, body { height: 100%; overflow: hidden; }
+
+body {
+  font-family: 'DM Sans', -apple-system, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ─── NAV ─── */
+.nav {
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  z-index: 200;
+  height: calc(var(--nav-h) + var(--safe));
+  padding-bottom: var(--safe);
+  background: rgba(15,15,18,0.92);
+  backdrop-filter: blur(28px) saturate(200%);
+  -webkit-backdrop-filter: blur(28px) saturate(200%);
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: stretch;
+}
+
+.nav-btn {
+  flex: 1;
+  border: none;
+  background: none;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  color: var(--text3);
+  transition: color 0.2s, transform 0.15s;
+  padding: 8px 0;
+  position: relative;
+}
+
+.nav-btn.active { color: var(--accent2); }
+.nav-btn:active { transform: scale(0.9); }
+
+.nav-icon {
+  width: 28px; height: 28px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 10px;
+  transition: background 0.2s;
+  font-size: 20px;
+}
+.nav-btn.active .nav-icon {
+  background: rgba(124,107,255,0.18);
+}
+
+.nav-label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.1px;
+}
+
+.nav-dot {
+  position: absolute;
+  top: 9px;
+  right: calc(50% - 17px);
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--red);
+  border: 2px solid var(--bg);
+  display: none;
+}
+.nav-dot.show { display: block; }
+
+/* ─── PAGES ─── */
+.page {
+  position: absolute;
+  inset: 0 0 calc(var(--nav-h) + var(--safe)) 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  display: none;
+  opacity: 0;
+  transform: translateY(10px);
+  transition: opacity 0.25s ease, transform 0.25s ease;
+  padding-bottom: 24px;
+}
+.page.active { display: block; opacity: 1; transform: translateY(0); }
+.page::-webkit-scrollbar { display: none; }
+.page { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* ─── HEADER ─── */
+.hdr {
+  position: sticky; top: 0; z-index: 50;
+  padding: 20px 20px 14px;
+  background: rgba(15,15,18,0.9);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.hdr-title {
+  flex: 1;
+  font-family: 'Fraunces', serif;
+  font-size: 26px;
+  font-weight: 900;
+  letter-spacing: -0.5px;
+  background: linear-gradient(135deg, #fff 40%, var(--accent2));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.hdr-avatar {
+  width: 38px; height: 38px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--accent), var(--teal));
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px; font-weight: 700;
+  color: #fff;
+  flex-shrink: 0;
+}
+
+/* ─── HERO BANNER ─── */
+.hero {
+  margin: 16px 16px 0;
+  border-radius: var(--r);
+  padding: 24px 20px;
+  background: linear-gradient(135deg, #2D1B8B 0%, #4C1D95 40%, #1e1e26 100%);
+  position: relative;
+  overflow: hidden;
+}
+
+.hero::before {
+  content: '';
+  position: absolute;
+  top: -20px; right: -20px;
+  width: 140px; height: 140px;
+  border-radius: 50%;
+  background: rgba(124,107,255,0.25);
+  filter: blur(30px);
+}
+
+.hero-greeting {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--accent2);
+  margin-bottom: 6px;
+}
+
+.hero-title {
+  font-family: 'Fraunces', serif;
+  font-size: 24px;
+  font-weight: 700;
+  color: #fff;
+  line-height: 1.2;
+  margin-bottom: 14px;
+}
+
+.hero-streak {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255,255,255,0.1);
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 20px;
+  padding: 6px 12px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* ─── SECTION LABEL ─── */
+.section-lbl {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text3);
+  text-transform: uppercase;
+  letter-spacing: 1.2px;
+  padding: 20px 20px 10px;
+}
+
+/* ─── QUICK ACTIONS ─── */
+.quick-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  padding: 0 16px;
+}
+
+.quick-btn {
+  border: none;
+  background: var(--card2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  padding: 14px 8px 12px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  transition: transform 0.12s, opacity 0.12s;
+  color: var(--text);
+}
+.quick-btn:active { transform: scale(0.94); opacity: 0.8; }
+
+.quick-icon { font-size: 24px; }
+.quick-label { font-size: 10px; font-weight: 600; color: var(--text2); }
+
+/* ─── CARDS ─── */
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  padding: 16px;
+  margin: 0 16px 10px;
+}
+
+.card-tap {
+  cursor: pointer;
+  transition: transform 0.12s, opacity 0.12s;
+}
+.card-tap:active { transform: scale(0.98); opacity: 0.85; }
+
+.card-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.card-icon-box {
+  width: 48px; height: 48px;
+  border-radius: 15px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 24px;
+  flex-shrink: 0;
+}
+
+.card-title {
+  font-size: 15px;
+  font-weight: 700;
+  margin-bottom: 3px;
+}
+
+.card-sub {
+  font-size: 12px;
+  color: var(--text2);
+}
+
+.card-chevron {
+  margin-left: auto;
+  color: var(--text3);
+  font-size: 18px;
+}
+
+/* ─── MOOD PAGE ─── */
+.mood-question {
+  font-family: 'Fraunces', serif;
+  font-size: 28px;
+  font-weight: 700;
+  text-align: center;
+  padding: 30px 24px 10px;
+  line-height: 1.25;
+  color: #fff;
+}
+
+.mood-sub {
+  text-align: center;
+  font-size: 14px;
+  color: var(--text2);
+  padding: 0 24px 24px;
+}
+
+.mood-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  padding: 0 16px;
+}
+
+.mood-item {
+  border: 2px solid var(--border);
+  border-radius: var(--r);
+  padding: 18px 10px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: var(--card2);
+}
+
+.mood-item:active { transform: scale(0.95); }
+.mood-item.selected {
+  border-color: var(--accent);
+  background: rgba(124,107,255,0.15);
+}
+
+.mood-emoji { font-size: 34px; margin-bottom: 8px; }
+.mood-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text2);
+}
+.mood-item.selected .mood-name { color: var(--accent2); }
+
+.mood-note-wrap {
+  padding: 20px 16px 12px;
+}
+
+.mood-textarea {
+  width: 100%;
+  background: var(--card2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  padding: 14px 16px;
+  color: var(--text);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 14px;
+  resize: none;
+  outline: none;
+  transition: border-color 0.2s;
+  min-height: 100px;
+}
+.mood-textarea:focus { border-color: var(--accent); }
+.mood-textarea::placeholder { color: var(--text3); }
+
+.save-btn {
+  margin: 4px 16px 0;
+  width: calc(100% - 32px);
+  padding: 16px;
+  border: none;
+  border-radius: var(--r-sm);
+  background: var(--accent);
+  color: #fff;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity 0.15s, transform 0.1s;
+}
+.save-btn:active { opacity: 0.85; transform: scale(0.99); }
+
+.mood-history-card {
+  background: var(--card2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  padding: 14px;
+  margin: 0 16px 10px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.mood-hist-emoji { font-size: 28px; }
+.mood-hist-name { font-size: 13px; font-weight: 600; margin-bottom: 2px; }
+.mood-hist-time { font-size: 11px; color: var(--text3); }
+
+/* ─── CHAT PAGE ─── */
+.chat-wrap {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.chat-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.chat-messages::-webkit-scrollbar { display: none; }
+
+.msg {
+  max-width: 80%;
+  padding: 12px 16px;
+  border-radius: 18px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.msg-bot {
+  align-self: flex-start;
+  background: var(--card2);
+  border: 1px solid var(--border);
+  border-bottom-left-radius: 6px;
+  color: var(--text);
+}
+
+.msg-user {
+  align-self: flex-end;
+  background: var(--accent);
+  border-bottom-right-radius: 6px;
+  color: #fff;
+}
+
+.msg-time {
+  font-size: 10px;
+  color: var(--text3);
+  margin-top: 2px;
+  padding: 0 4px;
+}
+.msg-time.right { text-align: right; }
+
+.chat-input-wrap {
+  padding: 12px 16px;
+  padding-bottom: calc(12px + var(--safe));
+  border-top: 1px solid var(--border);
+  background: rgba(15,15,18,0.95);
+  display: flex;
+  gap: 10px;
+  align-items: flex-end;
+}
+
+.chat-input {
+  flex: 1;
+  background: var(--card2);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 11px 16px;
+  color: var(--text);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 14px;
+  outline: none;
+  resize: none;
+  max-height: 120px;
+  transition: border-color 0.2s;
+  line-height: 1.4;
+}
+.chat-input:focus { border-color: var(--accent); }
+.chat-input::placeholder { color: var(--text3); }
+
+.chat-send {
+  width: 42px; height: 42px;
+  border: none;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+  font-size: 18px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: opacity 0.15s, transform 0.1s;
+}
+.chat-send:active { opacity: 0.85; transform: scale(0.92); }
+
+.chat-suggestion-row {
+  display: flex;
+  gap: 8px;
+  padding: 8px 16px 0;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.chat-suggestion-row::-webkit-scrollbar { display: none; }
+
+.chip {
+  white-space: nowrap;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 7px 14px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text2);
+  background: var(--card2);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.chip:active { border-color: var(--accent); color: var(--accent2); }
+
+/* ─── JOURNAL PAGE ─── */
+.journal-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 16px 0;
+}
+
+.journal-title {
+  font-family: 'Fraunces', serif;
+  font-size: 22px;
+  font-weight: 700;
+}
+
+.new-entry-btn {
+  border: none;
+  background: var(--accent);
+  color: #fff;
+  border-radius: 22px;
+  padding: 8px 16px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+.new-entry-btn:active { opacity: 0.85; }
+
+.journal-card {
+  background: var(--card2);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  padding: 18px;
+  margin: 10px 16px 0;
+  cursor: pointer;
+  transition: transform 0.12s, opacity 0.12s;
+}
+.journal-card:active { transform: scale(0.98); opacity: 0.85; }
+
+.journal-card-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.journal-card-date {
+  font-size: 11px;
+  color: var(--text3);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.journal-mood-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(124,107,255,0.15);
+  border: 1px solid rgba(124,107,255,0.25);
+  border-radius: 20px;
+  padding: 3px 10px;
+  font-size: 11px;
+  color: var(--accent2);
+  font-weight: 600;
+}
+
+.journal-card-title {
+  font-family: 'Fraunces', serif;
+  font-size: 18px;
+  font-weight: 700;
+  margin-bottom: 8px;
+  color: var(--text);
+}
+
+.journal-card-excerpt {
+  font-size: 13px;
+  color: var(--text2);
+  line-height: 1.6;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.journal-tags {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+
+.tag {
+  background: rgba(255,255,255,0.06);
+  border-radius: 20px;
+  padding: 4px 10px;
+  font-size: 11px;
+  color: var(--text3);
+  font-weight: 500;
+}
+
+/* ─── BREATHING PAGE ─── */
+.breath-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 30px 20px;
+}
+
+.breath-title {
+  font-family: 'Fraunces', serif;
+  font-size: 28px;
+  font-weight: 700;
+  text-align: center;
+  margin-bottom: 8px;
+  color: #fff;
+}
+
+.breath-sub {
+  font-size: 14px;
+  color: var(--text2);
+  text-align: center;
+  margin-bottom: 40px;
+  line-height: 1.5;
+}
+
+.breath-circle-wrap {
+  position: relative;
+  width: 220px;
+  height: 220px;
+  margin-bottom: 30px;
+}
+
+.breath-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 2.5px solid rgba(124,107,255,0.2);
+  animation: pulse-ring 4s ease-in-out infinite;
+}
+
+@keyframes pulse-ring {
+  0%, 100% { transform: scale(1); opacity: 0.4; }
+  50% { transform: scale(1.12); opacity: 0.15; }
+}
+
+.breath-circle {
+  position: absolute;
+  inset: 20px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 40% 40%, rgba(168,155,255,0.35), rgba(124,107,255,0.25));
+  border: 2px solid rgba(124,107,255,0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform 0.1s;
+}
+.breath-circle:active { transform: scale(0.97); }
+
+.breath-circle-inner {
+  text-align: center;
+}
+
+.breath-status {
+  font-family: 'Fraunces', serif;
+  font-size: 22px;
+  font-weight: 700;
+  color: #fff;
+  margin-bottom: 4px;
+  transition: opacity 0.4s;
+}
+
+.breath-count {
+  font-size: 36px;
+  font-weight: 700;
+  color: var(--accent2);
+  line-height: 1;
+}
+
+.breath-phase-dots {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 28px;
+}
+
+.phase-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--border);
+  transition: background 0.3s, transform 0.3s;
+}
+.phase-dot.active {
+  background: var(--accent2);
+  transform: scale(1.3);
+}
+
+.breath-controls {
+  display: flex;
+  gap: 12px;
+  width: 100%;
+  max-width: 280px;
+}
+
+.breath-btn {
+  flex: 1;
+  border: none;
+  border-radius: var(--r-sm);
+  padding: 14px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity 0.15s, transform 0.1s;
+}
+.breath-btn:active { opacity: 0.85; transform: scale(0.98); }
+
+.breath-btn-start {
+  background: var(--accent);
+  color: #fff;
+}
+.breath-btn-stop {
+  background: rgba(255,255,255,0.08);
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+
+.breath-techniques {
+  width: 100%;
+  margin-top: 24px;
+}
+
+.breath-tech-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text3);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 12px;
+}
+
+.breath-tech-card {
+  background: var(--card2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  padding: 14px 16px;
+  margin-bottom: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  transition: border-color 0.2s;
+}
+.breath-tech-card.selected { border-color: var(--accent); }
+.breath-tech-card:active { opacity: 0.85; }
+
+.breath-tech-icon {
+  width: 40px; height: 40px;
+  border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 20px;
+  flex-shrink: 0;
+}
+
+.breath-tech-info { flex: 1; }
+.breath-tech-name { font-size: 14px; font-weight: 600; margin-bottom: 2px; }
+.breath-tech-desc { font-size: 12px; color: var(--text2); }
+.breath-tech-badge {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--accent2);
+  background: rgba(124,107,255,0.15);
+  border-radius: 20px;
+  padding: 3px 8px;
+}
+
+/* ─── UTILS ─── */
+.spacer { height: 12px; }
+
+.tag-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 0 16px;
+}
+
+.confirm-banner {
+  margin: 0 16px 12px;
+  background: rgba(74,222,128,0.1);
+  border: 1px solid rgba(74,222,128,0.25);
+  border-radius: var(--r-sm);
+  padding: 14px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--green);
+  text-align: center;
+  display: none;
+}
+.confirm-banner.show { display: block; }
+
+/* ─── ANIMATIONS ─── */
+@keyframes breathe-in {
+  0% { transform: scale(1); }
+  100% { transform: scale(1.18); }
+}
+@keyframes breathe-out {
+  0% { transform: scale(1.18); }
+  100% { transform: scale(1); }
+}
+@keyframes hold {
+  0%, 100% { transform: scale(1.18); }
+}
+
+.breath-circle.inhale { animation: breathe-in 4s ease-in-out forwards; }
+.breath-circle.hold-anim { animation: hold 7s ease forwards; }
+.breath-circle.exhale { animation: breathe-out 8s ease-in-out forwards; }
+</style>
+</head>
+<body>
+
+<!-- ─── BOTTOM NAV ─── -->
+<nav class="nav">
+  <button class="nav-btn active" onclick="showPage('home',this)">
+    <div class="nav-icon">🏠</div>
+    <span class="nav-label">Bosh</span>
+  </button>
+  <button class="nav-btn" onclick="showPage('mood',this)">
+    <div class="nav-icon">💜</div>
+    <span class="nav-label">Kayfiyat</span>
+  </button>
+  <button class="nav-btn" onclick="showPage('chat',this)">
+    <div class="nav-icon">💬</div>
+    <span class="nav-label">Chat</span>
+  </button>
+  <button class="nav-btn" onclick="showPage('journal',this)">
+    <div class="nav-icon">📓</div>
+    <span class="nav-label">Jurnal</span>
+  </button>
+  <button class="nav-btn" onclick="showPage('breathing',this)">
+    <div class="nav-icon">🌬️</div>
+    <span class="nav-label">Nafas</span>
+  </button>
+</nav>
+
+<!-- ═══════════════════ HOME PAGE ═══════════════════ -->
+<section id="page-home" class="page active">
+  <div class="hdr">
+    <span class="hdr-title">MindMate</span>
+    <div class="hdr-avatar" id="avatarText">M</div>
+  </div>
+
+  <!-- Hero -->
+  <div class="hero">
+    <div class="hero-greeting" id="heroGreeting">Xayrli tong!</div>
+    <div class="hero-title">Bugun o'zingizni<br>qanday his qilyapsiz?</div>
+    <div class="hero-streak">🔥 <span id="streakCount">0</span> kun ketma-ket</div>
+  </div>
+
+  <!-- Quick actions -->
+  <div class="section-lbl">Tezkor amallar</div>
+  <div class="quick-grid">
+    <button class="quick-btn" onclick="showPage('mood', document.querySelectorAll('.nav-btn')[1])">
+      <span class="quick-icon">💜</span>
+      <span class="quick-label">Kayfiyat</span>
+    </button>
+    <button class="quick-btn" onclick="showPage('chat', document.querySelectorAll('.nav-btn')[2])">
+      <span class="quick-icon">🤖</span>
+      <span class="quick-label">AI Chat</span>
+    </button>
+    <button class="quick-btn" onclick="showPage('journal', document.querySelectorAll('.nav-btn')[3])">
+      <span class="quick-icon">✍️</span>
+      <span class="quick-label">Jurnal</span>
+    </button>
+    <button class="quick-btn" onclick="showPage('breathing', document.querySelectorAll('.nav-btn')[4])">
+      <span class="quick-icon">🌬️</span>
+      <span class="quick-label">Nafas</span>
+    </button>
+  </div>
+
+  <!-- Stats -->
+  <div class="section-lbl">Bugungi holat</div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:0 16px">
+    <div class="card" style="text-align:center;padding:18px 12px">
+      <div style="font-size:32px;font-weight:900;color:var(--accent2)" id="aiMsgCount">–</div>
+      <div style="font-size:11px;color:var(--text2);margin-top:5px;font-weight:500">AI xabarlar</div>
+    </div>
+    <div class="card" style="text-align:center;padding:18px 12px">
+      <div style="font-size:32px;font-weight:900;color:var(--green)" id="moodCount">–</div>
+      <div style="font-size:11px;color:var(--text2);margin-top:5px;font-weight:500">Kayfiyat yozuvi</div>
+    </div>
+  </div>
+
+  <!-- Modules -->
+  <div class="section-lbl">Modullar</div>
+
+  <div class="card card-tap" style="margin-bottom:10px" onclick="showPage('chat', document.querySelectorAll('.nav-btn')[2])">
+    <div class="card-row">
+      <div class="card-icon-box" style="background:rgba(124,107,255,0.18)">🤖</div>
+      <div>
+        <div class="card-title">AI Suhbat</div>
+        <div class="card-sub">Har doim tayyor, hech qachon hukm qilmaydi</div>
+      </div>
+      <span class="card-chevron">›</span>
+    </div>
+  </div>
+
+  <div class="card card-tap" style="margin-bottom:10px" onclick="showPage('mood', document.querySelectorAll('.nav-btn')[1])">
+    <div class="card-row">
+      <div class="card-icon-box" style="background:rgba(244,114,182,0.18)">💜</div>
+      <div>
+        <div class="card-title">Kayfiyat Kuzatuvi</div>
+        <div class="card-sub">Hissiyotlaringizni tushunishga yordam beradi</div>
+      </div>
+      <span class="card-chevron">›</span>
+    </div>
+  </div>
+
+  <div class="card card-tap" onclick="showPage('breathing', document.querySelectorAll('.nav-btn')[4])">
+    <div class="card-row">
+      <div class="card-icon-box" style="background:rgba(45,212,191,0.18)">🌬️</div>
+      <div>
+        <div class="card-title">Nafas Mashqlari</div>
+        <div class="card-sub">Xotirjamlik va tinchlik uchun</div>
+      </div>
+      <span class="card-chevron">›</span>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════ MOOD PAGE ═══════════════════ -->
+<section id="page-mood" class="page">
+  <div class="hdr">
+    <span class="hdr-title">Kayfiyat</span>
+  </div>
+
+  <p class="mood-question">Hozir o'zingizni qanday his qilyapsiz?</p>
+  <p class="mood-sub">Hissiyotingizni tanlang</p>
+
+  <div class="mood-grid">
+    <div class="mood-item" onclick="selectMood(this,'😁','Ajoyib')">
+      <div class="mood-emoji">😁</div>
+      <div class="mood-name">Ajoyib</div>
+    </div>
+    <div class="mood-item" onclick="selectMood(this,'😊','Yaxshi')">
+      <div class="mood-emoji">😊</div>
+      <div class="mood-name">Yaxshi</div>
+    </div>
+    <div class="mood-item" onclick="selectMood(this,'😐','Neytral')">
+      <div class="mood-emoji">😐</div>
+      <div class="mood-name">Neytral</div>
+    </div>
+    <div class="mood-item" onclick="selectMood(this,'😔','Tushkun')">
+      <div class="mood-emoji">😔</div>
+      <div class="mood-name">Tushkun</div>
+    </div>
+    <div class="mood-item" onclick="selectMood(this,'😢','G\'amgin')">
+      <div class="mood-emoji">😢</div>
+      <div class="mood-name">G'amgin</div>
+    </div>
+    <div class="mood-item" onclick="selectMood(this,'😡','G\'azabli')">
+      <div class="mood-emoji">😡</div>
+      <div class="mood-name">G'azabli</div>
+    </div>
+  </div>
+
+  <div class="mood-note-wrap">
+    <textarea class="mood-textarea" id="moodNote" placeholder="Bugun nima bo'ldi? (ixtiyoriy)…" rows="4"></textarea>
+  </div>
+
+  <button class="save-btn" onclick="saveMood()">Kayfiyatni saqlash</button>
+
+  <div class="confirm-banner" id="moodBanner">✓ Kayfiyatingiz saqlandi!</div>
+
+  <div class="section-lbl">So'nggi yozuvlar</div>
+
+  <div id="moodHistory">
+    <div class="mood-history-card">
+      <span class="mood-hist-emoji">😊</span>
+      <div>
+        <div class="mood-hist-name">Yaxshi</div>
+        <div class="mood-hist-time">Bugun, 09:30</div>
+      </div>
+    </div>
+    <div class="mood-history-card">
+      <span class="mood-hist-emoji">😐</span>
+      <div>
+        <div class="mood-hist-name">Neytral</div>
+        <div class="mood-hist-time">Kecha, 21:15</div>
+      </div>
+    </div>
+    <div class="mood-history-card">
+      <span class="mood-hist-emoji">😊</span>
+      <div>
+        <div class="mood-hist-name">Yaxshi</div>
+        <div class="mood-hist-time">2 kun oldin, 18:00</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════ CHAT PAGE ═══════════════════ -->
+<section id="page-chat" class="page">
+  <div class="hdr">
+    <span class="hdr-title">AI Suhbat</span>
+    <div style="font-size:11px;font-weight:600;color:var(--green);background:rgba(74,222,128,0.12);border:1px solid rgba(74,222,128,0.2);border-radius:20px;padding:4px 10px">● Faol</div>
+  </div>
+
+  <div class="chat-suggestion-row">
+    <div class="chip" onclick="sendSuggestion(this)">Bugun qiyin kun bo'ldi</div>
+    <div class="chip" onclick="sendSuggestion(this)">Stress ostidaman</div>
+    <div class="chip" onclick="sendSuggestion(this)">Motivatsiya kerak</div>
+    <div class="chip" onclick="sendSuggestion(this)">Yaxshi uxlay olmayapman</div>
+  </div>
+
+  <div class="chat-messages" id="chatMessages">
+    <div style="text-align:center;margin:10px 0">
+      <span style="font-size:11px;color:var(--text3);background:var(--card2);border-radius:20px;padding:5px 14px">Bugun</span>
+    </div>
+
+    <div>
+      <div class="msg msg-bot">Salom! Men MindMate AI yordamchisi. Bugun o'zingizni qanday his qilyapsiz? Sizni tinglashga tayyorman 💜</div>
+      <div class="msg-time">09:00</div>
+    </div>
+  </div>
+
+  <div class="chat-input-wrap">
+    <textarea class="chat-input" id="chatInput" placeholder="Yozing…" rows="1"
+      oninput="autoResize(this)" onkeydown="handleChatKey(event)"></textarea>
+    <button class="chat-send" onclick="sendMessage()">➤</button>
+  </div>
+</section>
+
+<!-- ═══════════════════ JOURNAL PAGE ═══════════════════ -->
+<section id="page-journal" class="page">
+  <div class="hdr">
+    <span class="hdr-title">Jurnal</span>
+    <button class="new-entry-btn" onclick="newJournalEntry()">+ Yangi</button>
+  </div>
+
+  <div class="spacer"></div>
+
+  <div id="journalList">
+    <div class="journal-card">
+      <div class="journal-card-top">
+        <span class="journal-card-date">2 Iyun, Dushanba</span>
+        <span class="journal-mood-pill">😊 Yaxshi</span>
+      </div>
+      <div class="journal-card-title">Bugungi fikrlar</div>
+      <div class="journal-card-excerpt">Bugun juda samarali kün bo'ldi. Barcha vazifalarni bajarib, o'zimni g'olib sezdim. Kichik muvaffaqiyatlarni nishonlash muhim ekan...</div>
+      <div class="journal-tags">
+        <span class="tag">Muvaffaqiyat</span>
+        <span class="tag">Motivatsiya</span>
+      </div>
+    </div>
+
+    <div class="journal-card">
+      <div class="journal-card-top">
+        <span class="journal-card-date">1 Iyun, Yakshanba</span>
+        <span class="journal-mood-pill">😐 Neytral</span>
+      </div>
+      <div class="journal-card-title">Dam olish kuni mulohazalari</div>
+      <div class="journal-card-excerpt">Yakshanba kuni odatda dam olishga harakat qilaman, lekin bu safar miyam tinchimadi. Ko'p o'ylayotgandim kelajak haqida...</div>
+      <div class="journal-tags">
+        <span class="tag">Dam olish</span>
+        <span class="tag">Fikrlar</span>
+      </div>
+    </div>
+
+    <div class="journal-card">
+      <div class="journal-card-top">
+        <span class="journal-card-date">31 May, Shanba</span>
+        <span class="journal-mood-pill">😁 Ajoyib</span>
+      </div>
+      <div class="journal-card-title">Oila bilan vaqt</div>
+      <div class="journal-card-excerpt">Oilam bilan kattiq gaplashdik, kulashdik. Bunday daqiqalar hayotning eng qimmatli xotiralari ekan. Minnatdorchilik his etdim...</div>
+      <div class="journal-tags">
+        <span class="tag">Oila</span>
+        <span class="tag">Baxtli</span>
+        <span class="tag">Minnatdorchilik</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- New entry form (hidden) -->
+  <div id="newEntryForm" style="display:none;padding:0 16px">
+    <div style="font-family:'Fraunces',serif;font-size:18px;font-weight:700;margin-bottom:14px;padding-top:4px">Yangi jurnal yozuvi</div>
+    <input id="journalTitleInput"
+      style="width:100%;background:var(--card2);border:1px solid var(--border);border-radius:var(--r-sm);padding:13px 16px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:15px;font-weight:600;outline:none;margin-bottom:10px"
+      placeholder="Sarlavha…">
+    <textarea id="journalBodyInput"
+      style="width:100%;background:var(--card2);border:1px solid var(--border);border-radius:var(--r-sm);padding:13px 16px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:14px;outline:none;resize:none;min-height:160px;line-height:1.6"
+      placeholder="Bugun nima haqida o'yladingiz?…"></textarea>
+    <div style="display:flex;gap:10px;margin-top:10px">
+      <button onclick="saveJournalEntry()" class="save-btn" style="margin:0;flex:1">Saqlash</button>
+      <button onclick="cancelJournalEntry()"
+        style="flex:0.5;border:1px solid var(--border);background:var(--card2);color:var(--text);border-radius:var(--r-sm);font-family:'DM Sans',sans-serif;font-size:14px;font-weight:600;cursor:pointer">
+        Bekor
+      </button>
+    </div>
+    <div class="confirm-banner" id="journalBanner" style="margin:12px 0 0">✓ Yozuv saqlandi!</div>
+  </div>
+</section>
+
+<!-- ═══════════════════ BREATHING PAGE ═══════════════════ -->
+<section id="page-breathing" class="page">
+  <div class="hdr">
+    <span class="hdr-title">Nafas Mashqlari</span>
+  </div>
+
+  <div class="breath-wrap">
+    <p class="breath-title">Xotirjamlik uchun<br>nafas</p>
+    <p class="breath-sub">Ilmiy asoslangan texnikalar bilan<br>stressni kamaytiring</p>
+
+    <!-- Breathing circle -->
+    <div class="breath-circle-wrap">
+      <div class="breath-ring"></div>
+      <div class="breath-circle" id="breathCircle" onclick="toggleBreath()">
+        <div class="breath-circle-inner">
+          <div class="breath-status" id="breathStatus">Bosing</div>
+          <div class="breath-count" id="breathCounter">4</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Phase dots -->
+    <div class="breath-phase-dots">
+      <div class="phase-dot active" id="dot0"></div>
+      <div class="phase-dot" id="dot1"></div>
+      <div class="phase-dot" id="dot2"></div>
+    </div>
+
+    <!-- Controls -->
+    <div class="breath-controls">
+      <button class="breath-btn breath-btn-start" id="breathStartBtn" onclick="toggleBreath()">
+        Boshlash
+      </button>
+      <button class="breath-btn breath-btn-stop" onclick="resetBreath()">
+        Qayta
+      </button>
+    </div>
+
+    <!-- Techniques -->
+    <div class="breath-techniques">
+      <div class="breath-tech-title">Texnikalar</div>
+
+      <div class="breath-tech-card selected" id="tech-478" onclick="selectTech('478')">
+        <div class="breath-tech-icon" style="background:rgba(124,107,255,0.18)">🌙</div>
+        <div class="breath-tech-info">
+          <div class="breath-tech-name">4-7-8 Texnikasi</div>
+          <div class="breath-tech-desc">Nafas ol 4s · Ushla 7s · Chiqar 8s</div>
+        </div>
+        <div class="breath-tech-badge">Mashxur</div>
+      </div>
+
+      <div class="breath-tech-card" id="tech-box" onclick="selectTech('box')">
+        <div class="breath-tech-icon" style="background:rgba(45,212,191,0.18)">📦</div>
+        <div class="breath-tech-info">
+          <div class="breath-tech-name">Quti nafas</div>
+          <div class="breath-tech-desc">4s · 4s · 4s · 4s (teng)</div>
+        </div>
+        <div class="breath-tech-badge">Boshlang'ich</div>
+      </div>
+
+      <div class="breath-tech-card" id="tech-relax" onclick="selectTech('relax')">
+        <div class="breath-tech-icon" style="background:rgba(251,146,60,0.18)">☀️</div>
+        <div class="breath-tech-info">
+          <div class="breath-tech-name">Relaksatsiya</div>
+          <div class="breath-tech-desc">Nafas ol 6s · Chiqar 6s</div>
+        </div>
+        <div class="breath-tech-badge">Oddiy</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script>
+// ─── TELEGRAM WEB APP ───────────────────────────────────────────
+const tg = window.Telegram?.WebApp;
+if (tg) {
+  tg.ready();
+  tg.expand();
+  tg.setHeaderColor('#0f0f12');
+  tg.setBackgroundColor('#0f0f12');
+}
+
+const user = tg?.initDataUnsafe?.user;
+if (user) {
+  const name = user.first_name || 'Foydalanuvchi';
+  document.getElementById('avatarText').textContent = name.charAt(0).toUpperCase();
+}
+
+// ─── GREETING ───────────────────────────────────────────────────
+function setGreeting() {
+  const h = new Date().getHours();
+  const greetings = {
+    morning: 'Xayrli tong! ☀️',
+    afternoon: 'Xayrli tushdan keyin! 🌤️',
+    evening: 'Xayrli kech! 🌙',
+    night: 'Xayrli tun! ⭐'
+  };
+  let g;
+  if (h >= 5 && h < 12) g = greetings.morning;
+  else if (h >= 12 && h < 17) g = greetings.afternoon;
+  else if (h >= 17 && h < 22) g = greetings.evening;
+  else g = greetings.night;
+  document.getElementById('heroGreeting').textContent = g;
+}
+setGreeting();
+
+// ─── NAVIGATION ─────────────────────────────────────────────────
+function showPage(id, btn) {
+  document.querySelectorAll('.page').forEach(p => {
+    p.classList.remove('active');
+    p.style.display = 'none';
+    setTimeout(() => { if (!p.classList.contains('active')) p.style.opacity = '0'; }, 0);
+  });
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+
+  const page = document.getElementById('page-' + id);
+  page.style.display = 'block';
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => page.classList.add('active'));
+  });
+
+  if (btn) btn.classList.add('active');
+
+  // Scroll to top
+  page.scrollTop = 0;
+
+  // Chat: scroll to bottom
+  if (id === 'chat') {
+    const msgs = document.getElementById('chatMessages');
+    setTimeout(() => msgs.scrollTop = msgs.scrollHeight, 100);
+  }
+}
+
+// ─── MOOD ───────────────────────────────────────────────────────
+let selectedMood = null;
+let moodCount = parseInt(localStorage.getItem('mm_mood_count') || '0');
+document.getElementById('moodCount').textContent = moodCount;
+
+function selectMood(el, emoji, name) {
+  document.querySelectorAll('.mood-item').forEach(i => i.classList.remove('selected'));
+  el.classList.add('selected');
+  selectedMood = { emoji, name };
+}
+
+function saveMood() {
+  if (!selectedMood) {
+    alert('Iltimos, kayfiyatingizni tanlang!');
+    return;
+  }
+  const note = document.getElementById('moodNote').value;
+  const banner = document.getElementById('moodBanner');
+  banner.classList.add('show');
+  moodCount++;
+  localStorage.setItem('mm_mood_count', moodCount);
+  document.getElementById('moodCount').textContent = moodCount;
+
+  // Add to history
+  const hist = document.getElementById('moodHistory');
+  const now = new Date();
+  const timeStr = now.getHours().toString().padStart(2,'0') + ':' + now.getMinutes().toString().padStart(2,'0');
+  const div = document.createElement('div');
+  div.className = 'mood-history-card';
+  div.innerHTML = `<span class="mood-hist-emoji">${selectedMood.emoji}</span>
+    <div>
+      <div class="mood-hist-name">${selectedMood.name}</div>
+      <div class="mood-hist-time">Bugun, ${timeStr}</div>
+    </div>`;
+  hist.insertBefore(div, hist.firstChild);
+
+  document.getElementById('moodNote').value = '';
+  document.querySelectorAll('.mood-item').forEach(i => i.classList.remove('selected'));
+  selectedMood = null;
+
+  setTimeout(() => banner.classList.remove('show'), 3000);
+}
+
+// ─── CHAT ───────────────────────────────────────────────────────
+const botReplies = [
+  'Buni eshitish qiyin. Siz haqingizda qayg\'uraman 💜',
+  'Bu hissiyotlar mutlaqo normal. Keling, birga ko\'rib chiqaylik.',
+  'Siz yolg\'iz emasiz. Men doim bu yerda sizni tinglash uchun.',
+  'Bu haqida ko\'proq gapirib bering, men diqqat bilan tinglayman.',
+  'Har qanday holat o\'tib ketadi. Siz kuchli ekansiz 🌟',
+  'Bugun o\'zingizga mehribon bo\'ling. Bu muhim.',
+  'Siz aytganlaringiz juda muhim. Davom eting...',
+  'Rostdan ham shunday his qilish og\'ir. Lekin siz buni udda qila olasiz.'
+];
+
+let msgCount = 0;
+
+function addMsg(text, isUser) {
+  const msgs = document.getElementById('chatMessages');
+  const now = new Date();
+  const t = now.getHours().toString().padStart(2,'0') + ':' + now.getMinutes().toString().padStart(2,'0');
+  const wrapper = document.createElement('div');
+  wrapper.innerHTML = `<div class="msg ${isUser ? 'msg-user' : 'msg-bot'}">${text}</div>
+    <div class="msg-time ${isUser ? 'right' : ''}">${t}</div>`;
+  msgs.appendChild(wrapper);
+  msgs.scrollTop = msgs.scrollHeight;
+}
+
+function sendMessage() {
+  const input = document.getElementById('chatInput');
+  const text = input.value.trim();
+  if (!text) return;
+  addMsg(text, true);
+  input.value = '';
+  input.style.height = '';
+
+  setTimeout(() => {
+    const reply = botReplies[Math.floor(Math.random() * botReplies.length)];
+    addMsg(reply, false);
+
+    msgCount++;
+    document.getElementById('aiMsgCount').textContent = msgCount;
+  }, 1000 + Math.random() * 800);
+}
+
+function sendSuggestion(el) {
+  const text = el.textContent;
+  document.getElementById('chatInput').value = text;
+  sendMessage();
+}
+
+function handleChatKey(e) {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    sendMessage();
+  }
+}
+
+function autoResize(el) {
+  el.style.height = '';
+  el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+}
+
+// ─── JOURNAL ────────────────────────────────────────────────────
+function newJournalEntry() {
+  document.getElementById('journalList').style.display = 'none';
+  document.getElementById('newEntryForm').style.display = 'block';
+  document.querySelector('.new-entry-btn').style.display = 'none';
+  document.getElementById('journalTitleInput').focus();
+}
+
+function cancelJournalEntry() {
+  document.getElementById('journalList').style.display = 'block';
+  document.getElementById('newEntryForm').style.display = 'none';
+  document.querySelector('.new-entry-btn').style.display = '';
+  document.getElementById('journalTitleInput').value = '';
+  document.getElementById('journalBodyInput').value = '';
+}
+
+function saveJournalEntry() {
+  const title = document.getElementById('journalTitleInput').value.trim();
+  const body = document.getElementById('journalBodyInput').value.trim();
+  if (!title) { alert('Sarlavha yozing!'); return; }
+
+  const banner = document.getElementById('journalBanner');
+  banner.classList.add('show');
+
+  setTimeout(() => {
+    banner.classList.remove('show');
+    cancelJournalEntry();
+
+    const list = document.getElementById('journalList');
+    const now = new Date();
+    const months = ['Yanvar','Fevral','Mart','Aprel','May','Iyun','Iyul','Avgust','Sentabr','Oktabr','Noyabr','Dekabr'];
+    const days = ['Yakshanba','Dushanba','Seshanba','Chorshanba','Payshanba','Juma','Shanba'];
+    const dateStr = `${now.getDate()} ${months[now.getMonth()]}, ${days[now.getDay()]}`;
+
+    const card = document.createElement('div');
+    card.className = 'journal-card';
+    card.innerHTML = `
+      <div class="journal-card-top">
+        <span class="journal-card-date">${dateStr}</span>
+        <span class="journal-mood-pill">📝 Yangi</span>
+      </div>
+      <div class="journal-card-title">${title}</div>
+      <div class="journal-card-excerpt">${body || 'Yozuv saqlandi.'}</div>`;
+    list.insertBefore(card, list.firstChild);
+  }, 1800);
+}
+
+// ─── BREATHING ──────────────────────────────────────────────────
+const techniques = {
+  '478': { phases: ['Nafas ol','Ushlab tur','Nafas chiqar'], times: [4,7,8] },
+  'box': { phases: ['Nafas ol','Ushlab tur','Nafas chiqar','Ushlab tur'], times: [4,4,4,4] },
+  'relax': { phases: ['Nafas ol','Nafas chiqar'], times: [6,6] }
+};
+
+let currentTech = '478';
+let breathRunning = false;
+let breathInterval = null;
+let breathPhase = 0;
+let breathSec = 0;
+
+function selectTech(id) {
+  if (breathRunning) resetBreath();
+  currentTech = id;
+  document.querySelectorAll('.breath-tech-card').forEach(c => c.classList.remove('selected'));
+  document.getElementById('tech-' + id).classList.add('selected');
+  updatePhaseDots();
+  updateBreathDisplay();
+}
+
+function updatePhaseDots() {
+  const count = techniques[currentTech].times.length;
+  const container = document.querySelector('.breath-phase-dots');
+  container.innerHTML = '';
+  for (let i = 0; i < count; i++) {
+    const d = document.createElement('div');
+    d.className = 'phase-dot' + (i === breathPhase ? ' active' : '');
+    d.id = 'dot' + i;
+    container.appendChild(d);
+  }
+}
+
+function updateBreathDisplay() {
+  const tech = techniques[currentTech];
+  const phase = tech.phases[breathPhase] || tech.phases[0];
+  const time = tech.times[breathPhase] || tech.times[0];
+  document.getElementById('breathStatus').textContent = breathRunning ? phase : 'Bosing';
+  document.getElementById('breathCounter').textContent = breathRunning ? breathSec : time;
+}
+
+function toggleBreath() {
+  if (breathRunning) {
+    pauseBreath();
+  } else {
+    startBreath();
+  }
+}
+
+function startBreath() {
+  breathRunning = true;
+  document.getElementById('breathStartBtn').textContent = 'Pauza';
+  const tech = techniques[currentTech];
+  breathSec = tech.times[breathPhase];
+  updateBreathDisplay();
+  applyCircleAnim();
+
+  breathInterval = setInterval(() => {
+    breathSec--;
+    document.getElementById('breathCounter').textContent = breathSec;
+
+    if (breathSec <= 0) {
+      breathPhase = (breathPhase + 1) % tech.times.length;
+      breathSec = tech.times[breathPhase];
+      updatePhaseDots();
+      applyCircleAnim();
+      document.getElementById('breathStatus').textContent = tech.phases[breathPhase];
+    }
+  }, 1000);
+}
+
+function pauseBreath() {
+  clearInterval(breathInterval);
+  breathRunning = false;
+  document.getElementById('breathStartBtn').textContent = 'Davom et';
+  document.getElementById('breathStatus').textContent = 'Pauza';
+}
+
+function resetBreath() {
+  clearInterval(breathInterval);
+  breathRunning = false;
+  breathPhase = 0;
+  breathSec = 0;
+  document.getElementById('breathStartBtn').textContent = 'Boshlash';
+  const circle = document.getElementById('breathCircle');
+  circle.className = 'breath-circle';
+  updatePhaseDots();
+  updateBreathDisplay();
+}
+
+function applyCircleAnim() {
+  const circle = document.getElementById('breathCircle');
+  const tech = techniques[currentTech];
+  const phase = tech.phases[breathPhase];
+  circle.className = 'breath-circle';
+  void circle.offsetWidth;
+  if (phase.includes('ol')) circle.classList.add('inhale');
+  else if (phase.includes('Chiqar')) circle.classList.add('exhale');
+  else circle.classList.add('hold-anim');
+}
+
+// ─── STREAK ─────────────────────────────────────────────────────
+function loadStreak() {
+  const streak = parseInt(localStorage.getItem('mm_streak') || '1');
+  document.getElementById('streakCount').textContent = streak;
+}
+loadStreak();
+
+// ─── INIT ────────────────────────────────────────────────────────
+updatePhaseDots();
+</script>
+</body>
+</html>

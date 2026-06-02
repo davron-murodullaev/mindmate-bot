@@ -42,6 +42,7 @@ from mindmate.handlers.friends import (
     friends_photo_handler,
 )
 from mindmate.handlers.legal import privacy_handler, terms_handler, legal_callback
+from mindmate.handlers.miniapp import miniapp_handler
 from mindmate.handlers.admin import stats_admin_handler
 from mindmate.handlers.payments import (
     buy_premium_handler,
@@ -284,6 +285,7 @@ def main():
     application.add_handler(CommandHandler("terms", terms_handler))
     application.add_handler(CommandHandler("stats_admin", stats_admin_handler))
     application.add_handler(CommandHandler("buy_premium", buy_premium_handler))
+    application.add_handler(CommandHandler("app", miniapp_handler))
 
     # ── Callback queries ──────────────────────────────────────────────
     application.add_handler(CallbackQueryHandler(language_callback, pattern="^lang_"))
