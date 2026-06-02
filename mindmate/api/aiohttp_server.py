@@ -22,6 +22,13 @@ _INDEX_HTML = _WEBAPP_DIR / "index.html"
 _FRONTEND_DIR = _PROJECT_ROOT / "frontend"
 
 _runner: "web.AppRunner | None" = None
+_ptb_app = None  # set via register_ptb_app() before web server starts
+
+
+def register_ptb_app(app) -> None:
+    """Store PTB Application so the webhook handler can push updates to it."""
+    global _ptb_app
+    _ptb_app = app
 
 
 # ── Helpers ────────────────────────────────────────────────────────────────
@@ -372,6 +379,28 @@ async def get_stats_overview(request: web.Request) -> web.Response:
     })
 
 
+# ── Telegram Webhook ────────────────────────────────────────────────────────
+
+async def telegram_webhook(request: web.Request) -> web.Response:
+    """Receive Telegram updates via POST and push them to PTB's update queue."""
+    from telegram import Update
+
+    secret = request.match_info.get("secret", "")
+    expected = settings.TELEGRAM_BOT_TOKEN.replace(":", "_")
+    if secret != expected:
+        return web.Response(status=403)
+    if _ptb_app is None:
+        return web.Response(text="not ready", status=503)
+    try:
+        data = await request.json()
+        update = Update.de_json(data, _ptb_app.bot)
+        await _ptb_app.update_queue.put(update)
+        return web.Response(text="ok")
+    except Exception as e:
+        logger.error("Webhook handler error: %s", e)
+        return web.Response(status=500)
+
+
 # ── Static / SPA serving ────────────────────────────────────────────────────
 
 async def serve_frontend(request: web.Request) -> web.Response:
@@ -420,6 +449,7 @@ async def serve_spa(request: web.Request) -> web.Response:
 def _create_app() -> web.Application:
     app = web.Application(middlewares=[cors_middleware])
 
+    app.router.add_post("/telegram/webhook/{secret}", telegram_webhook)
     app.router.add_get("/api/health", health)
     app.router.add_get("/api/config", get_config)
     app.router.add_get("/api/user/me", get_user_me)

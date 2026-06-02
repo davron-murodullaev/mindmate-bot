@@ -4,7 +4,14 @@ MindMate Bot - Main Entry Point
 Conversational-first design: every text and voice message is routed
 through the AI router first (which can call tools like create_reminder).
 Wizards (exam/career/friends setup) take priority when active.
+
+Deployment modes
+  production (WEBAPP_URL is set)  → webhook via aiohttp, no polling conflict
+  development (no WEBAPP_URL)     → long-polling with drop_pending_updates
 """
+import asyncio
+import signal as _signal
+
 from telegram.ext import (
     Application,
     CommandHandler,
@@ -18,7 +25,11 @@ from mindmate.core.config import settings
 from mindmate.core.logger import setup_logger
 from mindmate.db.connection import init_db, close_pool
 from mindmate.reminders.scheduler import start_scheduler, stop_scheduler
-from mindmate.api.aiohttp_server import start_web_server, stop_web_server
+from mindmate.api.aiohttp_server import (
+    register_ptb_app,
+    start_web_server,
+    stop_web_server,
+)
 
 # Handlers
 from mindmate.handlers.start import (
@@ -315,8 +326,47 @@ def main():
         friends_photo_handler,
     ))
 
-    logger.info("Bot started successfully. Polling for updates...")
-    application.run_polling(allowed_updates=["message", "callback_query"])
+    webapp_url = settings.WEBAPP_URL.rstrip("/") if settings.WEBAPP_URL else ""
+
+    if webapp_url.startswith("https://"):
+        logger.info("Production mode: starting in webhook mode (URL=%s)", webapp_url)
+        asyncio.run(_run_webhook(application, webapp_url))
+    else:
+        logger.info("Development mode: starting polling (drop_pending_updates=True)")
+        application.run_polling(
+            allowed_updates=["message", "callback_query"],
+            drop_pending_updates=True,
+        )
+
+
+async def _run_webhook(application, base_url: str) -> None:
+    """Run the bot using Telegram webhook via the existing aiohttp server.
+
+    Telegram POSTs updates to /telegram/webhook/<secret>.
+    aiohttp_server feeds them to application.update_queue.
+    No polling → no Conflict errors across Railway deploys.
+    """
+    register_ptb_app(application)
+
+    secret = settings.TELEGRAM_BOT_TOKEN.replace(":", "_")
+    webhook_url = f"{base_url}/telegram/webhook/{secret}"
+
+    stop_event = asyncio.Event()
+    loop = asyncio.get_event_loop()
+    for sig in (_signal.SIGTERM, _signal.SIGINT):
+        loop.add_signal_handler(sig, stop_event.set)
+
+    async with application:
+        await application.start()
+        await application.bot.set_webhook(
+            url=webhook_url,
+            allowed_updates=["message", "callback_query"],
+            drop_pending_updates=True,
+        )
+        logger.info("Webhook registered: %s", webhook_url)
+        await stop_event.wait()
+        logger.info("Shutdown signal received, stopping…")
+        await application.bot.delete_webhook(drop_pending_updates=False)
 
 
 if __name__ == "__main__":
